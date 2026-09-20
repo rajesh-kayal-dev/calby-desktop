@@ -5,6 +5,7 @@ import { onboardingApi } from './api/onboarding.api'
 import { voiceApi } from './api/voice.api'
 import { remindersApi } from './api/reminders.api'
 import { calendarApi } from './api/calendar.api'
+import { memoryApi } from './api/memory.api'
 
 // Expose minimal typed window.calby API to renderer
 // Raw ipcRenderer is strictly encapsulated inside api handlers
@@ -14,11 +15,12 @@ const calbyApi = {
   onboarding: onboardingApi,
   voice: voiceApi,
   reminders: remindersApi,
-  calendar: calendarApi
+  calendar: calendarApi,
+  memory: memoryApi
 }
 
 try {
   contextBridge.exposeInMainWorld('calby', calbyApi)
 } catch (error) {
-  console.error('Failed to expose calby API in preload script:', error)
+  console.error('[Preload] Failed to expose calby API to main world:', error)
 }
