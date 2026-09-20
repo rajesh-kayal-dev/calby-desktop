@@ -1,1 +1,7 @@
-export type { SystemInfo, IpcResult, CalbyAPI } from '../../../preload/index.d'
+export type {
+  SystemInfo,
+  AuthStatus,
+  ValidateKeyResult,
+  IpcResult,
+  CalbyAPI
+} from '../../../preload/index.d'

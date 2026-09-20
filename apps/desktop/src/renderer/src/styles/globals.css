@@ -1,35 +1,100 @@
 @import "tailwindcss";
 
 @theme {
+  --color-canvas-base: #0A0D14;
   --color-surface: #10131a;
   --color-surface-dim: #10131a;
   --color-surface-bright: #363941;
+  --color-surface-subtle: #0F1420;
+  --color-surface-card: #151C2C;
+  --color-surface-overlay: #1E273D;
   --color-surface-container-lowest: #0b0e15;
   --color-surface-container-low: #191b23;
   --color-surface-container: #1d1f27;
   --color-surface-container-high: #272a32;
   --color-surface-container-highest: #32353d;
+  --color-border-subtle: #1E293B;
+  --color-border-strong: #334155;
+  --color-text-primary: #F8FAFC;
+  --color-text-secondary: #94A3B8;
+  --color-text-muted: #64748B;
   --color-on-surface: #e1e2ec;
   --color-on-surface-variant: #bdc8d1;
-  --color-inverse-surface: #e1e2ec;
-  --color-inverse-on-surface: #2d3038;
-  --color-outline: #87929a;
-  --color-outline-variant: #3e484f;
-  --color-surface-tint: #7bd0ff;
   --color-primary: #8ed5ff;
-  --color-on-primary: #00354a;
   --color-primary-container: #38bdf8;
-  --color-on-primary-container: #004965;
-  --color-secondary: #b4c5ff;
-  --color-secondary-container: #0053db;
-  --color-on-secondary-container: #cdd7ff;
-  --color-tertiary: #c7c8ff;
+  --color-brand-blue: #2563EB;
+  --color-brand-blue-hover: #1D4ED8;
+  --color-status-success: #10B981;
+  --color-status-warning: #F59E0B;
+  --color-status-error: #EF4444;
 }
 
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background-color: var(--color-surface);
-  color: var(--color-on-surface);
-  min-height: 100vh;
+@layer base {
+  body {
+    margin: 0;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--color-canvas-base);
+    color: var(--color-text-primary);
+    min-height: 100vh;
+    user-select: none;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+}
+
+/* Custom Effects & Gradients */
+.horizon-silhouette {
+  background: radial-gradient(ellipse 80% 50% at 30% 60%, rgba(14, 42, 82, 0.35) 0%, rgba(7, 10, 17, 0) 70%);
+}
+
+.soundwave-glow {
+  filter: drop-shadow(0 0 20px rgba(56, 189, 248, 0.45));
+}
+
+.btn-glow {
+  box-shadow: 0 0 20px -2px rgba(37, 99, 235, 0.5), 0 0 10px -1px rgba(56, 189, 248, 0.3);
+}
+
+.btn-glow:hover {
+  box-shadow: 0 0 26px 0px rgba(37, 99, 235, 0.65), 0 0 14px 1px rgba(56, 189, 248, 0.45);
+}
+
+.glow-success {
+  box-shadow: 0 0 32px 2px rgba(16, 185, 129, 0.4), 0 0 16px -2px rgba(16, 185, 129, 0.25);
+}
+
+.icon-glow {
+  box-shadow: 0 0 45px -2px rgba(56, 189, 248, 0.22);
+}
+
+@keyframes spin-slow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.5;
+    filter: drop-shadow(0 0 16px rgba(56, 189, 248, 0.4));
+  }
+  50% {
+    opacity: 0.95;
+    filter: drop-shadow(0 0 28px rgba(37, 99, 235, 0.8));
+  }
+}
+
+.spinner-ring {
+  animation: spin-slow 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.spinner-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
 }

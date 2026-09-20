@@ -2,6 +2,8 @@ import { app, BrowserWindow } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { createMainWindow } from './windows/main.window'
 import { registerSystemIpcHandlers } from './ipc/system.ipc'
+import { registerAuthIpcHandlers } from './ipc/auth.ipc'
+import { registerOnboardingIpcHandlers } from './ipc/onboarding.ipc'
 
 // This method will be called when Electron has finished initialization
 app.whenReady().then(() => {
@@ -15,6 +17,8 @@ app.whenReady().then(() => {
 
   // Register all main process IPC handlers
   registerSystemIpcHandlers()
+  registerAuthIpcHandlers()
+  registerOnboardingIpcHandlers()
 
   // Create main application window
   createMainWindow()
