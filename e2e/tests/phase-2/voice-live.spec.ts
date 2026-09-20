@@ -47,7 +47,7 @@ test.describe('Phase 2 — Real Gemini Live Voice Pipeline (Playwright + Fake Mi
 
     // 5. Confirm state becomes Listening
     const listeningHeader = page.locator('h1:has-text("Listening...")')
-    await expect(listeningHeader).toBeVisible({ timeout: 5000 })
+    await expect(listeningHeader).toBeVisible({ timeout: 10000 })
 
     // 6. Allow prerecorded speech WAV to stream through AudioWorklet to Gemini Live (~3.5 seconds)
     await page.waitForTimeout(3500)

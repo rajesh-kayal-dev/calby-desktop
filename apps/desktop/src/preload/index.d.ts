@@ -1,4 +1,4 @@
-﻿export interface SystemInfo {
+export interface SystemInfo {
   name: string
   version: string
   electronVersion: string
@@ -75,6 +75,37 @@ export interface ReminderTriggeredPayload {
   reminder: Reminder
 }
 
+export type CalendarConnectionStatus =
+  | 'disconnected'
+  | 'connecting'
+  | 'connected'
+  | 'error'
+  | 'reauth_required'
+
+export interface CalendarStatus {
+  status: CalendarConnectionStatus
+  connectedEmail?: string | null
+  lastSyncedAt?: string | null
+  error?: string | null
+}
+
+export interface CalendarEvent {
+  id: string
+  title: string
+  description?: string | null
+  allDay: boolean
+  startDateTime?: string | null
+  endDateTime?: string | null
+  startDate?: string | null
+  endDate?: string | null
+  timeZone?: string | null
+  location?: string | null
+  meetingUrl?: string | null
+  status?: 'confirmed' | 'tentative' | 'cancelled'
+  calendarSummary?: string | null
+  htmlLink?: string | null
+}
+
 export type IpcResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: { code: string; message: string } }
@@ -107,6 +138,14 @@ export interface CalbyRemindersAPI {
   onTriggered: (callback: (payload: ReminderTriggeredPayload) => void) => () => void
 }
 
+export interface CalbyCalendarAPI {
+  getStatus: () => Promise<IpcResult<CalendarStatus>>
+  connect: () => Promise<IpcResult<{ connected: boolean }>>
+  disconnect: () => Promise<IpcResult<void>>
+  getUpcoming: () => Promise<IpcResult<CalendarEvent[]>>
+  onStatusChanged: (callback: (status: CalendarStatus) => void) => () => void
+}
+
 export interface CalbyAPI {
   system: {
     getInfo: () => Promise<IpcResult<SystemInfo>>
@@ -121,6 +160,7 @@ export interface CalbyAPI {
   }
   voice: CalbyVoiceAPI
   reminders: CalbyRemindersAPI
+  calendar: CalbyCalendarAPI
 }
 
 declare global {

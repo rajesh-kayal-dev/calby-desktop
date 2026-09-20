@@ -1,4 +1,4 @@
-﻿export type {
+export type {
   SystemInfo,
   AuthStatus,
   ValidateKeyResult,
@@ -14,6 +14,10 @@
   ReminderChangePayload,
   ReminderTriggeredPayload,
   CalbyRemindersAPI,
+  CalendarConnectionStatus,
+  CalendarStatus,
+  CalendarEvent,
+  CalbyCalendarAPI,
   IpcResult,
   CalbyAPI
 } from '../../../preload/index.d'

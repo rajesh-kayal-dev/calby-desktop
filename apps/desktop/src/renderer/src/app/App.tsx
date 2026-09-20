@@ -1,12 +1,13 @@
-﻿import { useState, useEffect, type FC } from 'react'
+import { useState, useEffect, type FC } from 'react'
 import { TitleBar } from '../components/ui/TitleBar'
 import { OnboardingFlow } from '../features/onboarding/OnboardingFlow'
 import { OnboardingStep } from '../features/onboarding/types'
 import { VoiceAssistantHome } from '../features/voice/VoiceAssistantHome'
 import { RemindersPage } from '../features/reminders/RemindersPage'
+import { CalendarPage } from '../features/calendar/CalendarPage'
 import type { AuthStatus } from '../types/calby'
 
-export type ActiveView = 'home' | 'reminders'
+export type ActiveView = 'home' | 'reminders' | 'calendar'
 
 export const App: FC = () => {
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null)
@@ -80,18 +81,29 @@ export const App: FC = () => {
     )
   }
 
-  // 3. Fully Configured and Onboarded -> Home View or Reminders View
+  // 3. Fully Configured and Onboarded -> Home View, Reminders View, or Calendar View
   if (authStatus?.isConfigured && authStatus.isOnboarded) {
     return (
       <main className="w-full h-screen bg-[#070A11] flex flex-col select-none">
         <TitleBar />
-        {activeView === 'home' ? (
+        {activeView === 'home' && (
           <VoiceAssistantHome
             onResetSetup={() => void checkStatus()}
             onNavigateToReminders={() => setActiveView('reminders')}
+            onNavigateToCalendar={() => setActiveView('calendar')}
           />
-        ) : (
-          <RemindersPage onNavigateHome={() => setActiveView('home')} />
+        )}
+        {activeView === 'reminders' && (
+          <RemindersPage
+            onNavigateHome={() => setActiveView('home')}
+            onNavigateCalendar={() => setActiveView('calendar')}
+          />
+        )}
+        {activeView === 'calendar' && (
+          <CalendarPage
+            onNavigateHome={() => setActiveView('home')}
+            onNavigateReminders={() => setActiveView('reminders')}
+          />
         )}
       </main>
     )

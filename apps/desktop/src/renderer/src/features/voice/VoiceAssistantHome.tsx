@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, type FC } from 'react'
+import { useState, useEffect, useMemo, type FC } from 'react'
 import { VoiceOrb } from './VoiceOrb'
 import { LiveTranscript } from './LiveTranscript'
 import { ActionResultCard } from './ActionResultCard'
@@ -13,44 +13,40 @@ import { snoozeReminder, dismissReminder } from '../reminders/reminders-api'
 interface VoiceAssistantHomeProps {
   onResetSetup?: () => void
   onNavigateToReminders?: () => void
+  onNavigateToCalendar?: () => void
 }
 
 export const VoiceAssistantHome: FC<VoiceAssistantHomeProps> = ({
   onResetSetup,
-  onNavigateToReminders
+  onNavigateToReminders,
+  onNavigateToCalendar
 }) => {
   const {
     state,
     stateMetadata,
-    error,
-    audioLevels,
     userTranscript,
     assistantTranscript,
+    error,
+    audioLevels,
     diagnostics,
     toggleListening,
     sendTextInput,
     finishTurn,
+    interrupt,
     retry,
-    selectMicrophoneDevice,
     testMicrophoneOnly,
-    stopMicrophoneOnly
+    stopMicrophoneOnly,
+    selectMicrophoneDevice
   } = useVoiceSession()
 
-  const [greeting, setGreeting] = useState<string>('Good day')
-  const [triggeredReminder, setTriggeredReminder] = useState<Reminder | null>(null)
-
-  useEffect(() => {
-    const updateGreeting = (): void => {
-      const hour = new Date().getHours()
-      if (hour < 12) setGreeting('Good morning')
-      else if (hour < 18) setGreeting('Good afternoon')
-      else setGreeting('Good evening')
-    }
-
-    updateGreeting()
-    const interval = setInterval(updateGreeting, 60 * 1000)
-    return () => clearInterval(interval)
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours()
+    if (hour < 12) return 'Good morning'
+    if (hour < 18) return 'Good afternoon'
+    return 'Good evening'
   }, [])
+
+  const [triggeredReminder, setTriggeredReminder] = useState<Reminder | null>(null)
 
   // Listen for background alarm triggers while on Home
   useEffect(() => {
@@ -63,42 +59,52 @@ export const VoiceAssistantHome: FC<VoiceAssistantHomeProps> = ({
     }
   }, [])
 
-  // Dynamic status pill color and label
-  const statusPill = {
-    idle: {
-      label: 'Connected',
-      containerClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-      dotClass: 'bg-emerald-400'
-    },
-    listening: {
-      label: 'Listening',
-      containerClass: 'bg-sky-500/10 text-sky-400 border-sky-400/30',
-      dotClass: 'bg-sky-400 animate-pulse'
-    },
-    processing: {
-      label: 'Thinking',
-      containerClass: 'bg-blue-500/10 text-blue-400 border-blue-400/30',
-      dotClass: 'bg-blue-400 animate-pulse'
-    },
-    speaking: {
-      label: 'Speaking',
-      containerClass: 'bg-cyan-500/10 text-cyan-300 border-cyan-400/30',
-      dotClass: 'bg-cyan-400'
-    },
-    action_result: {
-      label: 'Action Done',
-      containerClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-      dotClass: 'bg-emerald-400'
-    },
-    error: {
-      label: 'Connection Error',
-      containerClass: 'bg-red-500/10 text-red-400 border-red-500/20',
-      dotClass: 'bg-red-400'
+  const statusPill = useMemo(() => {
+    switch (state) {
+      case 'listening':
+        return {
+          label: 'Listening',
+          dotClass: 'bg-sky-400 animate-pulse',
+          containerClass: 'bg-sky-500/10 border-sky-500/20 text-sky-400'
+        }
+      case 'processing':
+        return {
+          label: 'Processing',
+          dotClass: 'bg-blue-400 animate-pulse',
+          containerClass: 'bg-blue-500/10 border-blue-500/20 text-blue-400'
+        }
+      case 'speaking':
+        return {
+          label: 'Speaking',
+          dotClass: 'bg-cyan-400 animate-pulse',
+          containerClass: 'bg-cyan-500/10 border-cyan-500/20 text-cyan-400'
+        }
+      case 'action_result':
+        return {
+          label: 'Done',
+          dotClass: 'bg-emerald-400',
+          containerClass: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+        }
+      case 'error':
+        return {
+          label: 'Offline',
+          dotClass: 'bg-red-400',
+          containerClass: 'bg-red-500/10 border-red-500/20 text-red-400'
+        }
+      case 'idle':
+      default:
+        return {
+          label: 'Connected',
+          dotClass: 'bg-emerald-400 animate-pulse',
+          containerClass: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+        }
     }
-  }[state]
+  }, [state])
 
   const handleOrbClick = (): void => {
-    if (state === 'idle' || state === 'action_result' || state === 'error') {
+    if (state === 'speaking') {
+      void interrupt()
+    } else {
       void toggleListening()
     }
   }
@@ -137,6 +143,22 @@ export const VoiceAssistantHome: FC<VoiceAssistantHomeProps> = ({
 
         {/* Window Utility Actions & System Controls */}
         <div className="flex items-center gap-3">
+          {/* Calendar Navigation Link */}
+          {onNavigateToCalendar && (
+            <button
+              onClick={onNavigateToCalendar}
+              type="button"
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#111622] hover:bg-[#162238] border border-cyan-500/20 hover:border-cyan-400/40 text-xs font-medium text-slate-300 hover:text-[#38BDF8] transition-all cursor-pointer"
+              title="View Calendar"
+              aria-label="Calendar"
+            >
+              <svg className="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span>Calendar</span>
+            </button>
+          )}
+
           {/* Reminders Navigation Link */}
           {onNavigateToReminders && (
             <button
