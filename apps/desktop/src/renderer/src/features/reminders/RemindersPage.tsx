@@ -1,16 +1,17 @@
-﻿import { useState, type FC } from 'react'
-import type { Reminder } from './types'
+import { useState, type FC } from 'react'
 import { useReminders } from './hooks/useReminders'
 import { ReminderSection } from './components/ReminderSection'
+import { ReminderCard } from './components/ReminderCard'
 import { CreateEditReminderModal } from './components/CreateEditReminderModal'
 import { ReminderAlarmToast } from './components/ReminderAlarmToast'
-import { ReminderCard } from './components/ReminderCard'
+import type { Reminder } from './types'
 
 interface RemindersPageProps {
   onNavigateHome: () => void
+  onNavigateCalendar?: () => void
 }
 
-export const RemindersPage: FC<RemindersPageProps> = ({ onNavigateHome }) => {
+export const RemindersPage: FC<RemindersPageProps> = ({ onNavigateHome, onNavigateCalendar }) => {
   const {
     isLoading,
     error,
@@ -29,7 +30,7 @@ export const RemindersPage: FC<RemindersPageProps> = ({ onNavigateHome }) => {
     onDismiss
   } = useReminders()
 
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null)
 
   const handleOpenCreate = (): void => {
@@ -54,7 +55,7 @@ export const RemindersPage: FC<RemindersPageProps> = ({ onNavigateHome }) => {
   return (
     <div className="relative flex-1 px-8 pt-4 pb-6 flex flex-col overflow-hidden bg-[#070A11] text-white select-none">
       {/* Top Navigation / Back Link */}
-      <div className="mb-2">
+      <div className="flex items-center justify-between mb-2">
         <button
           onClick={onNavigateHome}
           className="inline-flex items-center text-xs text-slate-400 hover:text-[#38BDF8] transition-colors font-medium group cursor-pointer"
@@ -70,6 +71,19 @@ export const RemindersPage: FC<RemindersPageProps> = ({ onNavigateHome }) => {
           </svg>
           Home
         </button>
+
+        {onNavigateCalendar && (
+          <button
+            onClick={onNavigateCalendar}
+            type="button"
+            className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-[#38BDF8] transition-colors font-medium cursor-pointer"
+          >
+            <svg className="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span>Calendar</span>
+          </button>
+        )}
       </div>
 
       {/* Header Row: Title & Action */}
