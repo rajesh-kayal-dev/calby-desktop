@@ -13,11 +13,15 @@ const WINDOW_CONFIG = {
 } as const
 
 const getPreloadPath = (): string => {
-  const mjsPath = join(__dirname, '../preload/index.mjs')
-  if (existsSync(mjsPath)) {
-    return mjsPath
+  const cjsPath = join(__dirname, '../preload/index.cjs')
+  if (existsSync(cjsPath)) {
+    return cjsPath
   }
-  return join(__dirname, '../preload/index.js')
+  const jsPath = join(__dirname, '../preload/index.js')
+  if (existsSync(jsPath)) {
+    return jsPath
+  }
+  return join(__dirname, '../preload/index.mjs')
 }
 
 export const createMainWindow = (): BrowserWindow => {
