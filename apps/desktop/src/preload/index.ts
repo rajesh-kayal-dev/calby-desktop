@@ -6,9 +6,8 @@ import { voiceApi } from './api/voice.api'
 import { remindersApi } from './api/reminders.api'
 import { calendarApi } from './api/calendar.api'
 import { memoryApi } from './api/memory.api'
+import { settingsApi } from './api/settings.api'
 
-// Expose minimal typed window.calby API to renderer
-// Raw ipcRenderer is strictly encapsulated inside api handlers
 const calbyApi = {
   system: systemApi,
   auth: authApi,
@@ -16,7 +15,8 @@ const calbyApi = {
   voice: voiceApi,
   reminders: remindersApi,
   calendar: calendarApi,
-  memory: memoryApi
+  memory: memoryApi,
+  settings: settingsApi
 }
 
 try {

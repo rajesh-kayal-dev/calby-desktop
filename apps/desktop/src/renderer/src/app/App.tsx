@@ -1,4 +1,4 @@
-import { useState, useEffect, type FC } from 'react'
+﻿import { useState, useEffect, type FC } from 'react'
 import { TitleBar } from '../components/ui/TitleBar'
 import { OnboardingFlow } from '../features/onboarding/OnboardingFlow'
 import { OnboardingStep } from '../features/onboarding/types'
@@ -6,9 +6,10 @@ import { VoiceAssistantHome } from '../features/voice/VoiceAssistantHome'
 import { RemindersPage } from '../features/reminders/RemindersPage'
 import { CalendarPage } from '../features/calendar/CalendarPage'
 import { MemoryPage } from '../features/memory/MemoryPage'
+import { SettingsPage } from '../features/settings/SettingsPage'
 import type { AuthStatus } from '../types/calby'
 
-export type ActiveView = 'home' | 'reminders' | 'calendar' | 'memory'
+export type ActiveView = 'home' | 'reminders' | 'calendar' | 'memory' | 'settings'
 
 export const App: FC = () => {
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null)
@@ -64,7 +65,7 @@ export const App: FC = () => {
           <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 mb-4">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="10" strokeWidth="2" />
-              <line x1="12" y1="8" x2="12" y2="12" strokeWidth="2" />
+              <line x1="12" y1="8" x2="12" y2="8" strokeWidth="2" />
               <line x1="12" y1="16" x2="12.01" y2="16" strokeWidth="2" />
             </svg>
           </div>
@@ -82,7 +83,7 @@ export const App: FC = () => {
     )
   }
 
-  // 3. Fully Configured and Onboarded -> Home View, Reminders, Calendar, or Memory
+  // 3. Fully Configured and Onboarded -> Home View, Reminders, Calendar, Memory, or Settings
   if (authStatus?.isConfigured && authStatus.isOnboarded) {
     return (
       <main className="w-full h-screen bg-[#070A11] flex flex-col select-none">
@@ -93,6 +94,7 @@ export const App: FC = () => {
             onNavigateToReminders={() => setActiveView('reminders')}
             onNavigateToCalendar={() => setActiveView('calendar')}
             onNavigateToMemory={() => setActiveView('memory')}
+            onNavigateToSettings={() => setActiveView('settings')}
           />
         )}
         {activeView === 'reminders' && (
@@ -100,6 +102,7 @@ export const App: FC = () => {
             onNavigateHome={() => setActiveView('home')}
             onNavigateCalendar={() => setActiveView('calendar')}
             onNavigateMemory={() => setActiveView('memory')}
+            onNavigateSettings={() => setActiveView('settings')}
           />
         )}
         {activeView === 'calendar' && (
@@ -107,6 +110,7 @@ export const App: FC = () => {
             onNavigateHome={() => setActiveView('home')}
             onNavigateReminders={() => setActiveView('reminders')}
             onNavigateMemory={() => setActiveView('memory')}
+            onNavigateSettings={() => setActiveView('settings')}
           />
         )}
         {activeView === 'memory' && (
@@ -114,6 +118,16 @@ export const App: FC = () => {
             onNavigateHome={() => setActiveView('home')}
             onNavigateReminders={() => setActiveView('reminders')}
             onNavigateCalendar={() => setActiveView('calendar')}
+            onNavigateSettings={() => setActiveView('settings')}
+          />
+        )}
+        {activeView === 'settings' && (
+          <SettingsPage
+            onNavigateHome={() => setActiveView('home')}
+            onNavigateReminders={() => setActiveView('reminders')}
+            onNavigateCalendar={() => setActiveView('calendar')}
+            onNavigateMemory={() => setActiveView('memory')}
+            onResetSetup={() => void checkStatus()}
           />
         )}
       </main>

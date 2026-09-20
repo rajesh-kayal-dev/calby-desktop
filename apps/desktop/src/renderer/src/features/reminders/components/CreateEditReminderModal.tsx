@@ -41,16 +41,14 @@ export const CreateEditReminderModal: FC<CreateEditReminderModalProps> = ({
       const minutes = String(dateObj.getMinutes()).padStart(2, '0')
       setTimeStr(`${hours}:${minutes}`)
     } else {
-      // Default to today + 1 hour or tomorrow at 10:00 AM
-      const now = new Date()
-      const year = now.getFullYear()
-      const month = String(now.getMonth() + 1).padStart(2, '0')
-      const day = String(now.getDate()).padStart(2, '0')
+      // Default to 1 hour in the future (safely crossing midnight if near 11 PM)
+      const future = new Date(Date.now() + 3600 * 1000)
+      const year = future.getFullYear()
+      const month = String(future.getMonth() + 1).padStart(2, '0')
+      const day = String(future.getDate()).padStart(2, '0')
       setDateStr(`${year}-${month}-${day}`)
-
-      // Default time: next whole hour
-      const nextHour = (now.getHours() + 1) % 24
-      setTimeStr(`${String(nextHour).padStart(2, '0')}:00`)
+      const hours = String(future.getHours()).padStart(2, '0')
+      setTimeStr(`${hours}:00`)
       setTitle('')
       setAlarmEnabled(true)
     }
@@ -72,32 +70,30 @@ export const CreateEditReminderModal: FC<CreateEditReminderModalProps> = ({
 
   const handleSubmit = async (e: FormEvent): Promise<void> => {
     e.preventDefault()
-    setError(null)
-
     const trimmedTitle = title.trim()
+
     if (!trimmedTitle) {
       setError('Please enter a title for the reminder.')
       return
     }
 
     if (!dateStr || !timeStr) {
-      setError('Please select a valid date and time.')
+      setError('Please select both a date and a time.')
       return
     }
 
-    // Combine dateStr (YYYY-MM-DD) and timeStr (HH:mm) in local timezone
+    // Construct local Date and parse ISO
     const [year, month, day] = dateStr.split('-').map(Number)
     const [hours, minutes] = timeStr.split(':').map(Number)
 
-    const scheduledDate = new Date(year, month - 1, day, hours, minutes, 0, 0)
-    if (isNaN(scheduledDate.getTime())) {
-      setError('Invalid date or time selected.')
+    if (isNaN(year) || isNaN(month) || isNaN(day) || isNaN(hours) || isNaN(minutes)) {
+      setError('Invalid date or time format.')
       return
     }
 
-    // Check if in past (allow 60s tolerance)
-    if (scheduledDate.getTime() < Date.now() - 60 * 1000) {
-      setError('Scheduled time cannot be in the past.')
+    const scheduledDate = new Date(year, month - 1, day, hours, minutes, 0, 0)
+    if (isNaN(scheduledDate.getTime())) {
+      setError('Invalid scheduled date/time.')
       return
     }
 
@@ -105,6 +101,8 @@ export const CreateEditReminderModal: FC<CreateEditReminderModalProps> = ({
 
     try {
       setIsSubmitting(true)
+      setError(null)
+
       if (editingReminder) {
         const updateInput: UpdateReminderInput = {
           id: editingReminder.id,
@@ -177,7 +175,7 @@ export const CreateEditReminderModal: FC<CreateEditReminderModalProps> = ({
             <div className="px-3.5 py-2.5 bg-red-500/10 border border-red-500/20 rounded-lg text-xs text-red-400 flex items-center gap-2">
               <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <circle cx="12" cy="12" r="10" strokeWidth="2" />
-                <line x1="12" y1="8" x2="12" y2="12" strokeWidth="2" />
+                <line x1="12" y1="8" x2="12" y2="8" strokeWidth="2" />
                 <line x1="12" y1="16" x2="12.01" y2="16" strokeWidth="2" />
               </svg>
               <span>{error}</span>

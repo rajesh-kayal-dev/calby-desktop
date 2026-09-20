@@ -175,6 +175,12 @@ export class ReminderRepository {
     return this.findById(data.id)
   }
 
+  public clearAll(): number {
+    const db = getDatabase()
+    const result = db.prepare('DELETE FROM reminders').run()
+    return result.changes
+  }
+
   public delete(id: string): boolean {
     const db = getDatabase()
     const result = db.prepare('DELETE FROM reminders WHERE id = ?').run(id)

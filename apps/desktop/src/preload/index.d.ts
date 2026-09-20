@@ -106,7 +106,6 @@ export interface CalendarEvent {
   htmlLink?: string | null
 }
 
-// Personal Memory Types (Phase 5)
 export type MemoryType = 'fact' | 'preference' | 'person' | 'work' | 'general'
 
 export interface Memory {
@@ -131,6 +130,21 @@ export interface UpdateMemoryInput {
 export interface MemoryChangedPayload {
   action: 'created' | 'updated' | 'deleted'
   memory: Memory
+}
+
+export interface ClearDataResult {
+  memoriesCleared: boolean
+  remindersCleared: boolean
+  credentialsCleared: boolean
+  calendarDisconnected: boolean
+  configReset: boolean
+  allCleared: boolean
+  errors?: string[]
+}
+
+export interface ClearMemoriesResult {
+  cleared: boolean
+  count: number
 }
 
 export type IpcResult<T> =
@@ -183,6 +197,12 @@ export interface CalbyMemoryAPI {
   onChanged: (callback: (payload: MemoryChangedPayload) => void) => () => void
 }
 
+export interface CalbySettingsAPI {
+  clearMemories: () => Promise<IpcResult<ClearMemoriesResult>>
+  clearAllData: () => Promise<IpcResult<ClearDataResult>>
+  openMicrophoneSettings: () => Promise<IpcResult<void>>
+}
+
 export interface CalbyAPI {
   system: {
     getInfo: () => Promise<IpcResult<SystemInfo>>
@@ -199,6 +219,7 @@ export interface CalbyAPI {
   reminders: CalbyRemindersAPI
   calendar: CalbyCalendarAPI
   memory: CalbyMemoryAPI
+  settings: CalbySettingsAPI
 }
 
 declare global {
