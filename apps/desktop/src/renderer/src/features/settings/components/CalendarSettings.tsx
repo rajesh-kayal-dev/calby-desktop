@@ -14,6 +14,7 @@ export const CalendarSettings: FC<CalendarSettingsProps> = ({
 }) => {
   const isConnected = status?.status === 'connected'
   const isReauth = status?.status === 'reauth_required'
+  const isLegacyReadOnly = isConnected && status?.hasWriteAccess === false
 
   return (
     <div data-testid="calendar-settings" className="space-y-3">
@@ -39,21 +40,38 @@ export const CalendarSettings: FC<CalendarSettingsProps> = ({
               >
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
-                    isConnected ? 'bg-emerald-400' : isReauth ? 'bg-amber-400' : 'bg-slate-400'
+                    isConnected
+                      ? 'bg-emerald-400'
+                      : isReauth
+                      ? 'bg-amber-400'
+                      : 'bg-slate-400'
                   }`}
                 />
                 {isConnected ? 'Connected' : isReauth ? 'Re-auth Required' : 'Disconnected'}
               </span>
             </div>
             <p data-testid="calendar-email-text" className="text-[11px] text-slate-400 mt-0.5">
-              {isConnected && status?.connectedEmail
-                ? 'Account: ' + status.connectedEmail + ' (Read-only)'
-                : 'Read-only schedule integration for meeting awareness'}
+              {isConnected
+                ? isLegacyReadOnly
+                  ? `Account: ${status?.connectedEmail || 'Google Account'} (Read-only)`
+                  : `Account: ${status?.connectedEmail || 'Google Account'} (Read & Create)`
+                : 'Google Calendar integration for schedule awareness and event creation'}
             </p>
           </div>
         </div>
 
-        <div>
+        <div className="flex items-center gap-2">
+          {isLegacyReadOnly && (
+            <button
+              onClick={onConnect}
+              type="button"
+              data-testid="reconnect-calendar-button"
+              className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+            >
+              Reconnect Calendar
+            </button>
+          )}
+
           {isConnected ? (
             <button
               onClick={onDisconnect}
@@ -68,7 +86,7 @@ export const CalendarSettings: FC<CalendarSettingsProps> = ({
               onClick={onConnect}
               type="button"
               data-testid="connect-calendar-button"
-              className="px-3 py-1.5 bg-sky-400 hover:bg-sky-300 text-slate-900 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
+              className="px-3 py-1.5 bg-sky-400 hover:bg-sky-300 text-slate-950 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
             >
               {isReauth ? 'Reconnect' : 'Connect'}
             </button>

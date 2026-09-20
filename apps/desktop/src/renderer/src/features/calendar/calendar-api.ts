@@ -1,4 +1,4 @@
-import type { CalendarStatus, CalendarEvent } from './types'
+import type { CalendarStatus, CalendarEvent, CreateCalendarEventInput } from './types'
 
 export async function getCalendarStatus(): Promise<CalendarStatus> {
   const res = await window.calby.calendar.getStatus()
@@ -25,6 +25,22 @@ export async function disconnectGoogleCalendar(): Promise<void> {
 
 export async function getUpcomingCalendarEvents(): Promise<CalendarEvent[]> {
   const res = await window.calby.calendar.getUpcoming()
+  if (!res.ok) {
+    throw new Error(res.error.message)
+  }
+  return res.data
+}
+
+export async function createCalendarEvent(input: CreateCalendarEventInput): Promise<CalendarEvent> {
+  const res = await window.calby.calendar.createEvent(input)
+  if (!res.ok) {
+    throw new Error(res.error.message)
+  }
+  return res.data
+}
+
+export async function requestCalendarWriteAccess(): Promise<CalendarStatus> {
+  const res = await window.calby.calendar.requestWriteAccess()
   if (!res.ok) {
     throw new Error(res.error.message)
   }

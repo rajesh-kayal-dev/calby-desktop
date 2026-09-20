@@ -15,6 +15,14 @@ export interface CalendarStatus {
   connectedEmail?: string | null
   lastSyncedAt?: string | null
   error?: string | null
+  hasWriteAccess?: boolean
+}
+
+export interface CalendarAttendee {
+  email: string
+  displayName?: string
+  responseStatus?: string
+  self?: boolean
 }
 
 export interface CalendarEvent {
@@ -32,9 +40,24 @@ export interface CalendarEvent {
   status?: 'confirmed' | 'tentative' | 'cancelled'
   calendarSummary?: string | null
   htmlLink?: string | null
+  attendees?: CalendarAttendee[]
 }
 
-const DEFAULT_SCOPE = 'https://www.googleapis.com/auth/calendar.events.readonly'
+export interface CreateCalendarEventInput {
+  title: string
+  startDateTime: string
+  endDateTime: string
+  timeZone?: string
+  attendeeEmails?: string[]
+  location?: string
+  description?: string
+  createMeet?: boolean
+}
+
+// Calby uses unified calendar.events scope from initial connection for read & create access
+const PRIMARY_CALENDAR_SCOPE = 'https://www.googleapis.com/auth/calendar.events'
+const DEFAULT_SCOPE = PRIMARY_CALENDAR_SCOPE
+
 const GOOGLE_AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const GOOGLE_CALENDAR_API = 'https://www.googleapis.com/calendar/v3'
@@ -42,11 +65,11 @@ const GOOGLE_CALENDAR_API = 'https://www.googleapis.com/calendar/v3'
 export class GoogleCalendarService {
   private static instance: GoogleCalendarService | null = null
   private credentialService: CredentialService
-  private cachedStatus: CalendarStatus = { status: 'disconnected' }
+  private cachedStatus: CalendarStatus = { status: 'disconnected', hasWriteAccess: false }
   private activeServer: http.Server | null = null
 
   private get clientId(): string {
-    const id = process.env.GOOGLE_CLIENT_ID
+    const id = process.env.GOOGLE_CLIENT_ID || process.env.GOOGLE_OAUTH_CLIENT_ID
     if (!id) {
       throw new Error(
         'CONFIG_ERROR: Google Calendar OAuth Client ID is not configured. Please set GOOGLE_CLIENT_ID environment variable.'
@@ -56,7 +79,11 @@ export class GoogleCalendarService {
   }
 
   private get clientSecret(): string | undefined {
-    return process.env.GOOGLE_CLIENT_SECRET
+    return process.env.GOOGLE_CLIENT_SECRET || process.env.GOOGLE_OAUTH_CLIENT_SECRET
+  }
+
+  private get configuredRedirectUri(): string | undefined {
+    return process.env.GOOGLE_REDIRECT_URI || process.env.GOOGLE_OAUTH_REDIRECT_URI || undefined
   }
 
   private constructor() {
@@ -70,23 +97,36 @@ export class GoogleCalendarService {
     return GoogleCalendarService.instance
   }
 
+  public checkHasWriteAccess(scopeStr?: string): boolean {
+    if (!scopeStr) return false
+    const scopes = scopeStr.split(/\s+/)
+    return scopes.some(
+      (s) =>
+        s === 'https://www.googleapis.com/auth/calendar.events' ||
+        s === 'https://www.googleapis.com/auth/calendar'
+    )
+  }
+
   public async getStatus(): Promise<CalendarStatus> {
     const hasTokens = await this.credentialService.hasGoogleCalendarTokens()
     if (!hasTokens) {
-      this.cachedStatus = { status: 'disconnected' }
+      this.cachedStatus = { status: 'disconnected', hasWriteAccess: false }
       return this.cachedStatus
     }
 
     const tokens = await this.credentialService.getGoogleCalendarTokens()
     if (!tokens || !tokens.accessToken) {
-      this.cachedStatus = { status: 'disconnected' }
+      this.cachedStatus = { status: 'disconnected', hasWriteAccess: false }
       return this.cachedStatus
     }
+
+    const hasWrite = this.checkHasWriteAccess(tokens.scope)
 
     this.cachedStatus = {
       status: 'connected',
       connectedEmail: tokens.userEmail || 'Google Account',
-      lastSyncedAt: this.cachedStatus.lastSyncedAt
+      lastSyncedAt: this.cachedStatus.lastSyncedAt,
+      hasWriteAccess: hasWrite
     }
     return this.cachedStatus
   }
@@ -95,14 +135,17 @@ export class GoogleCalendarService {
     this.updateStatus({ status: 'connecting' })
 
     try {
-      const tokens = await this.performOAuthFlow()
+      const tokens = await this.performOAuthFlow(DEFAULT_SCOPE)
       await this.credentialService.saveGoogleCalendarTokens(tokens)
 
-      this.updateStatus({
+      const hasWrite = this.checkHasWriteAccess(tokens.scope)
+      const status: CalendarStatus = {
         status: 'connected',
         connectedEmail: tokens.userEmail || 'Google Account',
-        lastSyncedAt: new Date().toISOString()
-      })
+        lastSyncedAt: new Date().toISOString(),
+        hasWriteAccess: hasWrite
+      }
+      this.updateStatus(status)
 
       return { connected: true }
     } catch (err: unknown) {
@@ -116,14 +159,29 @@ export class GoogleCalendarService {
     }
   }
 
+  public async requestWriteAccess(): Promise<CalendarStatus> {
+    try {
+      const tokens = await this.performOAuthFlow(PRIMARY_CALENDAR_SCOPE)
+      await this.credentialService.saveGoogleCalendarTokens(tokens)
+
+      const status: CalendarStatus = {
+        status: 'connected',
+        connectedEmail: tokens.userEmail || 'Google Account',
+        lastSyncedAt: new Date().toISOString(),
+        hasWriteAccess: true
+      }
+      this.updateStatus(status)
+      return status
+    } catch (err: unknown) {
+      console.error('[GoogleCalendarService] OAuth write upgrade failed:', err)
+      throw err
+    }
+  }
+
   public async disconnect(): Promise<void> {
     await this.credentialService.deleteGoogleCalendarTokens()
-    this.updateStatus({
-      status: 'disconnected',
-      connectedEmail: null,
-      lastSyncedAt: null,
-      error: null
-    })
+    this.cachedStatus = { status: 'disconnected', hasWriteAccess: false }
+    this.updateStatus({ status: 'disconnected', hasWriteAccess: false })
   }
 
   public async getUpcomingEvents(): Promise<CalendarEvent[]> {
@@ -134,21 +192,135 @@ export class GoogleCalendarService {
     }
 
     const now = new Date()
+    const timeMin = now.toISOString()
     const sevenDaysLater = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+    const timeMax = sevenDaysLater.toISOString()
 
-    const params = new URLSearchParams({
-      timeMin: now.toISOString(),
-      timeMax: sevenDaysLater.toISOString(),
-      singleEvents: 'true',
-      orderBy: 'startTime',
-      maxResults: '50'
-    })
+    const url = new URL(`${GOOGLE_CALENDAR_API}/calendars/primary/events`)
+    url.searchParams.set('timeMin', timeMin)
+    url.searchParams.set('timeMax', timeMax)
+    url.searchParams.set('singleEvents', 'true')
+    url.searchParams.set('orderBy', 'startTime')
+    url.searchParams.set('maxResults', '50')
 
-    const response = await fetch(`${GOOGLE_CALENDAR_API}/calendars/primary/events?${params.toString()}`, {
+    const res = await fetch(url.toString(), {
       headers: {
         Authorization: `Bearer ${tokens.accessToken}`,
         Accept: 'application/json'
       }
+    })
+
+    if (!res.ok) {
+      if (res.status === 401) {
+        this.updateStatus({ status: 'reauth_required', error: 'Authorization expired' })
+        throw new Error('AUTH_EXPIRED: Calendar authorization expired.')
+      }
+      throw new Error(`CALENDAR_API_ERROR: Google Calendar API error: ${res.statusText}`)
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data: any = await res.json()
+    const calendarSummary = data.summary || null
+    const calendarTimeZone = data.timeZone || null
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const items: any[] = data.items || []
+
+    const events = items
+      .filter((item) => item.status !== 'cancelled')
+      .map((item) => this.mapGoogleEvent(item, calendarSummary, calendarTimeZone))
+
+    this.cachedStatus.lastSyncedAt = new Date().toISOString()
+    this.updateStatus({
+      status: 'connected',
+      connectedEmail: tokens.userEmail || 'Google Account',
+      lastSyncedAt: this.cachedStatus.lastSyncedAt,
+      hasWriteAccess: this.checkHasWriteAccess(tokens.scope)
+    })
+
+    return events
+  }
+
+  public async createEvent(input: CreateCalendarEventInput): Promise<CalendarEvent> {
+    // 1. Validate Input
+    if (!input || !input.title || !input.title.trim()) {
+      throw new Error('INVALID_INPUT: Title is required.')
+    }
+    if (!input.startDateTime || !input.endDateTime) {
+      throw new Error('INVALID_INPUT: Start time and end time are required.')
+    }
+    const startMs = new Date(input.startDateTime).getTime()
+    const endMs = new Date(input.endDateTime).getTime()
+    if (isNaN(startMs) || isNaN(endMs) || endMs <= startMs) {
+      throw new Error('INVALID_INPUT: End time must be after start time.')
+    }
+
+    if (input.attendeeEmails && input.attendeeEmails.length > 0) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      for (const email of input.attendeeEmails) {
+        if (!email || !emailRegex.test(email.trim())) {
+          throw new Error(`INVALID_INPUT: Invalid guest email address: ${email}`)
+        }
+      }
+    }
+
+    // 2. Auth & Scope Verification
+    const tokens = await this.getValidTokens()
+    if (!tokens) {
+      this.updateStatus({ status: 'reauth_required', error: 'Authentication required' })
+      throw new Error('NOT_AUTHENTICATED: Google Calendar is not connected.')
+    }
+
+    if (!this.checkHasWriteAccess(tokens.scope)) {
+      throw new Error('CALENDAR_WRITE_AUTH_REQUIRED: Calby needs permission to create Google Calendar events.')
+    }
+
+    // 3. Construct Google Calendar Event Payload
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const eventPayload: any = {
+      summary: input.title.trim(),
+      start: {
+        dateTime: input.startDateTime,
+        timeZone: input.timeZone || undefined
+      },
+      end: {
+        dateTime: input.endDateTime,
+        timeZone: input.timeZone || undefined
+      }
+    }
+
+    if (input.description && input.description.trim()) {
+      eventPayload.description = input.description.trim()
+    }
+    if (input.location && input.location.trim()) {
+      eventPayload.location = input.location.trim()
+    }
+    if (input.attendeeEmails && input.attendeeEmails.length > 0) {
+      eventPayload.attendees = input.attendeeEmails.map((email) => ({ email: email.trim() }))
+    }
+    if (input.createMeet) {
+      eventPayload.conferenceData = {
+        createRequest: {
+          requestId: `calby-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+          conferenceSolutionKey: {
+            type: 'hangoutsMeet'
+          }
+        }
+      }
+    }
+
+    const url = new URL(`${GOOGLE_CALENDAR_API}/calendars/primary/events`)
+    if (input.createMeet) {
+      url.searchParams.set('conferenceDataVersion', '1')
+    }
+
+    const response = await fetch(url.toString(), {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${tokens.accessToken}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      },
+      body: JSON.stringify(eventPayload)
     })
 
     if (!response.ok) {
@@ -156,79 +328,88 @@ export class GoogleCalendarService {
         this.updateStatus({ status: 'reauth_required', error: 'Authorization expired' })
         throw new Error('AUTH_EXPIRED: Calendar authorization expired.')
       }
-      const errText = await response.text()
-      throw new Error(`CALENDAR_API_ERROR: HTTP ${response.status} - ${errText}`)
+      if (response.status === 403) {
+        throw new Error('PERMISSION_DENIED: Calby needs permission to create Google Calendar events.')
+      }
+      throw new Error(`GOOGLE_API_ERROR: Google Calendar could not create this event (${response.status})`)
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const data: any = await response.json()
-    const items = Array.isArray(data.items) ? data.items : []
+    const createdData: any = await response.json()
+    return this.mapGoogleEvent(createdData, null, input.timeZone || null)
+  }
 
-    // Normalize events without mutating timezone or all-day representation
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const normalizedEvents: CalendarEvent[] = items.map((item: any) => {
-      const allDay = Boolean(item.start?.date && !item.start?.dateTime)
-
-      let meetingUrl: string | null = item.hangoutLink || null
-      if (!meetingUrl && item.conferenceData?.entryPoints) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const videoEntry = item.conferenceData.entryPoints.find((ep: any) => ep.entryPointType === 'video' || ep.uri)
-        if (videoEntry?.uri) meetingUrl = videoEntry.uri
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private mapGoogleEvent(item: any, calendarSummary: string | null, fallbackTimeZone: string | null): CalendarEvent {
+    let meetingUrl: string | null = null
+    if (item.conferenceData?.entryPoints) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const videoEntry = item.conferenceData.entryPoints.find((ep: any) => ep.entryPointType === 'video')
+      if (videoEntry?.uri) {
+        meetingUrl = videoEntry.uri
       }
+    }
+    if (!meetingUrl && item.hangoutLink) {
+      meetingUrl = item.hangoutLink
+    }
 
-      return {
-        id: item.id || `evt-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        title: item.summary || '(No title)',
-        description: item.description || null,
-        allDay,
-        startDateTime: item.start?.dateTime || null,
-        endDateTime: item.end?.dateTime || null,
-        startDate: item.start?.date || null,
-        endDate: item.end?.date || null,
-        timeZone: item.start?.timeZone || item.end?.timeZone || null,
-        location: item.location || null,
-        meetingUrl,
-        status: item.status as 'confirmed' | 'tentative' | 'cancelled' | undefined,
-        calendarSummary: data.summary || 'Primary Calendar',
-        htmlLink: item.htmlLink || null
-      }
-    })
+    const isAllDay = Boolean(item.start?.date && !item.start?.dateTime)
+    const eventTimeZone = item.start?.timeZone || item.end?.timeZone || fallbackTimeZone || undefined
 
-    this.updateStatus({
-      status: 'connected',
-      connectedEmail: tokens.userEmail || this.cachedStatus.connectedEmail,
-      lastSyncedAt: new Date().toISOString()
-    })
-
-    return normalizedEvents
+    return {
+      id: item.id || crypto.randomUUID(),
+      title: item.summary || '(No title)',
+      description: item.description || null,
+      allDay: isAllDay,
+      startDateTime: item.start?.dateTime || null,
+      endDateTime: item.end?.dateTime || null,
+      startDate: item.start?.date || null,
+      endDate: item.end?.date || null,
+      timeZone: eventTimeZone || null,
+      location: item.location || null,
+      meetingUrl,
+      status: item.status || 'confirmed',
+      calendarSummary,
+      htmlLink: item.htmlLink || null,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      attendees: item.attendees?.map((a: any) => ({
+        email: a.email,
+        displayName: a.displayName,
+        responseStatus: a.responseStatus,
+        self: a.self
+      }))
+    }
   }
 
   private async getValidTokens(): Promise<GoogleOAuthTokens | null> {
     const tokens = await this.credentialService.getGoogleCalendarTokens()
-    if (!tokens || !tokens.accessToken) return null
+    if (!tokens) return null
 
-    // If token expires in less than 5 minutes and we have a refresh token, refresh it
-    const fiveMinutesMs = 5 * 60 * 1000
-    if (Date.now() + fiveMinutesMs >= tokens.expiresAt && tokens.refreshToken) {
-      try {
-        const refreshed = await this.refreshAccessToken(tokens.refreshToken)
-        const updatedTokens: GoogleOAuthTokens = {
-          ...tokens,
-          accessToken: refreshed.accessToken,
-          expiresAt: refreshed.expiresAt
-        }
-        await this.credentialService.saveGoogleCalendarTokens(updatedTokens)
-        return updatedTokens
-      } catch (err) {
-        console.warn('[GoogleCalendarService] Failed to refresh token:', err)
-        return null
-      }
+    // Buffer of 60 seconds before expiration
+    if (Date.now() < tokens.expiresAt - 60 * 1000) {
+      return tokens
     }
 
-    return tokens
+    if (!tokens.refreshToken) {
+      return null
+    }
+
+    // Refresh token
+    try {
+      const refreshed = await this.refreshTokens(tokens.refreshToken, tokens.scope, tokens.userEmail)
+      await this.credentialService.saveGoogleCalendarTokens(refreshed)
+      return refreshed
+    } catch (err) {
+      console.error('[GoogleCalendarService] Failed to refresh tokens:', err)
+      return null
+    }
   }
 
-  private async refreshAccessToken(refreshToken: string): Promise<{ accessToken: string; expiresAt: number }> {
+  private async refreshTokens(
+    refreshToken: string,
+    existingScope?: string,
+    userEmail?: string
+  ): Promise<GoogleOAuthTokens> {
     const body = new URLSearchParams({
       client_id: this.clientId,
       grant_type: 'refresh_token',
@@ -243,38 +424,70 @@ export class GoogleCalendarService {
     })
 
     if (!res.ok) {
-      throw new Error(`Token refresh failed: ${res.statusText}`)
+      const errText = await res.text()
+      throw new Error(`Refresh token request failed: ${res.statusText} (${errText})`)
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: any = await res.json()
     const expiresIn = Number(data.expires_in) || 3600
+
     return {
       accessToken: data.access_token,
-      expiresAt: Date.now() + expiresIn * 1000
+      refreshToken: data.refresh_token || refreshToken,
+      expiresAt: Date.now() + expiresIn * 1000,
+      tokenType: data.token_type || 'Bearer',
+      scope: data.scope || existingScope,
+      userEmail
     }
   }
 
-  private async performOAuthFlow(): Promise<GoogleOAuthTokens> {
-    return new Promise((resolve, reject) => {
-      // 1. Generate PKCE code verifier and challenge
-      const verifier = this.generateCodeVerifier()
-      const challenge = this.generateCodeChallenge(verifier)
-      const state = crypto.randomBytes(16).toString('hex')
+  private async performOAuthFlow(requestedScope: string = DEFAULT_SCOPE): Promise<GoogleOAuthTokens> {
+    if (!this.clientId) {
+      throw new Error('Google OAuth Client ID is not configured in GOOGLE_CLIENT_ID.')
+    }
 
-      // 2. Start loopback server
+    this.cleanupServer()
+
+    const configuredUri = this.configuredRedirectUri
+    let targetPort = 0
+    let targetPath = '/oauth2callback'
+
+    if (configuredUri) {
+      try {
+        const parsed = new URL(configuredUri)
+        if (parsed.port) {
+          targetPort = parseInt(parsed.port, 10)
+        }
+        if (parsed.pathname && parsed.pathname !== '/') {
+          targetPath = parsed.pathname
+        }
+      } catch (e) {
+        console.warn('[GoogleCalendarService] Invalid configured redirect URI:', configuredUri, e)
+      }
+    }
+
+    const verifier = this.generateCodeVerifier()
+    const challenge = this.generateCodeChallenge(verifier)
+    const state = crypto.randomBytes(16).toString('hex')
+
+    return new Promise((resolve, reject) => {
+      let finalRedirectUri = ''
+
       const server = http.createServer(async (req, res) => {
         try {
-          if (!req.url?.startsWith('/oauth2callback')) {
+          const reqUrl = req.url ? new URL(req.url, 'http://127.0.0.1') : null
+          const reqPath = reqUrl?.pathname || ''
+
+          if (!reqPath.startsWith(targetPath) && !reqPath.startsWith('/oauth2callback')) {
             res.writeHead(404)
             res.end()
             return
           }
 
-          const url = new URL(req.url, `http://${req.headers.host}`)
-          const code = url.searchParams.get('code')
-          const returnedState = url.searchParams.get('state')
-          const error = url.searchParams.get('error')
+          const code = reqUrl?.searchParams.get('code')
+          const returnedState = reqUrl?.searchParams.get('state')
+          const error = reqUrl?.searchParams.get('error')
 
           if (error) {
             res.writeHead(400, { 'Content-Type': 'text/html' })
@@ -292,12 +505,11 @@ export class GoogleCalendarService {
             return
           }
 
-          // 3. Exchange code for tokens
           res.writeHead(200, { 'Content-Type': 'text/html' })
           res.end(this.getCallbackHtml(true, 'Authentication successful! You can return to Calby.'))
           this.cleanupServer()
 
-          const tokens = await this.exchangeCodeForTokens(code, verifier, `http://127.0.0.1:${port}/oauth2callback`)
+          const tokens = await this.exchangeCodeForTokens(code, verifier, finalRedirectUri)
           resolve(tokens)
         } catch (err) {
           this.cleanupServer()
@@ -307,30 +519,28 @@ export class GoogleCalendarService {
 
       this.activeServer = server
 
-      let port = 0
-      server.listen(0, '127.0.0.1', () => {
+      server.listen(targetPort, '127.0.0.1', () => {
         const address = server.address()
         if (typeof address === 'object' && address !== null) {
-          port = address.port
-          const redirectUri = `http://127.0.0.1:${port}/oauth2callback`
+          const actualPort = address.port
+          finalRedirectUri = configuredUri || `http://127.0.0.1:${actualPort}/oauth2callback`
 
           const authUrl = new URL(GOOGLE_AUTH_URL)
           authUrl.searchParams.set('client_id', this.clientId)
-          authUrl.searchParams.set('redirect_uri', redirectUri)
+          authUrl.searchParams.set('redirect_uri', finalRedirectUri)
           authUrl.searchParams.set('response_type', 'code')
-          authUrl.searchParams.set('scope', DEFAULT_SCOPE)
+          authUrl.searchParams.set('scope', requestedScope)
           authUrl.searchParams.set('access_type', 'offline')
           authUrl.searchParams.set('prompt', 'consent')
           authUrl.searchParams.set('code_challenge', challenge)
           authUrl.searchParams.set('code_challenge_method', 'S256')
           authUrl.searchParams.set('state', state)
 
-          console.log('[GoogleCalendarService] Initiating Google OAuth authorization flow in browser')
+          console.log('[GoogleCalendarService] [OAuth Diagnostics] Redirect URI:', finalRedirectUri)
           void shell.openExternal(authUrl.toString())
         }
       })
 
-      // Timeout after 2 minutes if user abandons flow
       const timeout = setTimeout(() => {
         this.cleanupServer()
         reject(new Error('OAuth authentication timed out. Please try again.'))
@@ -365,7 +575,6 @@ export class GoogleCalendarService {
     const data: any = await res.json()
     const expiresIn = Number(data.expires_in) || 3600
 
-    // Fetch verified user identity from primary calendar
     const userEmail = await this.fetchUserEmail(data.access_token)
 
     return {
@@ -397,7 +606,7 @@ export class GoogleCalendarService {
         }
       }
     } catch {
-      // Fallback silently if offline or metadata unavailable
+      // Fallback silently
     }
     return undefined
   }

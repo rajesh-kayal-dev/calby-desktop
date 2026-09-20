@@ -1,4 +1,37 @@
 ﻿import { app, BrowserWindow, globalShortcut } from 'electron'
+import fs from 'node:fs'
+import path from 'node:path'
+
+function tryLoadEnv(): void {
+  const possiblePaths = [
+    path.resolve(process.cwd(), '.env'),
+    path.resolve(process.cwd(), 'apps/desktop/.env'),
+    path.resolve(app.getAppPath(), '.env')
+  ]
+  for (const envPath of possiblePaths) {
+    if (fs.existsSync(envPath)) {
+      try {
+        const content = fs.readFileSync(envPath, 'utf8')
+        for (const line of content.split('\n')) {
+          const trimmed = line.trim()
+          if (!trimmed || trimmed.startsWith('#')) continue
+          const eqIdx = trimmed.indexOf('=')
+          if (eqIdx !== -1) {
+            const k = trimmed.slice(0, eqIdx).trim()
+            const v = trimmed.slice(eqIdx + 1).trim()
+            if (!process.env[k]) {
+              process.env[k] = v
+            }
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }
+}
+tryLoadEnv()
+
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { createMainWindow, setQuitting } from './windows/main.window'
 import { registerSystemIpcHandlers } from './ipc/system.ipc'

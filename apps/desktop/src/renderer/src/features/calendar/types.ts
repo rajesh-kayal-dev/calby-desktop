@@ -5,11 +5,13 @@ export type CalendarConnectionStatus =
   | 'error'
   | 'reauth_required'
 
-export interface CalendarStatus {
-  status: CalendarConnectionStatus
-  connectedEmail?: string | null
-  lastSyncedAt?: string | null
-  error?: string | null
+export type CalendarTabFilter = 'today' | 'tomorrow' | 'upcoming' | 'selected_date'
+
+export interface CalendarAttendee {
+  email: string
+  displayName?: string
+  responseStatus?: string
+  self?: boolean
 }
 
 export interface CalendarEvent {
@@ -27,6 +29,24 @@ export interface CalendarEvent {
   status?: 'confirmed' | 'tentative' | 'cancelled'
   calendarSummary?: string | null
   htmlLink?: string | null
+  attendees?: CalendarAttendee[]
 }
 
-export type CalendarTabFilter = 'today' | 'upcoming'
+export interface CreateCalendarEventInput {
+  title: string
+  startDateTime: string
+  endDateTime: string
+  timeZone?: string
+  attendeeEmails?: string[]
+  location?: string
+  description?: string
+  createMeet?: boolean
+}
+
+export interface CalendarStatus {
+  status: CalendarConnectionStatus
+  connectedEmail?: string | null
+  lastSyncedAt?: string | null
+  error?: string | null
+  hasWriteAccess?: boolean
+}

@@ -1,4 +1,4 @@
-﻿export interface SystemInfo {
+export interface SystemInfo {
   name: string
   version: string
   electronVersion: string
@@ -92,6 +92,14 @@ export interface CalendarStatus {
   connectedEmail?: string | null
   lastSyncedAt?: string | null
   error?: string | null
+  hasWriteAccess?: boolean
+}
+
+export interface CalendarAttendee {
+  email: string
+  displayName?: string
+  responseStatus?: string
+  self?: boolean
 }
 
 export interface CalendarEvent {
@@ -109,6 +117,18 @@ export interface CalendarEvent {
   status?: 'confirmed' | 'tentative' | 'cancelled'
   calendarSummary?: string | null
   htmlLink?: string | null
+  attendees?: CalendarAttendee[]
+}
+
+export interface CreateCalendarEventInput {
+  title: string
+  startDateTime: string
+  endDateTime: string
+  timeZone?: string
+  attendeeEmails?: string[]
+  location?: string
+  description?: string
+  createMeet?: boolean
 }
 
 export type MemoryType = 'fact' | 'preference' | 'person' | 'work' | 'general'
@@ -189,6 +209,8 @@ export interface CalbyCalendarAPI {
   connect: () => Promise<IpcResult<{ connected: boolean }>>
   disconnect: () => Promise<IpcResult<void>>
   getUpcoming: () => Promise<IpcResult<CalendarEvent[]>>
+  createEvent: (input: CreateCalendarEventInput) => Promise<IpcResult<CalendarEvent>>
+  requestWriteAccess: () => Promise<IpcResult<CalendarStatus>>
   onStatusChanged: (callback: (status: CalendarStatus) => void) => () => void
 }
 

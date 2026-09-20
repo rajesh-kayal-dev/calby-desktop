@@ -1,12 +1,16 @@
-import { useEffect, type FC } from 'react'
+import { useState, useEffect, type FC } from 'react'
 import type { CalendarEvent } from '../types'
+import { formatEventFullDate } from '../utils/dateTime'
 
 interface EventDetailsModalProps {
   event: CalendarEvent | null
   onClose: () => void
+  onSetReminder?: (event: CalendarEvent) => void
 }
 
-export const EventDetailsModal: FC<EventDetailsModalProps> = ({ event, onClose }) => {
+export const EventDetailsModal: FC<EventDetailsModalProps> = ({ event, onClose, onSetReminder }) => {
+  const [reminderSaved, setReminderSaved] = useState(false)
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent): void => {
       if (e.key === 'Escape') onClose()
@@ -17,27 +21,12 @@ export const EventDetailsModal: FC<EventDetailsModalProps> = ({ event, onClose }
 
   if (!event) return null
 
-  const formatFullDate = (): string => {
-    if (event.allDay && event.startDate) {
-      const [y, m, d] = event.startDate.split('-').map(Number)
-      const date = new Date(y, m - 1, d)
-      return date.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) + ' (All Day)'
+  const handleReminderClick = (): void => {
+    if (onSetReminder && event) {
+      onSetReminder(event)
+      setReminderSaved(true)
+      setTimeout(() => setReminderSaved(false), 3000)
     }
-
-    if (event.startDateTime) {
-      const start = new Date(event.startDateTime)
-      const dateStr = start.toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' })
-      const startTimeStr = start.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-
-      if (event.endDateTime) {
-        const end = new Date(event.endDateTime)
-        const endTimeStr = end.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
-        return `${dateStr} · ${startTimeStr} – ${endTimeStr}`
-      }
-      return `${dateStr} · ${startTimeStr}`
-    }
-
-    return 'Scheduled Event'
   }
 
   return (
@@ -79,7 +68,7 @@ export const EventDetailsModal: FC<EventDetailsModalProps> = ({ event, onClose }
             </div>
             <div>
               <span className="text-slate-400 block mb-0.5">Date & Time</span>
-              <span className="text-slate-200 font-medium">{formatFullDate()}</span>
+              <span className="text-slate-200 font-medium">{formatEventFullDate(event)}</span>
               {event.timeZone && (
                 <span className="text-slate-500 block text-[11px] mt-0.5">Timezone: {event.timeZone}</span>
               )}
@@ -111,9 +100,9 @@ export const EventDetailsModal: FC<EventDetailsModalProps> = ({ event, onClose }
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-between gap-3 pt-4 border-t border-[#1E293B]">
-          <div>
-            {event.meetingUrl ? (
+        <div className="flex items-center justify-between gap-3 pt-4 border-t border-[#1E293B] flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap">
+            {event.meetingUrl && (
               <a
                 href={event.meetingUrl}
                 target="_blank"
@@ -125,7 +114,35 @@ export const EventDetailsModal: FC<EventDetailsModalProps> = ({ event, onClose }
                 </svg>
                 <span>Join Meeting</span>
               </a>
-            ) : <div />}
+            )}
+
+            {onSetReminder && (
+              <button
+                onClick={handleReminderClick}
+                type="button"
+                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg border text-xs font-medium transition-colors cursor-pointer ${
+                  reminderSaved
+                    ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-300'
+                    : 'bg-[#1E293B]/60 hover:bg-[#1E293B] border-slate-700/50 text-slate-300 hover:text-sky-300'
+                }`}
+              >
+                {reminderSaved ? (
+                  <>
+                    <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Reminder Set</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                    <span>Set Reminder</span>
+                  </>
+                )}
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
