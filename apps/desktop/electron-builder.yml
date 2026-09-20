@@ -1,5 +1,6 @@
 appId: com.calby.desktop
 productName: Calby
+electronVersion: 29.4.6
 directories:
   output: dist
   buildResources: build
@@ -8,4 +9,7 @@ files:
   - 'out/**/*'
 win:
   target:
-    - nsis
+    - target: dir
+      arch:
+        - x64
+  signAndEditExecutable: false

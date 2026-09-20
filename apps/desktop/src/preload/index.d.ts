@@ -1,4 +1,4 @@
-export interface SystemInfo {
+﻿export interface SystemInfo {
   name: string
   version: string
   electronVersion: string
@@ -39,6 +39,42 @@ export interface VoiceErrorPayload {
   message: string
 }
 
+export type ReminderStatus = 'scheduled' | 'triggered' | 'snoozed' | 'completed' | 'dismissed'
+
+export interface Reminder {
+  id: string
+  title: string
+  scheduledAt: string
+  alarmEnabled: boolean
+  status: ReminderStatus
+  snoozeCount: number
+  createdAt: string
+  updatedAt: string
+  completedAt?: string | null
+}
+
+export interface CreateReminderInput {
+  title: string
+  scheduledAt: string
+  alarmEnabled?: boolean
+}
+
+export interface UpdateReminderInput {
+  id: string
+  title?: string
+  scheduledAt?: string
+  alarmEnabled?: boolean
+}
+
+export interface ReminderChangePayload {
+  action: 'created' | 'updated' | 'deleted'
+  reminder: Reminder
+}
+
+export interface ReminderTriggeredPayload {
+  reminder: Reminder
+}
+
 export type IpcResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: { code: string; message: string } }
@@ -59,6 +95,18 @@ export interface CalbyVoiceAPI {
   onError: (callback: (payload: VoiceErrorPayload) => void) => () => void
 }
 
+export interface CalbyRemindersAPI {
+  list: () => Promise<IpcResult<Reminder[]>>
+  create: (input: CreateReminderInput) => Promise<IpcResult<Reminder>>
+  update: (input: UpdateReminderInput) => Promise<IpcResult<Reminder>>
+  delete: (id: string) => Promise<IpcResult<{ id: string }>>
+  snooze: (id: string, minutes?: number) => Promise<IpcResult<Reminder>>
+  complete: (id: string) => Promise<IpcResult<Reminder>>
+  dismiss: (id: string) => Promise<IpcResult<Reminder>>
+  onChanged: (callback: (payload: ReminderChangePayload) => void) => () => void
+  onTriggered: (callback: (payload: ReminderTriggeredPayload) => void) => () => void
+}
+
 export interface CalbyAPI {
   system: {
     getInfo: () => Promise<IpcResult<SystemInfo>>
@@ -72,6 +120,7 @@ export interface CalbyAPI {
     complete: () => Promise<IpcResult<void>>
   }
   voice: CalbyVoiceAPI
+  reminders: CalbyRemindersAPI
 }
 
 declare global {

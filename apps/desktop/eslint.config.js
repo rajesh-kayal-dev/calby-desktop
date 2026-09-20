@@ -7,6 +7,17 @@ import reactPlugin from 'eslint-plugin-react'
 export default [
   js.configs.recommended,
   {
+    files: ['**/*.{js,cjs,mjs}'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        ...globals.node,
+        ...globals.browser
+      }
+    }
+  },
+  {
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
       parser: tsParser,

@@ -1,14 +1,18 @@
-import { useState, useEffect, type FC } from 'react'
+﻿import { useState, useEffect, type FC } from 'react'
 import { TitleBar } from '../components/ui/TitleBar'
 import { OnboardingFlow } from '../features/onboarding/OnboardingFlow'
 import { OnboardingStep } from '../features/onboarding/types'
 import { VoiceAssistantHome } from '../features/voice/VoiceAssistantHome'
+import { RemindersPage } from '../features/reminders/RemindersPage'
 import type { AuthStatus } from '../types/calby'
+
+export type ActiveView = 'home' | 'reminders'
 
 export const App: FC = () => {
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
+  const [activeView, setActiveView] = useState<ActiveView>('home')
 
   const checkStatus = async (): Promise<void> => {
     try {
@@ -76,11 +80,19 @@ export const App: FC = () => {
     )
   }
 
-  // 3. Fully Configured and Onboarded -> Home View
+  // 3. Fully Configured and Onboarded -> Home View or Reminders View
   if (authStatus?.isConfigured && authStatus.isOnboarded) {
     return (
       <main className="w-full h-screen bg-[#070A11] flex flex-col select-none">
-        <VoiceAssistantHome onResetSetup={() => void checkStatus()} />
+        <TitleBar />
+        {activeView === 'home' ? (
+          <VoiceAssistantHome
+            onResetSetup={() => void checkStatus()}
+            onNavigateToReminders={() => setActiveView('reminders')}
+          />
+        ) : (
+          <RemindersPage onNavigateHome={() => setActiveView('home')} />
+        )}
       </main>
     )
   }

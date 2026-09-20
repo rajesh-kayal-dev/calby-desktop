@@ -1,14 +1,17 @@
-import { app, BrowserWindow } from 'electron'
+﻿import { app, BrowserWindow } from 'electron'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { createMainWindow } from './windows/main.window'
 import { registerSystemIpcHandlers } from './ipc/system.ipc'
 import { registerAuthIpcHandlers } from './ipc/auth.ipc'
 import { registerOnboardingIpcHandlers } from './ipc/onboarding.ipc'
 import { registerVoiceIpcHandlers } from './ipc/voice.ipc'
+import { registerRemindersIpc } from './ipc/reminders.ipc'
 import { CredentialService } from './services/credential.service'
 import { AiVoiceService } from './services/ai-voice.service'
+import { ReminderService } from './services/reminder.service'
+import { closeDatabase } from './storage/database'
 
-export { CredentialService, AiVoiceService }
+export { CredentialService, AiVoiceService, ReminderService }
 
 // This method will be called when Electron has finished initialization
 app.whenReady().then(() => {
@@ -20,11 +23,15 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
+  // Initialize Reminder Service and local SQLite database
+  ReminderService.getInstance().init()
+
   // Register all main process IPC handlers
   registerSystemIpcHandlers()
   registerAuthIpcHandlers()
   registerOnboardingIpcHandlers()
   registerVoiceIpcHandlers()
+  registerRemindersIpc()
 
   // Create main application window
   createMainWindow()
@@ -36,6 +43,10 @@ app.whenReady().then(() => {
       createMainWindow()
     }
   })
+})
+
+app.on('before-quit', () => {
+  closeDatabase()
 })
 
 // Quit when all windows are closed, except on macOS.
