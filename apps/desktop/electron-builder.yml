@@ -1,0 +1,11 @@
+appId: com.calby.desktop
+productName: Calby
+directories:
+  output: dist
+  buildResources: build
+files:
+  - '!**/*'
+  - 'out/**/*'
+win:
+  target:
+    - nsis
