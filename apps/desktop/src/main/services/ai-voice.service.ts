@@ -1,6 +1,7 @@
-import { BrowserWindow } from 'electron'
+﻿import { BrowserWindow } from 'electron'
 import { GoogleGenAI, type LiveServerMessage } from '@google/genai'
 import { CredentialService } from './credential.service'
+import { ActionExecutor } from './action-executor'
 
 export type VoiceState =
   | 'idle'
@@ -32,6 +33,7 @@ const CONNECT_TIMEOUT_MS = 10 * 1000 // 10s timeout for WebSocket connection set
 export class AiVoiceService {
   private static instance: AiVoiceService | null = null
   private credentialService: CredentialService
+  private actionExecutor: ActionExecutor
   private state: VoiceState = 'idle'
   private stateMetadata?: Record<string, unknown>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -43,6 +45,7 @@ export class AiVoiceService {
 
   private constructor() {
     this.credentialService = CredentialService.getInstance()
+    this.actionExecutor = ActionExecutor.getInstance()
   }
 
   public static getInstance(): AiVoiceService {
@@ -134,6 +137,15 @@ export class AiVoiceService {
         }
       }, CONNECT_TIMEOUT_MS)
 
+      const tools = [
+        {
+          functionDeclarations: this.actionExecutor.getToolDeclarations()
+        }
+      ]
+
+      const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+      const nowIso = new Date().toISOString()
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const liveConfig: any = {
         responseModalities: ['AUDIO'],
@@ -144,10 +156,15 @@ export class AiVoiceService {
             }
           }
         },
+        tools,
         systemInstruction: {
           parts: [
             {
-              text: "You are Calby, a calm, focused, personal desktop voice assistant. Keep answers concise, clear, and direct. Help the user remember, understand, and act. Respond naturally and helpfully to the user's spoken input. Never output markdown asterisks or bullet formatting in spoken speech."
+              text: `You are Calby, a calm, focused, personal desktop voice assistant. Keep answers concise, clear, and direct. Help the user remember, understand, and act. Never output markdown asterisks or bullet formatting in spoken speech.
+
+Current reference time: ${nowIso} (User timezone: ${userTimeZone}).
+When the user asks to set, create, or schedule a reminder, resolve their date and time (e.g. "tomorrow at 10 AM", "in 15 minutes") relative to this reference time into a precise ISO 8601 UTC date string and call the "create_reminder" tool.
+If required information is missing, ask a concise clarifying question.`
             }
           ]
         },
@@ -167,7 +184,7 @@ export class AiVoiceService {
             this.resetIdleTimer()
           },
           onmessage: (msg: LiveServerMessage) => {
-            this.handleServerMessage(msg)
+            void this.handleServerMessage(msg)
           },
           onerror: (err: unknown) => {
             if (this.connectTimer) clearTimeout(this.connectTimer)
@@ -230,7 +247,7 @@ export class AiVoiceService {
     }
   }
 
-  private handleServerMessage(msg: LiveServerMessage): void {
+  private async handleServerMessage(msg: LiveServerMessage): Promise<void> {
     this.resetIdleTimer()
 
     // 1. Session Resumption Token
@@ -238,17 +255,66 @@ export class AiVoiceService {
       this.resumptionHandle = msg.sessionResumptionUpdate.newHandle
     }
 
+    // 2. Handle Tool Calls from Gemini Live
+    if (msg.toolCall) {
+      const toolCall = msg.toolCall
+      console.log('[AiVoiceService] Received toolCall from Gemini:', toolCall)
+      this.setState('processing')
+
+      if (toolCall.functionCalls && toolCall.functionCalls.length > 0) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const responses: any[] = []
+
+        for (const fc of toolCall.functionCalls) {
+          const toolName = fc.name || ''
+          const result = await this.actionExecutor.executeTool(
+            toolName,
+            (fc.args || {}) as Record<string, unknown>
+          )
+
+          responses.push({
+            id: fc.id,
+            name: toolName,
+            response: {
+              output: result
+            }
+          })
+
+          if (result.success && toolName === 'create_reminder') {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const reminderData = result.data as any
+            this.setState('action_result', {
+              title: 'Reminder scheduled',
+              subtitle: `"${reminderData?.title || 'Reminder'}" set successfully.`
+            })
+          }
+        }
+
+        if (this.activeSession && responses.length > 0) {
+          try {
+            console.log('[AiVoiceService] Sending toolResponse to Gemini:', responses)
+            this.activeSession.sendToolResponse({
+              functionResponses: responses
+            })
+          } catch (err) {
+            console.error('[AiVoiceService] Failed to send tool response:', err)
+          }
+        }
+      }
+      return
+    }
+
     if (msg.serverContent) {
       const content = msg.serverContent
 
-      // 2. Interruption signal (Barge-in by user)
+      // Interruption signal (Barge-in by user)
       if (content.interrupted) {
         console.log('[VOICE][GEMINI] server signaled interruption')
         this.broadcast('voice:interrupted')
         this.setState('listening')
       }
 
-      // 3. Interim User Input Transcription
+      // Interim User Input Transcription
       if (content.interimInputTranscription?.text) {
         this.broadcast('voice:transcript', {
           role: 'user',
@@ -260,7 +326,7 @@ export class AiVoiceService {
         }
       }
 
-      // 4. Final User Input Transcription
+      // Final User Input Transcription
       if (content.inputTranscription?.text) {
         console.log(`[VOICE][GEMINI] inputTranscript="${content.inputTranscription.text}"`)
         this.broadcast('voice:transcript', {
@@ -273,11 +339,10 @@ export class AiVoiceService {
         }
       }
 
-      // 5. Model Output Audio & Text
+      // Model Output Audio & Text
       if (content.modelTurn?.parts) {
         for (const part of content.modelTurn.parts) {
           if (part.inlineData?.data) {
-            console.log('[VOICE][GEMINI] modelAudioReceived')
             this.broadcast('voice:audio-chunk', part.inlineData.data)
             if (this.state !== 'speaking') {
               this.setState('speaking')
@@ -294,7 +359,7 @@ export class AiVoiceService {
         }
       }
 
-      // 6. Model Output Transcription (from outputAudioTranscription)
+      // Model Output Transcription
       if (content.outputTranscription?.text) {
         console.log(`[VOICE][GEMINI] outputTranscript="${content.outputTranscription.text}"`)
         this.broadcast('voice:transcript', {
@@ -307,7 +372,7 @@ export class AiVoiceService {
         }
       }
 
-      // 7. Turn Complete
+      // Turn Complete
       if (content.turnComplete) {
         console.log('[VOICE][GEMINI] turnComplete server signal received')
         this.broadcast('voice:turn-complete')

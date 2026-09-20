@@ -1,4 +1,4 @@
-export type {
+﻿export type {
   SystemInfo,
   AuthStatus,
   ValidateKeyResult,
@@ -7,6 +7,13 @@ export type {
   VoiceTranscriptPayload,
   VoiceErrorPayload,
   CalbyVoiceAPI,
+  Reminder,
+  ReminderStatus,
+  CreateReminderInput,
+  UpdateReminderInput,
+  ReminderChangePayload,
+  ReminderTriggeredPayload,
+  CalbyRemindersAPI,
   IpcResult,
   CalbyAPI
 } from '../../../preload/index.d'
