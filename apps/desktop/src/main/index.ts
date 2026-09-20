@@ -4,6 +4,11 @@ import { createMainWindow } from './windows/main.window'
 import { registerSystemIpcHandlers } from './ipc/system.ipc'
 import { registerAuthIpcHandlers } from './ipc/auth.ipc'
 import { registerOnboardingIpcHandlers } from './ipc/onboarding.ipc'
+import { registerVoiceIpcHandlers } from './ipc/voice.ipc'
+import { CredentialService } from './services/credential.service'
+import { AiVoiceService } from './services/ai-voice.service'
+
+export { CredentialService, AiVoiceService }
 
 // This method will be called when Electron has finished initialization
 app.whenReady().then(() => {
@@ -19,6 +24,7 @@ app.whenReady().then(() => {
   registerSystemIpcHandlers()
   registerAuthIpcHandlers()
   registerOnboardingIpcHandlers()
+  registerVoiceIpcHandlers()
 
   // Create main application window
   createMainWindow()

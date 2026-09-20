@@ -1,6 +1,7 @@
 {
   "name": "calby",
   "version": "1.0.0",
+  "type": "module",
   "private": true,
   "description": "Calby — Personal Desktop Assistant",
   "workspaces": [
@@ -10,9 +11,12 @@
     "dev": "npm run dev --workspace=@calby/desktop",
     "build": "npm run build --workspace=@calby/desktop",
     "lint": "npm run lint --workspace=@calby/desktop",
-    "typecheck": "npm run typecheck --workspace=@calby/desktop"
+    "typecheck": "npm run typecheck --workspace=@calby/desktop",
+    "test:e2e": "playwright test -c e2e/playwright.config.ts",
+    "test:e2e:ui": "playwright test -c e2e/playwright.config.ts --ui"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@typescript-eslint/eslint-plugin": "^7.1.0",
     "@typescript-eslint/parser": "^7.1.0",
     "eslint": "^8.57.0",

@@ -23,3 +23,10 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Playwright Test Artifacts
+playwright-report/
+test-results/

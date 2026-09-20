@@ -2,7 +2,7 @@ import { useState, useEffect, type FC } from 'react'
 import { TitleBar } from '../components/ui/TitleBar'
 import { OnboardingFlow } from '../features/onboarding/OnboardingFlow'
 import { OnboardingStep } from '../features/onboarding/types'
-import { InitialHomeScreen } from '../features/home/InitialHomeScreen'
+import { VoiceAssistantHome } from '../features/voice/VoiceAssistantHome'
 import type { AuthStatus } from '../types/calby'
 
 export const App: FC = () => {
@@ -80,8 +80,7 @@ export const App: FC = () => {
   if (authStatus?.isConfigured && authStatus.isOnboarded) {
     return (
       <main className="w-full h-screen bg-[#070A11] flex flex-col select-none">
-        <TitleBar />
-        <InitialHomeScreen onResetSetup={() => void checkStatus()} />
+        <VoiceAssistantHome onResetSetup={() => void checkStatus()} />
       </main>
     )
   }
