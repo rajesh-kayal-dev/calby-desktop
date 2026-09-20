@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Calby — Voice Assistant (Processing State)</title>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            app: {
+              bg: '#070a11',
+              card: '#0b0e15',
+              surface: '#10131a',
+              border: '#1b202c',
+              cyan: '#38bdf8',
+              cyanGlow: '#0ea5e9',
+            }
+          },
+          animation: {
+            'spin-slow': 'spin 2.2s linear infinite',
+            'pulse-glow': 'pulseGlow 2.5s ease-in-out infinite alternate',
+            'wave-pulse': 'wavePulse 1.8s ease-in-out infinite alternate',
+          },
+          keyframes: {
+            pulseGlow: {
+              '0%': { filter: 'drop-shadow(0 0 15px rgba(14, 165, 233, 0.25))' },
+              '100%': { filter: 'drop-shadow(0 0 35px rgba(56, 189, 248, 0.65))' },
+            },
+            wavePulse: {
+              '0%': { opacity: '0.4' },
+              '100%': { opacity: '0.9' }
+            }
+          }
+        }
+      }
+    }
+  </script>
+<style data-purpose="custom-decorations">
+    /* Subtle spinning processing ring */
+    .spinner-conic {
+      background: conic-gradient(from 0deg, transparent 0deg, rgba(56, 189, 248, 0.05) 120deg, rgba(56, 189, 248, 0.4) 260deg, #38bdf8 360deg);
+    }
+    /* Ethereal background radial gradients */
+    .ambient-radial {
+      background: radial-gradient(circle 500px at 50% 50%, rgba(14, 165, 233, 0.07), transparent 70%);
+    }
+  </style>
+</head>
+<body class="bg-[#030508] text-slate-200 font-sans min-h-screen flex items-center justify-center p-4 antialiased select-none">
+<!-- BEGIN: ApplicationWindowContainer -->
+<!-- Designed strictly to match Calby Phase 2 Card 3 (Processing State) in 1280x680 proportions -->
+<main class="w-[1280px] h-[680px] max-w-full bg-[#070A11] border border-[#1b202c] rounded-2xl shadow-[0_25px_70px_rgba(0,0,0,0.85)] flex flex-col relative overflow-hidden" data-purpose="calby-desktop-app">
+<!-- Ambient Center Light -->
+<div class="ambient-radial absolute inset-0 pointer-events-none"></div>
+<!-- BEGIN: TitleBar -->
+<header class="h-14 px-6 border-b border-[#141824]/80 flex items-center justify-between z-20 shrink-0 bg-[#070A11]/60 backdrop-blur-md" data-purpose="window-header">
+<!-- App Identity / Logo -->
+<div class="flex items-center space-x-3.5" data-purpose="app-branding">
+<!-- Calby Soundwave Logo Icon -->
+<div class="flex items-center space-x-[3px] h-5 py-0.5">
+<span class="w-[2.5px] h-3 bg-white/90 rounded-full"></span>
+<span class="w-[2.5px] h-5 bg-white rounded-full"></span>
+<span class="w-[2.5px] h-2 bg-white/70 rounded-full"></span>
+<span class="w-[2.5px] h-4 bg-white/90 rounded-full"></span>
+</div>
+<span class="text-white font-medium text-[15px] tracking-tight">Calby</span>
+</div>
+<!-- Right Header Actions: Connectivity & Window Controls -->
+<div class="flex items-center space-x-6" data-purpose="header-controls">
+<!-- Status Indicator -->
+<div class="flex items-center space-x-2 text-xs text-slate-300 font-normal">
+<span class="w-2 h-2 rounded-full bg-[#22c55e] shadow-[0_0_8px_#22c55e]"></span>
+<span class="text-[13px] text-slate-200">Connected</span>
+</div>
+<!-- Settings Cog Icon -->
+<button aria-label="Settings" class="text-slate-400 hover:text-white transition-colors duration-150 focus:outline-none" type="button">
+<svg class="w-4 h-4 stroke-current fill-none stroke-[1.75]" viewbox="0 0 24 24">
+<path d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.6 6.6 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<!-- Window Minimize, Maximize, Close Controls -->
+<div class="flex items-center space-x-3.5 text-slate-400 pl-1" data-purpose="window-actions">
+<!-- Minimize -->
+<button aria-label="Minimize" class="hover:text-white transition-colors" type="button">
+<svg class="w-3 h-3 stroke-current stroke-2" viewbox="0 0 12 12"><line x1="1" x2="11" y1="6" y2="6"></line></svg>
+</button>
+<!-- Maximize -->
+<button aria-label="Maximize" class="hover:text-white transition-colors" type="button">
+<svg class="w-3 h-3 stroke-current stroke-[1.75] fill-none" viewbox="0 0 12 12"><rect height="9" rx="1.5" width="9" x="1.5" y="1.5"></rect></svg>
+</button>
+<!-- Close -->
+<button aria-label="Close" class="hover:text-red-400 transition-colors" type="button">
+<svg class="w-3.5 h-3.5 stroke-current stroke-[1.8]" viewbox="0 0 14 14"><path d="M2.5 2.5l9 9m0-9l-9 9"></path></svg>
+</button>
+</div>
+</div>
+</header>
+<!-- END: TitleBar -->
+<!-- BEGIN: MainContentArea -->
+<div class="flex-1 flex flex-col items-center justify-center relative z-10 px-8 pb-12" data-purpose="processing-center-stage">
+<!-- Text Status Header -->
+<div class="text-center mb-10 flex flex-col items-center space-y-1.5" data-purpose="status-typography">
+<h1 class="text-white text-2xl font-medium tracking-tight">Processing...</h1>
+<p class="text-[#94A3B8] text-[15px] font-normal tracking-wide">Understanding and taking action.</p>
+</div>
+<!-- BEGIN: CalbyVoiceOrb (Processing State) -->
+<!-- Circular dark orb with focused cyan/blue circular progress/spinner revolving around perimeter -->
+<div class="relative flex items-center justify-center" data-purpose="calby-orb-container">
+<!-- Deep Ambient Radial Backlight Glow -->
+<div class="absolute w-56 h-56 rounded-full bg-cyan-500/15 blur-2xl animate-pulse-glow pointer-events-none"></div>
+<!-- Outer Progress Spinner Track & Active Cyan Arc -->
+<div class="relative w-44 h-44 rounded-full p-[2.5px] flex items-center justify-center">
+<!-- Continuous Rotating Conic Gradient Border -->
+<div class="absolute inset-0 rounded-full spinner-conic animate-spin-slow"></div>
+<!-- Dark Track Background to create hollow ring border -->
+<div class="absolute inset-[2.5px] rounded-full bg-[#070a11]"></div>
+<!-- Deep Internal Spherical Core -->
+<div class="relative w-36 h-36 rounded-full bg-gradient-to-b from-[#111927] to-[#0a0f19] border border-cyan-500/20 shadow-[inset_0_0_25px_rgba(14,165,233,0.3)] flex items-center justify-center">
+<!-- Central Soundwave Icon representing AI processing -->
+<div class="flex items-center justify-center space-x-[4.5px] h-10" data-purpose="calby-soundwave-core">
+<span class="w-[3px] h-4 bg-sky-100 rounded-full opacity-80"></span>
+<span class="w-[3px] h-7 bg-sky-200 rounded-full opacity-90"></span>
+<span class="w-[3.5px] h-10 bg-white rounded-full shadow-[0_0_10px_#ffffff]"></span>
+<span class="w-[3px] h-6 bg-sky-200 rounded-full opacity-90"></span>
+<span class="w-[3px] h-3 bg-sky-100 rounded-full opacity-80"></span>
+</div>
+</div>
+</div>
+</div>
+<!-- END: CalbyVoiceOrb -->
+</div>
+<!-- END: MainContentArea -->
+<!-- BEGIN: BottomAmbientWaves -->
+<!-- Ethereal subtle audio waves at the bottom edge as seen in Calby cards -->
+<div class="absolute bottom-0 left-0 right-0 h-44 pointer-events-none overflow-hidden flex items-end z-0 opacity-70 animate-wave-pulse" data-purpose="ambient-bottom-waves">
+<svg class="w-full h-36" fill="none" preserveaspectratio="none" viewbox="0 0 1280 180">
+<defs>
+<!-- Gradient for main flowing blue wave line -->
+<lineargradient id="waveGradPrimary" x1="0%" x2="100%" y1="0%" y2="0%">
+<stop offset="0%" stop-color="#0284c7" stop-opacity="0"></stop>
+<stop offset="30%" stop-color="#0284c7" stop-opacity="0.15"></stop>
+<stop offset="50%" stop-color="#38bdf8" stop-opacity="0.45"></stop>
+<stop offset="70%" stop-color="#0369a1" stop-opacity="0.2"></stop>
+<stop offset="100%" stop-color="#0284c7" stop-opacity="0"></stop>
+</lineargradient>
+<!-- Gradient for secondary subtle backdrop wave -->
+<lineargradient id="waveGradSecondary" x1="0%" x2="100%" y1="0%" y2="0%">
+<stop offset="0%" stop-color="#0369a1" stop-opacity="0"></stop>
+<stop offset="45%" stop-color="#0284c7" stop-opacity="0.25"></stop>
+<stop offset="55%" stop-color="#38bdf8" stop-opacity="0.3"></stop>
+<stop offset="100%" stop-color="#075985" stop-opacity="0"></stop>
+</lineargradient>
+</defs>
+<!-- Secondary Wave Form -->
+<path d="M0,150 C320,110 440,165 640,135 C840,105 980,160 1280,140" fill="none" stroke="url(#waveGradSecondary)" stroke-width="1.5"></path>
+<!-- Primary Harmonic Wave Form -->
+<path d="M0,160 C300,140 480,95 640,120 C800,145 960,115 1280,155" fill="none" stroke="url(#waveGradPrimary)" stroke-width="2"></path>
+</svg>
+</div>
+<!-- END: BottomAmbientWaves -->
+</main>
+<!-- END: ApplicationWindowContainer -->
+</body></html>

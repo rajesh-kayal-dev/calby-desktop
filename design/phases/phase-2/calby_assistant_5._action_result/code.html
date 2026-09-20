@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Calby — Voice Assistant (Action Result State)</title>
+<!-- Google Fonts: Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 with Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              darkest: '#070A11',
+              dark: '#0B0E15',
+              surface: '#10131A',
+              card: '#121826',
+              accent: '#10B981',
+              cyan: '#06B6D4'
+            }
+          }
+        }
+      }
+    };
+  </script>
+<!-- Custom Styles for Ambient Waves & Glow Effects -->
+<style data-purpose="custom-effects">
+    /* Subtle glowing backdrop radial gradient */
+    .ambient-glow {
+      background: radial-gradient(circle at 50% 45%, rgba(16, 185, 129, 0.07) 0%, rgba(6, 182, 212, 0.04) 35%, transparent 70%);
+    }
+    
+    /* Ethereal wave lines container */
+    .ambient-wave {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 180px;
+      pointer-events: none;
+      opacity: 0.45;
+    }
+  </style>
+</head>
+<body class="bg-[#05070B] min-h-screen flex items-center justify-center p-4 font-sans antialiased select-none">
+<!-- BEGIN: DesktopApplicationFrame -->
+<!-- 1280x680 Electron Desktop App Container -->
+<div class="relative w-full max-w-[1280px] h-[680px] bg-gradient-to-b from-[#0B0E15] to-[#070A11] rounded-xl border border-slate-800/80 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.85)] flex flex-col overflow-hidden" data-purpose="electron-window-container" id="desktop-window">
+<!-- Ambient Subtle Background Glow -->
+<div class="absolute inset-0 ambient-glow pointer-events-none"></div>
+<!-- BEGIN: TitleBarHeader -->
+<!-- Window header with brand logo, status indicator, settings, and native controls -->
+<header class="relative z-20 h-12 px-5 flex items-center justify-between border-b border-slate-800/50 bg-[#0B0E15]/80 backdrop-blur-md" data-purpose="window-titlebar">
+<!-- Brand Identity / Window Title -->
+<div class="flex items-center space-x-2.5">
+<!-- Calby Soundwave Logo Icon -->
+<div class="flex items-center space-x-[2.5px] h-4">
+<span class="w-[2.5px] h-2 bg-slate-300 rounded-full"></span>
+<span class="w-[2.5px] h-4 bg-slate-100 rounded-full"></span>
+<span class="w-[2.5px] h-3 bg-slate-300 rounded-full"></span>
+<span class="w-[2.5px] h-1.5 bg-slate-400 rounded-full"></span>
+</div>
+<span class="text-sm font-semibold tracking-wide text-slate-100">Calby</span>
+</div>
+<!-- Right Header Actions: Status, Settings & Window Controls -->
+<div class="flex items-center space-x-5">
+<!-- Connection Status Badge -->
+<div class="flex items-center space-x-2">
+<span class="relative flex h-2 w-2">
+<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60"></span>
+<span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+</span>
+<span class="text-xs font-medium text-slate-300">Connected</span>
+</div>
+<!-- Settings Icon Button -->
+<button aria-label="Settings" class="text-slate-400 hover:text-slate-200 transition-colors p-1" type="button">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round"></path>
+<path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<!-- Standard Desktop Window Controls (Minimize, Maximize, Close) -->
+<div class="flex items-center space-x-3 text-slate-400 pl-1">
+<!-- Minimize -->
+<button aria-label="Minimize" class="hover:text-slate-200 transition-colors" type="button">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24">
+<path d="M20 12H4" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+<!-- Maximize -->
+<button aria-label="Maximize" class="hover:text-slate-200 transition-colors" type="button">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24">
+<rect height="18" rx="2" width="18" x="3" y="3"></rect>
+</svg>
+</button>
+<!-- Close -->
+<button aria-label="Close" class="hover:text-rose-400 transition-colors" type="button">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24">
+<path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+</div>
+</header>
+<!-- END: TitleBarHeader -->
+<!-- BEGIN: MainContentArea -->
+<!-- Center interactive workspace displaying the completed action state -->
+<main class="relative z-10 flex-1 flex flex-col items-center justify-center px-4" data-purpose="action-result-display">
+<!-- Elevated Action Result Modal / Card -->
+<div class="w-full max-w-[420px] bg-[#121826]/95 border border-slate-700/60 rounded-2xl p-7 shadow-2xl backdrop-blur-xl flex flex-col items-center text-center transition-all duration-300">
+<!-- Emerald Green Checkmark Badge -->
+<div class="relative flex items-center justify-center mb-5">
+<!-- Outer Soft Glow Ring -->
+<div class="absolute w-14 h-14 rounded-full bg-emerald-500/20 blur-md"></div>
+<!-- Primary Circular Badge -->
+<div class="relative w-12 h-12 rounded-full bg-emerald-500 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+<svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" stroke-width="3" viewbox="0 0 24 24">
+<path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+</div>
+<!-- Result Confirmation Title -->
+<h1 class="text-xl font-bold text-white tracking-tight mb-1">
+          Reminder created
+        </h1>
+<!-- Timestamp / Due Date Information -->
+<p class="text-xs font-medium text-slate-400 mb-6">
+          Tomorrow <span class="mx-1 text-slate-600">·</span> 10:00 AM
+        </p>
+<!-- Inner Reminder Item Sub-card -->
+<div class="w-full bg-[#182032]/80 border border-slate-700/60 rounded-xl px-4 py-3.5 flex items-center justify-start gap-3.5 text-left shadow-inner">
+<!-- Calendar/Reminder Event Icon -->
+<div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center flex-shrink-0 text-emerald-400">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<rect height="18" rx="2" ry="2" width="18" x="3" y="4"></rect>
+<line x1="16" x2="16" y1="2" y2="6"></line>
+<line x1="8" x2="8" y1="2" y2="6"></line>
+<line x1="3" x2="21" y1="10" y2="10"></line>
+</svg>
+</div>
+<!-- Task Details -->
+<div class="flex flex-col overflow-hidden">
+<span class="text-sm font-semibold text-slate-100 truncate">Call Rahul</span>
+</div>
+</div>
+</div>
+<!-- Informative Subtext Below Main Card -->
+<div class="mt-7 flex flex-col items-center text-center space-y-1">
+<p class="text-sm font-normal text-slate-400">
+          Calby has taken care of it.
+        </p>
+<span class="text-xs text-slate-500">
+          Shows the result briefly, then returns to ready state.
+        </span>
+</div>
+</main>
+<!-- END: MainContentArea -->
+<!-- BEGIN: DecorativeAmbientWaves -->
+<!-- Ethereal subtle audio & fluid wave vectors along the bottom -->
+<div aria-hidden="true" class="ambient-wave">
+<svg class="w-full h-full" fill="none" preserveaspectratio="none" viewbox="0 0 1280 180" xmlns="http://www.w3.org/2000/svg">
+<path d="M0 130C180 130 260 80 440 90C620 100 700 150 880 140C1060 130 1160 85 1280 95" stroke="url(#paint0_linear)" stroke-opacity="0.25" stroke-width="1.5"></path>
+<path d="M0 115C160 115 280 160 480 145C680 130 760 70 960 80C1120 88 1200 130 1280 125" stroke="url(#paint1_linear)" stroke-opacity="0.3" stroke-width="1.2"></path>
+<path d="M0 145C220 145 320 100 520 105C720 110 820 155 1020 140C1160 130 1220 115 1280 110" stroke="url(#paint2_linear)" stroke-opacity="0.2" stroke-width="0.8"></path>
+<defs>
+<lineargradient gradientunits="userSpaceOnUse" id="paint0_linear" x1="0" x2="1280" y1="110" y2="110">
+<stop stop-color="#0284C7" stop-opacity="0"></stop>
+<stop offset="0.25" stop-color="#0EA5E9" stop-opacity="0.4"></stop>
+<stop offset="0.5" stop-color="#10B981" stop-opacity="0.6"></stop>
+<stop offset="0.75" stop-color="#06B6D4" stop-opacity="0.4"></stop>
+<stop offset="1" stop-color="#0284C7" stop-opacity="0"></stop>
+</lineargradient>
+<lineargradient gradientunits="userSpaceOnUse" id="paint1_linear" x1="0" x2="1280" y1="115" y2="115">
+<stop stop-color="#0EA5E9" stop-opacity="0"></stop>
+<stop offset="0.35" stop-color="#10B981" stop-opacity="0.5"></stop>
+<stop offset="0.65" stop-color="#06B6D4" stop-opacity="0.6"></stop>
+<stop offset="1" stop-color="#0EA5E9" stop-opacity="0"></stop>
+</lineargradient>
+<lineargradient gradientunits="userSpaceOnUse" id="paint2_linear" x1="0" x2="1280" y1="125" y2="125">
+<stop stop-color="#06B6D4" stop-opacity="0"></stop>
+<stop offset="0.5" stop-color="#10B981" stop-opacity="0.3"></stop>
+<stop offset="1" stop-color="#06B6D4" stop-opacity="0"></stop>
+</lineargradient>
+</defs>
+</svg>
+</div>
+<!-- END: DecorativeAmbientWaves -->
+</div>
+<!-- END: DesktopApplicationFrame -->
+</body></html>

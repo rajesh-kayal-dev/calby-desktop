@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Calby — Voice Assistant (Speaking State)</title>
+<!-- Fonts -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<!-- Tailwind CSS v3 -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            app: {
+              base: '#070A11',
+              card: '#0B0E15',
+              surface: '#10131A',
+              border: '#1E2532',
+              cyan: '#00D8F6',
+              blue: '#0072FF',
+              textMuted: '#8E9AA8'
+            }
+          }
+        }
+      }
+    }
+  </script>
+<!-- BEGIN: Custom Styles -->
+<style data-purpose="custom-animations">
+    /* Pulse animations for sound radiating ripples */
+    @keyframes ripple-pulse {
+      0% {
+        transform: scale(0.92);
+        opacity: 0.25;
+      }
+      50% {
+        transform: scale(1.04);
+        opacity: 0.7;
+      }
+      100% {
+        transform: scale(0.92);
+        opacity: 0.25;
+      }
+    }
+
+    @keyframes inner-glow {
+      0%, 100% {
+        box-shadow: 0 0 35px rgba(0, 216, 246, 0.4), inset 0 0 25px rgba(0, 216, 246, 0.35);
+      }
+      50% {
+        box-shadow: 0 0 55px rgba(0, 216, 246, 0.75), inset 0 0 35px rgba(0, 216, 246, 0.55);
+      }
+    }
+
+    @keyframes bar-fluctuate {
+      0%, 100% {
+        transform: scaleY(0.4);
+      }
+      50% {
+        transform: scaleY(1);
+      }
+    }
+
+    .animate-pulse-slow {
+      animation: ripple-pulse 3.8s ease-in-out infinite;
+    }
+    .animate-pulse-mid {
+      animation: ripple-pulse 3s ease-in-out infinite reverse;
+    }
+    .orb-glow {
+      animation: inner-glow 3s ease-in-out infinite;
+    }
+
+    /* Dynamic equalizer bars */
+    .eq-bar-1 { animation: bar-fluctuate 1.2s ease-in-out infinite 0.1s; }
+    .eq-bar-2 { animation: bar-fluctuate 1.0s ease-in-out infinite 0.3s; }
+    .eq-bar-3 { animation: bar-fluctuate 1.4s ease-in-out infinite 0.0s; }
+    .eq-bar-4 { animation: bar-fluctuate 1.1s ease-in-out infinite 0.4s; }
+    .eq-bar-5 { animation: bar-fluctuate 1.3s ease-in-out infinite 0.2s; }
+  </style>
+<!-- END: Custom Styles -->
+</head>
+<body class="bg-[#030508] min-h-screen flex items-center justify-center p-4 font-sans antialiased select-none">
+<!-- BEGIN: ApplicationWindowContainer -->
+<!-- Target Dimensions: 1280x680 Electron Desktop App Frame -->
+<main class="w-[1280px] h-[680px] bg-[#070A11] rounded-2xl border border-[#171D28] shadow-2xl relative overflow-hidden flex flex-col justify-between" data-purpose="desktop-app-frame">
+<!-- Ambient Background Light Gradients and Flowing Waves -->
+<div class="absolute inset-0 pointer-events-none overflow-hidden" data-purpose="background-ambient-effects">
+<!-- Top Center Glow -->
+<div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] bg-gradient-to-b from-[#00d8f6]/10 to-transparent blur-[120px] rounded-full"></div>
+<!-- Subtle Bottom Ambient Waves SVG -->
+<svg class="absolute bottom-0 left-0 w-full h-[220px] opacity-25" fill="none" viewbox="0 0 1280 220" xmlns="http://www.w3.org/2000/svg">
+<path d="M-60 140C180 80 420 190 680 120C940 50 1120 160 1340 100V220H-60V140Z" fill="url(#wave-gradient-1)"></path>
+<path d="M-40 170C220 110 440 210 740 140C1040 70 1160 180 1320 130V220H-40V170Z" fill="url(#wave-gradient-2)"></path>
+<defs>
+<lineargradient id="wave-gradient-1" x1="0%" x2="100%" y1="0%" y2="0%">
+<stop offset="0%" stop-color="#0052cc" stop-opacity="0.2"></stop>
+<stop offset="50%" stop-color="#00d8f6" stop-opacity="0.35"></stop>
+<stop offset="100%" stop-color="#0052cc" stop-opacity="0.1"></stop>
+</lineargradient>
+<lineargradient id="wave-gradient-2" x1="0%" x2="100%" y1="0%" y2="0%">
+<stop offset="0%" stop-color="#0033aa" stop-opacity="0.1"></stop>
+<stop offset="50%" stop-color="#00d8f6" stop-opacity="0.2"></stop>
+<stop offset="100%" stop-color="#002b80" stop-opacity="0.05"></stop>
+</lineargradient>
+</defs>
+</svg>
+</div>
+<!-- BEGIN: AppHeader -->
+<header class="relative z-20 h-14 px-6 flex items-center justify-between border-b border-[#141A24]/60 bg-[#070A11]/60 backdrop-blur-md" data-purpose="electron-titlebar">
+<!-- Left: Brand Logo & Label -->
+<div class="flex items-center space-x-3">
+<!-- Calby Minimal Voice Icon -->
+<div class="flex items-center space-x-[3px] text-white">
+<span class="w-[3px] h-3 bg-white rounded-full"></span>
+<span class="w-[3px] h-5 bg-white rounded-full"></span>
+<span class="w-[3px] h-3.5 bg-white rounded-full"></span>
+<span class="w-[3px] h-2 bg-white rounded-full"></span>
+</div>
+<span class="text-sm font-semibold tracking-wide text-white">Calby</span>
+</div>
+<!-- Right: Status, Settings & Window Controls -->
+<div class="flex items-center space-x-6">
+<!-- Status Indicator -->
+<div class="flex items-center space-x-2">
+<span class="w-2 h-2 rounded-full bg-[#10B981] shadow-[0_0_8px_#10B981]"></span>
+<span class="text-xs font-medium text-slate-300">Connected</span>
+</div>
+<!-- Settings Cog Icon -->
+<button aria-label="Settings" class="text-slate-400 hover:text-white transition-colors duration-150">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24">
+<path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+<path d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"></path>
+</svg>
+</button>
+<!-- Window Action Buttons (Minimize, Maximize, Close) -->
+<div class="flex items-center space-x-3.5 pl-2 border-l border-slate-800/80 text-slate-400">
+<button aria-label="Minimize" class="hover:text-white transition-colors">
+<svg class="w-3.5 h-3.5" fill="currentColor" viewbox="0 0 16 16">
+<rect height="1.5" rx="0.75" width="16" y="7"></rect>
+</svg>
+</button>
+<button aria-label="Maximize" class="hover:text-white transition-colors">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 16 16">
+<rect height="14" rx="2" width="14" x="1" y="1"></rect>
+</svg>
+</button>
+<button aria-label="Close" class="hover:text-white transition-colors">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 16 16">
+<path d="M2 2L14 14M14 2L2 14" stroke-linecap="round"></path>
+</svg>
+</button>
+</div>
+</div>
+</header>
+<!-- END: AppHeader -->
+<!-- BEGIN: MainContent -->
+<section class="relative z-10 flex-1 flex flex-col items-center justify-center pt-2 pb-10" data-purpose="speaking-state-viewport">
+<!-- Top Title and Subtitle -->
+<div class="text-center mb-8" data-purpose="state-title-block">
+<h1 class="text-2xl font-semibold text-white tracking-tight">Speaking...</h1>
+<p class="text-sm text-[#8E9AA8] mt-1.5 font-normal tracking-wide">Here's your response.</p>
+</div>
+<!-- Center Voice Orb with Acoustic Resonance Waves -->
+<div class="relative w-[340px] h-[190px] flex items-center justify-center mb-9" data-purpose="voice-visualizer">
+<!-- Outermost Subtle Wave Pulse (Left & Right Acoustic Radiations) -->
+<div class="absolute inset-0 flex items-center justify-between pointer-events-none px-4 opacity-50">
+<!-- Left radiating arcs -->
+<svg class="w-20 h-28 text-[#00d8f6]/30 animate-pulse-slow" fill="none" stroke="currentColor" viewbox="0 0 80 112">
+<path d="M70 12C36 34 20 62 70 100" stroke-linecap="round" stroke-width="2.5"></path>
+<path d="M40 28C16 46 8 68 40 84" opacity="0.6" stroke-linecap="round" stroke-width="2"></path>
+<path d="M16 42C2 50 -1 60 16 70" opacity="0.3" stroke-linecap="round" stroke-width="1.5"></path>
+</svg>
+<!-- Right radiating arcs -->
+<svg class="w-20 h-28 text-[#00d8f6]/30 animate-pulse-slow" fill="none" stroke="currentColor" viewbox="0 0 80 112">
+<path d="M10 12C44 34 60 62 10 100" stroke-linecap="round" stroke-width="2.5"></path>
+<path d="M40 28C64 46 72 68 40 84" opacity="0.6" stroke-linecap="round" stroke-width="2"></path>
+<path d="M64 42C78 50 81 60 64 70" opacity="0.3" stroke-linecap="round" stroke-width="1.5"></path>
+</svg>
+</div>
+<!-- Mid-frequency Acoustic Wave Rings -->
+<div class="absolute w-[200px] h-[200px] rounded-full border border-[#00d8f6]/30 animate-pulse-mid pointer-events-none"></div>
+<div class="absolute w-[240px] h-[240px] rounded-full border border-[#0072ff]/20 animate-pulse-slow pointer-events-none"></div>
+<!-- Central Responding Calby Orb -->
+<div class="relative w-28 h-28 rounded-full bg-gradient-to-b from-[#09101d] to-[#040810] border-2 border-[#00d8f6] orb-glow flex items-center justify-center shadow-lg shadow-[#00d8f6]/20">
+<!-- Inner Soft Gradient Glow -->
+<div class="absolute inset-1 rounded-full bg-gradient-to-tr from-[#0055ff]/30 to-[#00d8f6]/20 blur-[2px]"></div>
+<!-- Active Equalizer Bars (Bright Cyan) -->
+<div class="relative z-10 flex items-center justify-center space-x-1.5 h-10 px-2" data-purpose="equalizer-waveform">
+<span class="w-[3.5px] h-4 bg-[#00D8F6] rounded-full origin-center eq-bar-1 shadow-[0_0_8px_#00d8f6]"></span>
+<span class="w-[3.5px] h-7 bg-[#00D8F6] rounded-full origin-center eq-bar-2 shadow-[0_0_8px_#00d8f6]"></span>
+<span class="w-[3.5px] h-10 bg-[#00D8F6] rounded-full origin-center eq-bar-3 shadow-[0_0_10px_#00d8f6]"></span>
+<span class="w-[3.5px] h-6 bg-[#00D8F6] rounded-full origin-center eq-bar-4 shadow-[0_0_8px_#00d8f6]"></span>
+<span class="w-[3.5px] h-3.5 bg-[#00D8F6] rounded-full origin-center eq-bar-5 shadow-[0_0_8px_#00d8f6]"></span>
+</div>
+</div>
+</div>
+<!-- Below Orb: Calby Vocal Response Card -->
+<div class="relative z-10 max-w-lg w-full px-4" data-purpose="speech-transcription-card">
+<div class="bg-[#0c121c]/80 backdrop-blur-md border border-[#1d2738] rounded-2xl px-6 py-4 flex items-center space-x-3.5 shadow-xl shadow-black/40">
+<!-- Subtle Assistant Small Equalizer Icon -->
+<div class="flex items-center space-x-[2.5px] text-[#00D8F6] shrink-0">
+<span class="w-[2.5px] h-2.5 bg-[#00D8F6] rounded-full"></span>
+<span class="w-[2.5px] h-4 bg-[#00D8F6] rounded-full"></span>
+<span class="w-[2.5px] h-2 bg-[#00D8F6] rounded-full"></span>
+</div>
+<!-- Active Vocalized Text -->
+<p class="text-white text-sm font-normal tracking-wide leading-relaxed">
+            “Done. I’ll remind you tomorrow at 10 AM to call Rahul.”
+          </p>
+</div>
+</div>
+</section>
+<!-- END: MainContent -->
+<!-- Empty Footer Area with Minimal Balanced Spacing -->
+<div class="h-6 w-full relative z-10" data-purpose="base-spacer"></div>
+</main>
+<!-- END: ApplicationWindowContainer -->
+</body></html>

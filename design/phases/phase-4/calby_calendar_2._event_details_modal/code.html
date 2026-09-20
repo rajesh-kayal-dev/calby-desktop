@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><meta content="web_standard" name="shell-type"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "secondary-fixed-dim": "#b4c5ff",
+          "on-error": "#690005",
+          "on-tertiary-fixed-variant": "#2f2ebe",
+          "secondary": "#b4c5ff",
+          "canvas-base": "#0A0D14",
+          "error": "#ffb4ab",
+          "surface-container": "#1d1f27",
+          "surface-overlay": "#1E273D",
+          "surface-container-lowest": "#0b0e15",
+          "text-secondary": "#94A3B8",
+          "on-surface": "#e1e2ec",
+          "status-warning": "#F59E0B",
+          "calby-glow": "rgba(56, 189, 248, 0.15)",
+          "primary": "#8ed5ff",
+          "on-surface-variant": "#bdc8d1",
+          "status-error": "#EF4444",
+          "text-primary": "#F8FAFC",
+          "on-background": "#e1e2ec",
+          "primary-container": "#38bdf8",
+          "primary-fixed": "#c4e7ff",
+          "secondary-container": "#0053db",
+          "surface-dim": "#10131a",
+          "surface-variant": "#32353d",
+          "background": "#10131a",
+          "on-primary-fixed-variant": "#004c69",
+          "on-primary": "#00354a",
+          "surface-container-high": "#272a32",
+          "on-secondary-container": "#cdd7ff",
+          "tertiary-fixed-dim": "#c0c1ff",
+          "inverse-surface": "#e1e2ec",
+          "surface-container-highest": "#32353d",
+          "error-container": "#93000a",
+          "text-muted": "#64748B",
+          "on-tertiary": "#1000a9",
+          "on-secondary-fixed": "#00174b",
+          "status-success": "#10B981",
+          "on-tertiary-fixed": "#07006c",
+          "inverse-primary": "#00668a",
+          "surface-bright": "#363941",
+          "inverse-on-surface": "#2d3038",
+          "primary-fixed-dim": "#7bd0ff",
+          "on-error-container": "#ffdad6",
+          "border-subtle": "#1E293B",
+          "secondary-fixed": "#dbe1ff",
+          "border-strong": "#334155",
+          "outline-variant": "#3e484f",
+          "on-tertiary-container": "#2b29bb",
+          "surface-subtle": "#0F1420",
+          "surface-container-low": "#191b23",
+          "on-secondary-fixed-variant": "#003ea8",
+          "surface-card": "#151C2C",
+          "tertiary-container": "#a7a9ff",
+          "tertiary": "#c7c8ff",
+          "surface": "#10131a",
+          "surface-tint": "#7bd0ff",
+          "on-primary-container": "#004965",
+          "tertiary-fixed": "#e1e0ff",
+          "on-primary-fixed": "#001e2c",
+          "on-secondary": "#002a78",
+          "outline": "#87929a"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "full": "9999px"
+        },
+        "spacing": {
+          "gutter": "1rem",
+          "space-xl": "1.5rem",
+          "space-2xl": "2rem",
+          "space-md": "0.75rem",
+          "space-sm": "0.5rem",
+          "space-xs": "0.25rem",
+          "space-3xl": "3rem",
+          "space-2xs": "0.125rem",
+          "margin": "1.5rem",
+          "space-lg": "1rem"
+        },
+        "fontFamily": {
+          "headline-md": [
+            "Inter"
+          ],
+          "headline-lg": [
+            "Inter"
+          ],
+          "body-md": [
+            "Inter"
+          ],
+          "label-sm": [
+            "Inter"
+          ],
+          "headline-xl": [
+            "Inter"
+          ],
+          "body-sm": [
+            "Inter"
+          ],
+          "label-md": [
+            "Inter"
+          ],
+          "code-sm": [
+            "JetBrains Mono"
+          ],
+          "body-lg": [
+            "Inter"
+          ]
+        },
+        "fontSize": {
+          "headline-md": [
+            "18px",
+            {
+              "lineHeight": "26px",
+              "letterSpacing": "-0.01em",
+              "fontWeight": "600"
+            }
+          ],
+          "headline-lg": [
+            "24px",
+            {
+              "lineHeight": "32px",
+              "letterSpacing": "-0.015em",
+              "fontWeight": "600"
+            }
+          ],
+          "body-md": [
+            "14px",
+            {
+              "lineHeight": "20px",
+              "fontWeight": "400"
+            }
+          ],
+          "label-sm": [
+            "11px",
+            {
+              "lineHeight": "14px",
+              "letterSpacing": "0.04em",
+              "fontWeight": "600"
+            }
+          ],
+          "headline-xl": [
+            "32px",
+            {
+              "lineHeight": "40px",
+              "letterSpacing": "-0.02em",
+              "fontWeight": "600"
+            }
+          ],
+          "body-sm": [
+            "13px",
+            {
+              "lineHeight": "18px",
+              "fontWeight": "400"
+            }
+          ],
+          "label-md": [
+            "12px",
+            {
+              "lineHeight": "16px",
+              "letterSpacing": "0.02em",
+              "fontWeight": "500"
+            }
+          ],
+          "code-sm": [
+            "12px",
+            {
+              "lineHeight": "16px",
+              "fontWeight": "400"
+            }
+          ],
+          "body-lg": [
+            "16px",
+            {
+              "lineHeight": "24px",
+              "fontWeight": "400"
+            }
+          ]
+        }
+      },
+    },
+  }</script></head><body class="bg-canvas-base text-on-surface font-body-md text-body-md select-none"><header class="fixed top-0 w-full z-50 bg-surface-subtle/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><div class="h-12 w-full px-space-lg flex items-center justify-between"><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs text-primary"><span class="material-symbols-outlined text-[18px]">graphic_eq</span><span class="font-headline-md text-headline-md text-text-primary tracking-tight">Calby</span></div><div class="flex items-center gap-space-2xs px-space-sm py-space-2xs rounded-full bg-surface-container-low"><div class="w-1.5 h-1.5 rounded-full bg-status-success"></div><span class="font-label-sm text-label-sm text-status-success font-medium">Connected</span></div></div><nav class="hidden md:flex items-center gap-space-xs bg-surface-container-lowest px-space-2xs py-space-2xs rounded-lg" data-active-classes="bg-surface-container-high text-on-surface font-medium rounded-lg"><a aria-current="page" class="px-space-md py-space-xs transition-colors bg-surface-container-high text-on-surface font-medium rounded-lg" data-path="calendar-schedule" href="#">Schedule</a><a class="px-space-md py-space-xs font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="voice-briefing" href="#">Voice Briefing</a><a class="px-space-md py-space-xs font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="memory-archive" href="#">Memory Archive</a><a class="px-space-md py-space-xs font-body-sm text-body-sm text-on-surface-variant hover:text-on-surface transition-colors" data-path="preferences" href="#">Preferences</a></nav><div class="flex items-center gap-space-sm"><button class="w-7 h-7 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[18px]">settings</span></button><div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span></div><div class="flex items-center ml-space-xs"><button class="w-7 h-7 flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[16px]">minimize</span></button><button class="w-7 h-7 flex items-center justify-center text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors" type="button"><span class="material-symbols-outlined text-[16px]">crop_square</span></button><button class="w-7 h-7 flex items-center justify-center text-on-surface-variant hover:bg-error-container hover:text-on-error-container transition-colors" type="button"><span class="material-symbols-outlined text-[16px]">close</span></button></div></div></div></header><main class="w-full pt-12 min-h-screen bg-canvas-base"><div class="flex flex-col w-full relative min-h-[calc(100vh-4rem)] overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-tr from-primary/5 via-transparent to-secondary-container/10 pointer-events-none"></div>
+<!-- Background App View (Calendar Schedule Screen beneath the modal) -->
+<div class="w-full max-w-7xl mx-auto px-space-lg py-space-xl flex flex-col gap-space-xl filter blur-[6px] opacity-40 select-none pointer-events-none transition-all duration-300">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm text-text-secondary">
+<span class="material-symbols-outlined text-[18px]">arrow_back</span>
+<span class="font-body-md text-body-md font-medium">Home</span>
+</div>
+<div class="flex items-center gap-space-xs px-space-sm py-space-2xs rounded-full bg-surface-container-high">
+<div class="w-2 h-2 rounded-full bg-status-success"></div>
+<span class="font-label-sm text-label-sm text-on-surface">Connected</span>
+</div>
+</div>
+<div>
+<h1 class="font-headline-xl text-headline-xl text-text-primary tracking-tight">Calendar</h1>
+<p class="font-body-sm text-body-sm text-text-secondary mt-space-2xs">Your upcoming schedule.</p>
+</div>
+<!-- Underlay Schedule Timeline Cards -->
+<div class="flex flex-col gap-space-lg max-w-2xl">
+<div class="flex flex-col gap-space-xs">
+<span class="font-label-sm text-label-sm text-text-muted uppercase tracking-wider">Today • Mon, 15 Sep 2025</span>
+<div class="p-space-md rounded-xl bg-surface-card flex items-center justify-between shadow-md">
+<div class="flex items-center gap-space-md">
+<div class="w-1.5 h-10 rounded-full bg-primary"></div>
+<div>
+<div class="font-body-sm text-body-sm font-semibold text-text-primary">10:00 AM – 10:45 AM</div>
+<div class="font-body-md text-body-md text-text-primary mt-space-2xs">Team Meeting</div>
+<div class="font-label-sm text-label-sm text-text-secondary flex items-center gap-space-2xs">
+<span class="material-symbols-outlined text-[14px]">videocam</span> Google Meet
+              </div>
+</div>
+</div>
+<span class="material-symbols-outlined text-text-muted">chevron_right</span>
+</div>
+<div class="p-space-md rounded-xl bg-surface-card flex items-center justify-between shadow-md mt-space-xs">
+<div class="flex items-center gap-space-md">
+<div class="w-1.5 h-10 rounded-full bg-status-success"></div>
+<div>
+<div class="font-body-sm text-body-sm font-semibold text-text-primary">2:30 PM – 3:30 PM</div>
+<div class="font-body-md text-body-md text-text-primary mt-space-2xs">Project Discussion</div>
+<div class="font-label-sm text-label-sm text-text-secondary flex items-center gap-space-2xs">
+<span class="material-symbols-outlined text-[14px]">location_on</span> Office
+              </div>
+</div>
+</div>
+<span class="material-symbols-outlined text-text-muted">chevron_right</span>
+</div>
+</div>
+<div class="flex flex-col gap-space-xs mt-space-sm">
+<span class="font-label-sm text-label-sm text-text-muted uppercase tracking-wider">Tomorrow • Tue, 16 Sep 2025</span>
+<div class="p-space-md rounded-xl bg-surface-card flex items-center justify-between shadow-md ring-1 ring-primary/40">
+<div class="flex items-center gap-space-md">
+<div class="w-1.5 h-10 rounded-full bg-secondary-container"></div>
+<div>
+<div class="font-body-sm text-body-sm font-semibold text-primary">10:00 AM – 10:45 AM</div>
+<div class="font-body-md text-body-md text-text-primary mt-space-2xs font-medium">Meeting with Rahul</div>
+<div class="font-label-sm text-label-sm text-text-secondary flex items-center gap-space-2xs">
+<span class="material-symbols-outlined text-[14px]">videocam</span> Google Meet
+              </div>
+</div>
+</div>
+<span class="material-symbols-outlined text-primary">chevron_right</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Modal Backdrop & Centered Overlay -->
+<div class="absolute inset-0 z-30 flex items-center justify-center p-space-md bg-canvas-base/70 backdrop-blur-md">
+<!-- Phase 4 Modal: Event Details -->
+<div class="w-full max-w-[440px] rounded-xl bg-surface-card shadow-2xl p-space-xl flex flex-col relative transition-all transform duration-200" id="event-details-dialog">
+<!-- Top Window Bar inside Modal -->
+<div class="flex items-center justify-between mb-space-lg">
+<div class="flex items-center gap-space-xs text-primary">
+<span class="material-symbols-outlined text-[20px]">graphic_eq</span>
+<span class="font-headline-md text-headline-md tracking-tight text-text-primary">Calby</span>
+</div>
+<!-- Single Close button following system rule: (either X or Close, not both) -->
+<button aria-label="Close dialog" class="w-7 h-7 rounded-lg flex items-center justify-center text-text-secondary hover:text-text-primary hover:bg-surface-container-high transition-colors" id="modal-close-btn" type="button">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+<!-- Event Title -->
+<div class="mb-space-lg">
+<h2 class="font-headline-lg text-headline-lg text-text-primary tracking-tight font-semibold">
+          Meeting with Rahul
+        </h2>
+</div>
+<!-- Metadata List -->
+<div class="flex flex-col gap-space-md mb-space-lg">
+<!-- Date Row -->
+<div class="flex items-center gap-space-md text-text-secondary">
+<div class="w-7 h-7 rounded-lg bg-surface-subtle flex items-center justify-center text-primary-container">
+<span class="material-symbols-outlined text-[18px]">calendar_today</span>
+</div>
+<span class="font-body-md text-body-md text-on-surface font-medium">Tue, 16 Sep 2025</span>
+</div>
+<!-- Time Row -->
+<div class="flex items-center gap-space-md text-text-secondary">
+<div class="w-7 h-7 rounded-lg bg-surface-subtle flex items-center justify-center text-primary-container">
+<span class="material-symbols-outlined text-[18px]">schedule</span>
+</div>
+<span class="font-body-md text-body-md text-on-surface font-medium">10:00 AM – 10:45 AM <span class="text-text-muted font-normal">(45 min)</span></span>
+</div>
+<!-- Location / Meet Row -->
+<div class="flex items-center justify-between group">
+<div class="flex items-center gap-space-md">
+<div class="w-7 h-7 rounded-lg bg-surface-subtle flex items-center justify-center text-primary-container">
+<span class="material-symbols-outlined text-[18px]">videocam</span>
+</div>
+<a class="font-body-md text-body-md text-on-surface font-medium hover:text-primary transition-colors flex items-center gap-space-2xs" href="https://meet.google.com" rel="noopener noreferrer" target="_blank">
+              Google Meet
+              <span class="material-symbols-outlined text-[15px] text-text-muted group-hover:text-primary transition-colors">open_in_new</span>
+</a>
+</div>
+</div>
+</div>
+<!-- Subtle Structural Divider via Background Shift -->
+<div class="w-full h-px bg-surface-container-highest my-space-xs"></div>
+<!-- Description Block -->
+<div class="mt-space-md mb-space-xl">
+<span class="font-label-sm text-label-sm text-text-muted uppercase tracking-wider block mb-space-2xs">
+          Description
+        </span>
+<p class="font-body-md text-body-md text-text-secondary leading-relaxed">
+          Discuss payment module progress, open issues and next steps.
+        </p>
+</div>
+<!-- Action Buttons -->
+<div class="flex flex-col gap-space-sm mt-auto">
+<!-- Primary Action: Prepare me for this meeting -->
+<button class="w-full py-space-md px-space-lg rounded-xl bg-gradient-to-r from-secondary-container to-primary-container hover:from-primary-container hover:to-secondary-container text-text-primary font-headline-md text-body-md font-medium shadow-[0_4px_20px_rgba(56,189,248,0.2)] flex items-center justify-center gap-space-sm active:scale-[0.98] transition-all" id="prepare-action-btn" type="button">
+<span class="material-symbols-outlined text-[18px] text-text-primary" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+<span>Prepare me for this meeting</span>
+</button>
+<!-- Secondary Action: Open in Google Calendar -->
+<a class="w-full py-space-sm px-space-lg rounded-xl bg-surface-overlay hover:bg-surface-container-high text-on-surface hover:text-text-primary font-body-md text-body-md font-medium flex items-center justify-center gap-space-sm active:scale-[0.98] transition-colors" href="https://calendar.google.com" rel="noopener noreferrer" target="_blank">
+<span class="material-symbols-outlined text-[16px] text-text-secondary">open_in_new</span>
+<span>Open in Google Calendar</span>
+</a>
+</div>
+<!-- Mini Voice Orb feedback indicator nestled in dialog footer -->
+<div class="mt-space-md pt-space-xs flex items-center justify-between text-text-muted font-label-sm text-label-sm">
+<div class="flex items-center gap-space-2xs">
+<span class="w-1.5 h-1.5 rounded-full bg-primary-container animate-ping"></span>
+<span>Voice prompt • “Calby, prep Rahul sync”</span>
+</div>
+<span class="font-code-sm text-code-sm text-text-muted">ESC</span>
+</div>
+</div>
+</div>
+</div>
+<script>
+  (function() {
+    const closeBtn = document.getElementById('modal-close-btn');
+    const dialog = document.getElementById('event-details-dialog');
+    const prepareBtn = document.getElementById('prepare-action-btn');
+
+    if (closeBtn && dialog) {
+      closeBtn.addEventListener('click', () => {
+        dialog.style.opacity = '0';
+        dialog.style.transform = 'scale(0.96)';
+        setTimeout(() => {
+          dialog.parentElement.style.display = 'none';
+        }, 180);
+      });
+    }
+
+    if (prepareBtn) {
+      prepareBtn.addEventListener('click', () => {
+        const originalText = prepareBtn.innerHTML;
+        prepareBtn.innerHTML = `
+          <span class="material-symbols-outlined animate-spin text-[18px]">progress_activity</span>
+          <span>Analyzing past notes &amp; agenda...</span>
+        `;
+        prepareBtn.disabled = true;
+        setTimeout(() => {
+          prepareBtn.innerHTML = `
+            <span class="material-symbols-outlined text-status-success text-[18px]">check_circle</span>
+            <span>Briefing ready in Voice panel</span>
+          `;
+          setTimeout(() => {
+            prepareBtn.innerHTML = originalText;
+            prepareBtn.disabled = false;
+          }, 2400);
+        }, 1200);
+      });
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && closeBtn) {
+        closeBtn.click();
+      }
+    });
+  })();
+</script></main><footer class="w-full bg-surface-container-lowest py-space-sm"><div class="w-full px-space-lg flex items-center justify-between font-label-sm text-label-sm text-text-muted"><span>Calby Desktop v4.2 • Phase 4 Calendar Engine</span><div class="flex items-center gap-space-sm"><span>Voice Recognition Ready</span><div class="w-2 h-2 rounded-full bg-primary-container shadow-[0_0_8px_rgba(56,189,248,0.5)]"></div></div></div></footer></body></html>

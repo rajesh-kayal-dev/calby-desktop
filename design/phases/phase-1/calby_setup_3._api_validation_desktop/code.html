@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Calby - API Validation</title>
+<!-- Tailwind CSS v3 with Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "surface-card": "#151C2C",
+            "surface-variant": "#32353d",
+            "surface-container-high": "#272a32",
+            "tertiary-container": "#a7a9ff",
+            "outline-variant": "#3e484f",
+            "surface-container-low": "#191b23",
+            "surface-container-lowest": "#0b0e15",
+            "outline": "#87929a",
+            "on-surface-variant": "#bdc8d1",
+            "surface-bright": "#363941",
+            "canvas-base": "#0A0D14",
+            "text-muted": "#64748B",
+            "border-subtle": "#1E293B",
+            "border-strong": "#334155",
+            "status-warning": "#F59E0B",
+            "text-primary": "#F8FAFC",
+            "primary-container": "#38bdf8",
+            "on-surface": "#e1e2ec",
+            "primary": "#8ed5ff",
+            "calby-glow": "rgba(56, 189, 248, 0.15)",
+            "background": "#10131a",
+            "status-success": "#10B981",
+            "surface-dim": "#10131a",
+            "surface-overlay": "#1E273D",
+            "surface-container": "#1d1f27",
+            "text-secondary": "#94A3B8",
+            "surface-subtle": "#0F1420",
+            "status-error": "#EF4444",
+            "surface": "#10131a"
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          }
+        }
+      }
+    };
+  </script>
+<!-- Custom Styles for Spinner Animation & Ambient Glow Effects -->
+<style data-purpose="loader-effects">
+    @keyframes spin-slow {
+      0% {
+        transform: rotate(0deg);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% {
+        opacity: 0.5;
+        filter: drop-shadow(0 0 16px rgba(56, 189, 248, 0.4));
+      }
+      50% {
+        opacity: 0.95;
+        filter: drop-shadow(0 0 28px rgba(37, 99, 235, 0.8));
+      }
+    }
+
+    @keyframes subtle-pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.4;
+      }
+    }
+
+    .spinner-ring {
+      animation: spin-slow 1.6s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+
+    .spinner-glow {
+      animation: pulse-glow 3s ease-in-out infinite;
+    }
+
+    .animate-pulse-subtle {
+      animation: subtle-pulse 1.8s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body class="bg-[#070a10] min-h-screen w-full flex items-center justify-center p-6 antialiased text-slate-100 font-sans selection:bg-sky-500/30">
+<!-- BEGIN: DesktopApplicationWindow (1280x800 desktop viewport) -->
+<div class="relative w-full max-w-[1240px] h-[780px] bg-[#0c121e] rounded-xl shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] border border-slate-800/80 flex flex-col overflow-hidden select-none" data-purpose="desktop-window">
+<!-- BEGIN: TitleBar -->
+<header class="h-11 px-5 flex items-center justify-between border-b border-slate-800/60 bg-[#090d16]/95 backdrop-blur-md shrink-0 z-20" data-purpose="electron-titlebar">
+<!-- App Identity (Left) -->
+<div class="flex items-center gap-2.5">
+<div class="w-6 h-6 rounded-md bg-sky-500/10 border border-sky-500/20 flex items-center justify-center">
+<svg class="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2.5" viewbox="0 0 24 24">
+<path d="M12 3v18M8 8v8M16 8v8M4 11v2M20 11v2"></path>
+</svg>
+</div>
+<span class="text-xs font-semibold tracking-wide text-slate-200">Calby</span>
+<span class="text-[11px] font-mono px-1.5 py-0.5 rounded bg-slate-800/60 text-slate-400 border border-slate-700/50">v1.4.0</span>
+</div>
+<!-- Window Title Center / Breadcrumb hint -->
+<div class="hidden sm:flex items-center text-xs text-slate-500 font-medium">
+<span>Setup &amp; Configuration</span>
+</div>
+<!-- Window Control Buttons (Right) -->
+<div class="flex items-center gap-3 text-slate-400" data-purpose="window-controls">
+<!-- Minimize -->
+<button aria-label="Minimize" class="p-1 hover:text-slate-200 transition-colors rounded hover:bg-slate-800/50" type="button">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<line x1="5" x2="19" y1="12" y2="12"></line>
+</svg>
+</button>
+<!-- Maximize / Restore -->
+<button aria-label="Maximize" class="p-1 hover:text-slate-200 transition-colors rounded hover:bg-slate-800/50" type="button">
+<svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<rect height="18" rx="2" ry="2" width="18" x="3" y="3"></rect>
+</svg>
+</button>
+<!-- Close -->
+<button aria-label="Close" class="p-1 hover:text-red-400 transition-colors rounded hover:bg-red-500/10" type="button">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<line x1="18" x2="6" y1="6" y2="18"></line>
+<line x1="6" x2="18" y1="6" y2="18"></line>
+</svg>
+</button>
+</div>
+</header>
+<!-- END: TitleBar -->
+<!-- BEGIN: Setup Navigation & Stepper Header -->
+<div class="px-10 pt-7 pb-4 flex items-center justify-between border-b border-slate-800/40 bg-gradient-to-b from-[#0c121e] to-transparent shrink-0 z-10" data-purpose="setup-breadcrumb-bar">
+<!-- Step Breadcrumb Tag -->
+<div class="flex items-center gap-3">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-500/10 text-sky-400 border border-sky-500/25">
+<span class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse"></span>
+          Step 3 of 5
+        </span>
+<span class="text-xs font-medium text-slate-400">· Validating Credentials</span>
+</div>
+<!-- Mini Step Track -->
+<div aria-label="Progress tracker" class="flex items-center gap-2">
+<div class="h-1.5 w-8 rounded-full bg-sky-500"></div>
+<div class="h-1.5 w-8 rounded-full bg-sky-500"></div>
+<div class="h-1.5 w-8 rounded-full bg-sky-500 shadow-[0_0_8px_rgba(56,189,248,0.7)]"></div>
+<div class="h-1.5 w-8 rounded-full bg-slate-800"></div>
+<div class="h-1.5 w-8 rounded-full bg-slate-800"></div>
+</div>
+</div>
+<!-- END: Setup Navigation & Stepper Header -->
+<!-- BEGIN: MainContentArea (Desktop centered layout with generous breathing room) -->
+<main class="flex-1 flex flex-col items-center justify-between px-10 py-10 text-center relative z-10 overflow-y-auto">
+<!-- Top Title & Subtitle Section -->
+<section class="flex flex-col items-center max-w-xl mx-auto pt-2" data-purpose="validation-status-header">
+<h1 class="text-3xl sm:text-4xl font-bold text-white tracking-tight leading-snug">
+          Connecting...
+        </h1>
+<p class="text-base text-slate-400 mt-2.5 font-normal leading-relaxed max-w-md">
+          Validating your API key and setting up Calby.
+        </p>
+</section>
+<!-- Center Visual: Glowing Cyan/Electric Blue Circular Loader -->
+<section class="relative flex flex-col items-center justify-center my-auto py-6" data-purpose="validation-spinner">
+<!-- Ambient Soft Glow Backdrop -->
+<div class="absolute w-64 h-64 rounded-full bg-gradient-to-tr from-sky-500/10 via-blue-600/10 to-indigo-500/5 blur-3xl pointer-events-none"></div>
+<!-- Desktop Sized SVG Spinner -->
+<div class="relative w-36 h-36 flex items-center justify-center spinner-glow">
+<svg class="w-full h-full spinner-ring" fill="none" viewbox="0 0 100 100">
+<defs>
+<lineargradient id="calbySpinnerGradientWide" x1="0%" x2="100%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#38BDF8" stop-opacity="1"></stop>
+<stop offset="55%" stop-color="#2563EB" stop-opacity="0.85"></stop>
+<stop offset="100%" stop-color="#1D4ED8" stop-opacity="0"></stop>
+</lineargradient>
+</defs>
+<!-- Background Circular Track -->
+<circle cx="50" cy="50" fill="none" r="41" stroke="#1e293b" stroke-opacity="0.5" stroke-width="3"></circle>
+<!-- Animated Progress Arc -->
+<circle cx="50" cy="50" fill="none" r="41" stroke="url(#calbySpinnerGradientWide)" stroke-dasharray="195 65" stroke-linecap="round" stroke-width="3.5"></circle>
+</svg>
+<!-- Subtle Inner Icon / Heartbeat Dot -->
+<div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+<div class="w-2.5 h-2.5 rounded-full bg-sky-400 shadow-[0_0_12px_#38bdf8] animate-pulse"></div>
+</div>
+</div>
+</section>
+<!-- Bottom Step Status Card & Reassurance Caption -->
+<section class="w-full max-w-md flex flex-col items-center gap-4 pb-2" data-purpose="status-checklist-container">
+<!-- Progress Status Step Checklist Card -->
+<div class="w-full bg-[#111726]/80 backdrop-blur border border-slate-800 rounded-xl p-3.5 shadow-lg flex flex-col gap-2.5 text-left">
+<!-- Step 1: Connected -->
+<div class="flex items-center justify-between px-2.5 py-1 text-xs">
+<div class="flex items-center gap-2.5 text-slate-200 font-medium">
+<div class="w-4 h-4 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+<svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="3" viewbox="0 0 24 24">
+<path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+<span>Verifying API key</span>
+</div>
+<span class="inline-flex items-center gap-1 font-mono text-[11px] font-medium text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
+              Connected
+            </span>
+</div>
+<!-- Divider -->
+<div class="h-px bg-slate-800/70 w-full"></div>
+<!-- Step 2: In progress -->
+<div class="flex items-center justify-between px-2.5 py-1 text-xs">
+<div class="flex items-center gap-2.5 text-slate-300 font-medium">
+<div class="w-4 h-4 rounded-full bg-sky-500/15 border border-sky-500/30 flex items-center justify-center text-sky-400">
+<div class="w-1.5 h-1.5 rounded-full bg-sky-400 animate-ping"></div>
+</div>
+<span>Initializing local models</span>
+</div>
+<span class="inline-flex items-center gap-1.5 font-mono text-[11px] font-medium text-sky-300 bg-sky-500/10 px-2 py-0.5 rounded border border-sky-500/20 animate-pulse-subtle">
+<span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+              in progress
+            </span>
+</div>
+</div>
+<!-- Reassurance Caption -->
+<p class="text-xs sm:text-[13px] text-slate-500 font-normal tracking-wide">
+          This will only take a few seconds.
+        </p>
+</section>
+</main>
+<!-- END: MainContentArea -->
+<!-- Desktop Atmospheric Ambient Background Accents -->
+<div class="absolute -bottom-32 -left-32 w-80 h-80 bg-blue-900/15 rounded-full blur-[100px] pointer-events-none"></div>
+<div class="absolute -top-32 -right-32 w-80 h-80 bg-sky-700/10 rounded-full blur-[100px] pointer-events-none"></div>
+</div>
+<!-- END: DesktopApplicationWindow -->
+</body></html>

@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Calby - Create Reminder</title>
+<!-- Tailwind CSS v3 with Forms & Container Queries -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Configuration for Calby Dark Theme -->
+<script data-purpose="tailwind-config">
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            calby: {
+              window: '#070B12',
+              card: '#0D131F',
+              modal: '#101725',
+              modalBorder: '#1E293B',
+              inputBg: '#080C14',
+              primary: '#1D72FE',
+              primaryHover: '#165DD4',
+              accent: '#38BDF8',
+              muted: '#94A3B8',
+              dimmed: '#64748B',
+              border: '#1E2838',
+              borderHover: '#334155'
+            }
+          },
+          boxShadow: {
+            'modal-glow': '0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 35px -5px rgba(29, 114, 254, 0.12)',
+            'btn-primary': '0 0 20px -3px rgba(29, 114, 254, 0.45)'
+          },
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+<!-- Google Font: Inter -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<style data-purpose="custom-utilities">
+    /* Subtle custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+    
+    /* Toggle switch animation smooth feel */
+    .switch-checkbox:checked + .switch-label {
+      background-color: #1D72FE;
+    }
+    .switch-checkbox:checked + .switch-label .switch-indicator {
+      transform: translateX(20px);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 flex items-center justify-center min-h-screen p-4 antialiased selection:bg-blue-500 selection:text-white font-sans">
+<!-- BEGIN: ElectronAppWindow -->
+<!-- 1280x680 Electron Desktop App Container -->
+<div class="relative w-[1280px] h-[680px] bg-calby-window rounded-xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col select-none" data-purpose="desktop-window-frame">
+<!-- BEGIN: AppTitleBar -->
+<!-- Window Title Bar with Calby Identity, Connection State, and Window Controls -->
+<header class="h-11 px-4 bg-[#080D17] border-b border-calby-border/60 flex items-center justify-between z-10 shrink-0" data-purpose="window-titlebar">
+<!-- Left: Logo and App Name -->
+<div class="flex items-center gap-2.5">
+<!-- Calby Soundwave Logo Icon -->
+<svg class="w-5 h-5 text-calby-primary" fill="none" stroke="currentColor" stroke-linecap="round" stroke-width="2.5" viewbox="0 0 24 24">
+<line x1="4" x2="4" y1="9" y2="15"></line>
+<line x1="8" x2="8" y1="5" y2="19"></line>
+<line x1="12" x2="12" y1="2" y2="22"></line>
+<line x1="16" x2="16" y1="6" y2="18"></line>
+<line x1="20" x2="20" y1="10" y2="14"></line>
+</svg>
+<span class="text-sm font-semibold tracking-wide text-white">Calby</span>
+</div>
+<!-- Right: Connection Status and System Controls -->
+<div class="flex items-center gap-5">
+<!-- Connected Status Indicator -->
+<div class="flex items-center gap-2 bg-emerald-950/40 border border-emerald-800/40 px-2.5 py-0.5 rounded-full text-xs text-emerald-400 font-medium">
+<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+<span>Connected</span>
+</div>
+<!-- App Settings Icon -->
+<button aria-label="Settings" class="text-slate-400 hover:text-slate-200 transition-colors" title="Settings" type="button">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24">
+<path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" stroke-linecap="round" stroke-linejoin="round"></path>
+<circle cx="12" cy="12" r="3"></circle>
+</svg>
+</button>
+<!-- Window Action Buttons (Minimize, Maximize, Close) -->
+<div class="flex items-center gap-3 text-slate-400 pl-2 border-l border-slate-800">
+<button aria-label="Minimize" class="hover:text-slate-200 transition-colors" type="button">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><line x1="5" x2="19" y1="12" y2="12"></line></svg>
+</button>
+<button aria-label="Maximize" class="hover:text-slate-200 transition-colors" type="button">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><rect height="16" rx="2" width="16" x="4" y="4"></rect></svg>
+</button>
+<button aria-label="Close Window" class="hover:text-red-400 transition-colors" type="button">
+<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24"><line x1="18" x2="6" y1="6" y2="18"></line><line x1="6" x2="18" y1="6" y2="18"></line></svg>
+</button>
+</div>
+</div>
+</header>
+<!-- END: AppTitleBar -->
+<!-- BEGIN: UnderlayingViewContent -->
+<!-- Screen 1 Reminders List layout (Visible behind backdrop) -->
+<main class="flex-1 px-8 py-6 flex flex-col overflow-y-auto" data-purpose="background-reminders-list">
+<!-- Back / Navigation -->
+<div class="flex items-center gap-2 text-xs font-medium text-slate-400 mb-4 cursor-pointer hover:text-slate-200">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M10 19l-7-7m0 0l7-7m-7 7h18" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>Home</span>
+</div>
+<!-- Reminders Header & Action Row -->
+<div class="flex items-center justify-between mb-5">
+<div>
+<h1 class="text-2xl font-bold text-white tracking-tight">Reminders</h1>
+<p class="text-xs text-slate-400 mt-0.5">Stay on track with what matters.</p>
+</div>
+<button class="bg-calby-primary hover:bg-calby-primaryHover text-white text-xs font-semibold px-4 py-2.5 rounded-lg flex items-center gap-1.5 shadow-sm transition" type="button">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24">
+<line x1="12" x2="12" y1="5" y2="19"></line>
+<line x1="5" x2="19" y1="12" y2="12"></line>
+</svg>
+<span>New Reminder</span>
+</button>
+</div>
+<!-- Filter Tabs -->
+<div class="flex items-center gap-2.5 mb-6">
+<button class="bg-calby-primary/20 text-sky-300 border border-sky-500/30 px-3.5 py-1 rounded-full text-xs font-medium flex items-center gap-2">
+<span>Upcoming</span>
+<span class="bg-sky-500/20 text-sky-200 px-1.5 py-0.2 rounded-full text-[10px]">4</span>
+</button>
+<button class="text-slate-400 hover:text-slate-200 px-3 py-1 rounded-full text-xs font-medium flex items-center gap-2">
+<span>Completed</span>
+<span class="bg-slate-800 text-slate-400 px-1.5 py-0.2 rounded-full text-[10px]">2</span>
+</button>
+</div>
+<!-- Sample Reminders Rows for realistic backdrop depth -->
+<div class="space-y-4 max-w-2xl">
+<div class="text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Today</div>
+<!-- List Item 1 -->
+<div class="bg-calby-card border border-calby-border rounded-xl p-3.5 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-4 h-4 rounded-full border-2 border-slate-600"></div>
+<span class="text-xs font-mono text-slate-400">10:00 AM</span>
+<div>
+<p class="text-sm font-medium text-slate-200">Call Rahul</p>
+<p class="text-[11px] text-sky-400 flex items-center gap-1"><span>🔔</span> In 2 hours</p>
+</div>
+</div>
+<div class="flex items-center gap-2 text-slate-500">
+<button class="p-1 hover:text-slate-300"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" stroke-linecap="round" stroke-width="2"></path></svg></button>
+<button class="p-1 hover:text-slate-300"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-width="2"></path></svg></button>
+</div>
+</div>
+<!-- List Item 2 -->
+<div class="bg-calby-card border border-calby-border rounded-xl p-3.5 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="w-4 h-4 rounded-full border-2 border-slate-600"></div>
+<span class="text-xs font-mono text-slate-400">02:30 PM</span>
+<div>
+<p class="text-sm font-medium text-slate-200">Team meeting</p>
+<p class="text-[11px] text-sky-400 flex items-center gap-1"><span>🔔</span> In 6 hours</p>
+</div>
+</div>
+<div class="flex items-center gap-2 text-slate-500">
+<button class="p-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" stroke-linecap="round" stroke-width="2"></path></svg></button>
+<button class="p-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewbox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" stroke-linecap="round" stroke-width="2"></path></svg></button>
+</div>
+</div>
+</div>
+</main>
+<!-- END: UnderlayingViewContent -->
+<!-- BEGIN: ModalOverlayBackdrop -->
+<!-- Dimmed & blurred semi-transparent backdrop overlay strictly covering viewport below titlebar -->
+<div class="absolute inset-0 top-11 bg-[#070A11]/75 backdrop-blur-sm z-20 flex items-center justify-center p-4" data-purpose="modal-backdrop-overlay">
+<!-- BEGIN: CreateReminderModal -->
+<!-- Modal Dialog Window: Panel 2 from Reference (Approx 440px wide) -->
+<section aria-describedby="modal-subtitle" aria-labelledby="modal-title" aria-modal="true" class="w-full max-w-[440px] bg-calby-modal rounded-2xl border border-calby-modalBorder shadow-modal-glow overflow-hidden transform transition-all duration-200 ease-out" data-purpose="create-reminder-dialog" role="dialog">
+<!-- Modal Header Container -->
+<div class="pt-5 px-6 pb-2">
+<div class="flex items-center justify-between">
+<h2 class="text-lg font-bold text-white tracking-tight" id="modal-title">Create Reminder</h2>
+<button aria-label="Close modal" class="text-slate-400 hover:text-white transition-colors p-1 -mr-1 rounded-md hover:bg-slate-800/50" title="Close modal" type="button">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewbox="0 0 24 24">
+<path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+<p class="text-[13px] text-slate-400 mt-1 leading-normal" id="modal-subtitle">
+            Add a new reminder. Calby will take care of the rest.
+          </p>
+</div>
+<!-- Modal Form Form Container -->
+<form class="p-6 pt-3 space-y-4" data-purpose="reminder-form" onsubmit="event.preventDefault();">
+<!-- Title Input Field -->
+<div class="space-y-1.5" data-purpose="form-field-title">
+<label class="block text-[13px] font-medium text-slate-300" for="reminder-title">
+              Title
+            </label>
+<div class="relative">
+<input class="w-full bg-calby-inputBg border border-calby-modalBorder rounded-lg px-3.5 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1.5 focus:ring-calby-primary focus:border-calby-primary transition shadow-inner" id="reminder-title" placeholder="What do you need to be reminded of?" type="text" value="Call Rahul"/>
+</div>
+</div>
+<!-- Date & Time Dual Column Layout -->
+<div class="grid grid-cols-2 gap-3.5" data-purpose="form-field-datetime-group">
+<!-- Date Column Field -->
+<div class="space-y-1.5">
+<label class="block text-[13px] font-medium text-slate-300" for="reminder-date-button">
+                Date
+              </label>
+<div class="relative">
+<button class="w-full bg-calby-inputBg border border-calby-modalBorder hover:border-calby-borderHover rounded-lg px-3 py-2.5 text-sm text-slate-200 flex items-center justify-between group transition focus:outline-none focus:ring-1 focus:ring-calby-primary" id="reminder-date-button" type="button">
+<div class="flex items-center gap-2 truncate">
+<!-- Calendar Icon -->
+<svg class="w-4 h-4 text-slate-400 group-hover:text-slate-300 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24">
+<rect height="18" rx="2" ry="2" width="18" x="3" y="4"></rect>
+<line x1="16" x2="16" y1="2" y2="6"></line>
+<line x1="8" x2="8" y1="2" y2="6"></line>
+<line x1="3" x2="21" y1="10" y2="10"></line>
+</svg>
+<span class="truncate font-normal">Tomorrow</span>
+</div>
+<!-- Chevron Icon -->
+<svg class="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-300 shrink-0 ml-1" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<polyline points="6 9 12 15 18 9"></polyline>
+</svg>
+</button>
+</div>
+</div>
+<!-- Time Column Field -->
+<div class="space-y-1.5">
+<label class="block text-[13px] font-medium text-slate-300" for="reminder-time-button">
+                Time
+              </label>
+<div class="relative">
+<button class="w-full bg-calby-inputBg border border-calby-modalBorder hover:border-calby-borderHover rounded-lg px-3 py-2.5 text-sm text-slate-200 flex items-center justify-between group transition focus:outline-none focus:ring-1 focus:ring-calby-primary" id="reminder-time-button" type="button">
+<div class="flex items-center gap-2 truncate">
+<!-- Clock Icon -->
+<svg class="w-4 h-4 text-slate-400 group-hover:text-slate-300 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" viewbox="0 0 24 24">
+<circle cx="12" cy="12" r="10"></circle>
+<polyline points="12 6 12 12 16 14"></polyline>
+</svg>
+<span class="truncate font-normal">10:00 AM</span>
+</div>
+<!-- Chevron Icon -->
+<svg class="w-3.5 h-3.5 text-slate-400 group-hover:text-slate-300 shrink-0 ml-1" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<polyline points="6 9 12 15 18 9"></polyline>
+</svg>
+</button>
+</div>
+</div>
+</div>
+<!-- Alarm Configuration Card with Switch -->
+<div class="space-y-1.5 pt-1" data-purpose="form-field-alarm-toggle">
+<span class="block text-[13px] font-medium text-slate-300">
+              Alarm
+            </span>
+<div class="bg-calby-inputBg border border-calby-modalBorder rounded-lg px-3.5 py-3 flex items-center justify-between shadow-inner">
+<div class="flex items-center gap-2.5 text-slate-200">
+<!-- Bell / Alarm Icon -->
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+<path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+</svg>
+<span class="text-sm font-medium">Enable alarm</span>
+</div>
+<!-- Interactive Toggle Switch (Default ON) -->
+<label aria-label="Toggle alarm on or off" class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only switch-checkbox" type="checkbox"/>
+<div class="switch-label w-11 h-6 bg-slate-700 rounded-full transition-colors duration-200 ease-in-out">
+<div class="switch-indicator w-4 h-4 bg-white rounded-full m-1 transition-transform duration-200 ease-in-out shadow"></div>
+</div>
+</label>
+</div>
+</div>
+<!-- Modal Action Buttons (Footer) -->
+<div class="pt-4 flex items-center justify-between gap-3" data-purpose="modal-footer-actions">
+<!-- Cancel Button -->
+<button class="flex-1 bg-[#182030] hover:bg-[#1f2b40] text-slate-300 hover:text-white font-medium text-sm py-2.5 px-6 rounded-lg border border-[#26354d] transition duration-150 active:scale-[0.99] text-center" type="button">
+              Cancel
+            </button>
+<!-- Save Button -->
+<button class="flex-1 bg-calby-primary hover:bg-calby-primaryHover text-white font-semibold text-sm py-2.5 px-8 rounded-lg shadow-btn-primary transition duration-150 active:scale-[0.99] text-center" type="submit">
+              Save
+            </button>
+</div>
+</form>
+</section>
+<!-- END: CreateReminderModal -->
+</div>
+<!-- END: ModalOverlayBackdrop -->
+</div>
+<!-- END: ElectronAppWindow -->
+</body></html>

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Calby - Native Reminder Notification</title>
+<!-- Tailwind CSS v3 with Plugins -->
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<!-- Tailwind Custom Configuration -->
+<script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              primary: '#0284C7',
+              accent: '#38BDF8',
+              surface: '#0B111E',
+              card: '#0D1424',
+              secondaryBtn: '#161F33',
+              secondaryBorder: '#23314D'
+            }
+          },
+          boxShadow: {
+            'glow-cyan': '0 0 25px rgba(56, 189, 248, 0.28)',
+            'glow-button': '0 4px 18px rgba(2, 132, 199, 0.45)',
+            'toast': '0 25px 50px -12px rgba(2, 6, 23, 0.75), 0 0 0 1px rgba(56, 189, 248, 0.18)'
+          }
+        }
+      }
+    };
+  </script>
+<!-- BEGIN: Custom Visual Effects & Windows 11 Wave Styling -->
+<style data-purpose="desktop-wallpaper">
+    /* Deep Fluent Dark Blue Ambient Waves simulating Windows 11 ribbon wave backdrop */
+    .fluent-background {
+      background-color: #030712;
+      background-image: 
+        radial-gradient(circle at 85% 75%, rgba(14, 116, 144, 0.45) 0%, rgba(3, 105, 161, 0.25) 30%, transparent 65%),
+        radial-gradient(circle at 60% 40%, rgba(30, 58, 138, 0.4) 0%, transparent 55%),
+        radial-gradient(circle at 10% 20%, rgba(2, 132, 199, 0.12) 0%, transparent 45%);
+    }
+
+    .wave-sheen {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 80% 50% at 75% 80%, rgba(56, 189, 248, 0.18), transparent);
+      pointer-events: none;
+    }
+  </style>
+<!-- END: Custom Visual Effects & Windows 11 Wave Styling -->
+</head>
+<body class="fluent-background min-h-screen text-slate-100 flex flex-col items-center justify-between p-6 select-none overflow-hidden relative font-sans antialiased">
+<!-- Aesthetic fluent wave overlay ribbons -->
+<div class="wave-sheen"></div>
+<div class="absolute -bottom-24 -right-16 w-[700px] h-[520px] rounded-full bg-cyan-600/10 blur-3xl pointer-events-none"></div>
+<div class="absolute -top-32 -left-20 w-[500px] h-[500px] rounded-full bg-blue-900/15 blur-3xl pointer-events-none"></div>
+<!-- BEGIN: TopHeader -->
+<header class="w-full max-w-6xl flex items-center justify-between z-10 pt-2 px-4" data-purpose="screen-header">
+<div class="flex items-center space-x-3">
+<!-- Breadcrumb indicator -->
+<span class="inline-flex items-center justify-center w-7 h-7 rounded-full bg-cyan-500/20 text-cyan-400 font-semibold text-xs border border-cyan-500/30">3</span>
+<h1 class="text-lg font-semibold tracking-wide text-white">Reminder Notification <span class="text-slate-400 font-normal text-sm ml-1.5">(Native Desktop Alert)</span></h1>
+</div>
+<!-- Status badge showing local execution status -->
+<div class="flex items-center space-x-2 text-xs text-slate-400 bg-slate-900/70 border border-slate-800 backdrop-blur-md px-3 py-1.5 rounded-full">
+<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+<span>Local Daemon Active</span>
+<span class="text-slate-600">•</span>
+<span class="text-cyan-400/90 font-medium">Offline Independent</span>
+</div>
+</header>
+<!-- END: TopHeader -->
+<!-- BEGIN: NotificationStage -->
+<main class="w-full flex-1 flex items-center justify-center relative z-20 py-4" data-purpose="notification-display-stage">
+<!-- Native Toast Window (Matching Panel 3 exactly: ~370px wide) -->
+<article class="w-[370px] bg-[#0c121e]/90 backdrop-blur-2xl rounded-2xl border border-sky-400/25 shadow-toast p-5 transition-all duration-300" data-purpose="native-alert-card">
+<!-- Card Header: Soundwave + Calby Name + Close Button -->
+<div class="flex items-center justify-between pb-3.5" data-purpose="card-header">
+<!-- Calby Logo & Brand -->
+<div class="flex items-center space-x-2.5">
+<!-- Calby 3-bar Soundwave Icon -->
+<div class="flex items-center space-x-0.5 h-4 w-4 justify-center" title="Calby AI">
+<span class="w-[2.5px] h-2 bg-cyan-400 rounded-full"></span>
+<span class="w-[2.5px] h-3.5 bg-cyan-400 rounded-full mx-[1px]"></span>
+<span class="w-[2.5px] h-2 bg-cyan-400 rounded-full"></span>
+</div>
+<span class="text-white text-sm font-semibold tracking-wide">Calby</span>
+</div>
+<!-- Close / Dismiss 'X' Icon Button -->
+<button aria-label="Dismiss toast" class="text-slate-400 hover:text-white transition-colors p-1 rounded-md hover:bg-slate-800/60 focus:outline-none" type="button">
+<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M6 18L18 6M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</button>
+</div>
+<!-- Card Body: Glowing Bell Icon, Title, Subtitle, Time Tag -->
+<div class="flex flex-col items-center text-center mt-2 mb-6" data-purpose="card-body">
+<!-- Glowing Circular Blue Badge with Bell Icon -->
+<div class="relative flex items-center justify-center my-3">
+<div class="absolute inset-0 rounded-full bg-cyan-500/25 blur-md"></div>
+<div class="relative w-14 h-14 rounded-full bg-gradient-to-b from-[#112240] to-[#0A162B] border border-cyan-400/40 flex items-center justify-center shadow-glow-cyan">
+<!-- Bell Icon -->
+<svg class="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+</div>
+</div>
+<!-- Reminder Title -->
+<h2 class="text-xl font-bold text-white tracking-tight mt-1 mb-1" data-purpose="reminder-title">Call Rahul</h2>
+<!-- Subtitle Context -->
+<p class="text-slate-400 text-xs font-normal mb-1">It's time for your reminder.</p>
+<!-- Time & Status Tag -->
+<span class="text-slate-400 text-xs tracking-normal font-medium text-slate-300/80">Today • 10:00 AM</span>
+</div>
+<!-- Actions Row: Snooze & Dismiss -->
+<div class="grid grid-cols-2 gap-3" data-purpose="action-buttons">
+<!-- Secondary Button: Snooze with Clock Icon -->
+<button class="flex items-center justify-center space-x-2 py-2.5 px-4 rounded-xl bg-brand-secondaryBtn hover:bg-[#1C2842] border border-brand-secondaryBorder text-slate-200 text-sm font-medium transition-colors focus:outline-none focus:ring-1 focus:ring-slate-500 active:scale-[0.98]" type="button">
+<svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<circle cx="12" cy="12" r="9"></circle>
+<path d="M12 7v5l3 2" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>Snooze</span>
+</button>
+<!-- Primary Button: Dismiss -->
+<button class="flex items-center justify-center py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-all duration-200 shadow-glow-button focus:outline-none focus:ring-2 focus:ring-cyan-400 active:scale-[0.98]" type="button">
+          Dismiss
+        </button>
+</div>
+</article>
+</main>
+<!-- END: NotificationStage -->
+<!-- BEGIN: DesktopFooterInfo -->
+<footer class="w-full max-w-4xl flex items-center justify-between text-xs text-slate-400 pb-2 px-4 z-10" data-purpose="reliability-indicator">
+<div class="flex items-center space-x-2">
+<!-- Shield checkmark icon indicating offline reliability -->
+<svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+<path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" stroke-linecap="round" stroke-linejoin="round"></path>
+</svg>
+<span>Triggered via OS background service • Works even if Gemini network is offline</span>
+</div>
+<div class="text-slate-400 text-xs">
+      Calby — A more capable you.
+    </div>
+</footer>
+<!-- END: DesktopFooterInfo -->
+</body></html>

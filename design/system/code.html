@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calby Design System — Foundations & Components Reference</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            calby: {
+              bg: '#070a11',
+              surface: '#0c101a',
+              'surface-raised': '#121826',
+              'surface-high': '#1a2236',
+              'surface-highest': '#232d45',
+              border: '#1e293b',
+              'border-subtle': '#151d2f',
+              'border-focus': '#38bdf8',
+              cyan: '#38bdf8',
+              'cyan-hover': '#0ea5e9',
+              'cyan-subtle': 'rgba(56, 189, 248, 0.1)',
+              blue: '#2563eb',
+              text: '#f8fafc',
+              'text-muted': '#94a3b8',
+              'text-dim': '#64748b',
+              'text-disabled': '#475569',
+              success: '#10b981',
+              warning: '#f59e0b',
+              error: '#ef4444',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #070a11;
+      color: #f8fafc;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    /* Subtle custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #070a11;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1e293b;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #334155;
+    }
+    .orb-glow {
+      box-shadow: 0 0 35px 8px rgba(56, 189, 248, 0.25);
+    }
+    .orb-glow-processing {
+      box-shadow: 0 0 35px 8px rgba(129, 140, 248, 0.3);
+    }
+    .orb-glow-error {
+      box-shadow: 0 0 35px 8px rgba(239, 68, 68, 0.3);
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-[#070a11] text-slate-100 antialiased selection:bg-sky-500/30 selection:text-sky-200 p-6 md:p-10 space-y-12 max-w-[1500px] mx-auto">
+
+  <!-- Header & System Header -->
+  <header class="border-b border-slate-800/80 pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div class="space-y-1">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-400/30 flex items-center justify-center text-sky-400 font-semibold text-lg shadow-[0_0_12px_rgba(56,189,248,0.25)]">
+          C
+        </div>
+        <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
+          Calby Design System
+          <span class="text-xs font-mono font-medium px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">Desktop v1.0</span>
+        </h1>
+      </div>
+      <p class="text-sm text-slate-400">Foundations & Reusable Components Reference — React / TypeScript / Tailwind CSS / Electron</p>
+    </div>
+    <div class="flex items-center gap-3 text-xs font-mono text-slate-400 bg-slate-900/60 border border-slate-800 rounded-lg px-3 py-2">
+      <span class="flex h-2 w-2 relative">
+        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
+        <span class="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
+      </span>
+      <span>Target: Electron Desktop (Dark Only)</span>
+      <span class="text-slate-600">|</span>
+      <span>Inter Sans</span>
+    </div>
+  </header>
+
+  <!-- ==================== PART 1: FOUNDATIONS ==================== -->
+  <section class="space-y-8">
+    <div class="flex items-center gap-3 pb-2 border-b border-slate-800/60">
+      <span class="text-xs font-mono font-semibold text-sky-400 uppercase tracking-wider">Part 1</span>
+      <h2 class="text-xl font-bold text-white tracking-tight">System Foundations</h2>
+    </div>
+
+    <!-- 1. Color Palette -->
+    <div class="space-y-4">
+      <div class="flex items-baseline justify-between">
+        <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-400">1. Color Tokens & Semantic Palette</h3>
+        <span class="text-xs text-slate-500 font-mono">WCAG AA compliant contrast on dark canvas</span>
+      </div>
+      
+      <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+        <!-- Canvas Background -->
+        <div class="p-3.5 rounded-lg bg-[#070a11] border border-slate-800 flex flex-col justify-between h-28">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono text-slate-400">bg-base</span>
+            <div class="w-3 h-3 rounded-full bg-[#070a11] border border-slate-700"></div>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-white">#070A11</div>
+            <div class="text-[11px] text-slate-500">Canvas Base</div>
+          </div>
+        </div>
+        <!-- Surface Card -->
+        <div class="p-3.5 rounded-lg bg-[#0c101a] border border-slate-800 flex flex-col justify-between h-28">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono text-slate-400">surface</span>
+            <div class="w-3 h-3 rounded-full bg-[#0c101a] border border-slate-600"></div>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-white">#0C101A</div>
+            <div class="text-[11px] text-slate-500">Card & Panel Base</div>
+          </div>
+        </div>
+        <!-- Surface Raised -->
+        <div class="p-3.5 rounded-lg bg-[#121826] border border-slate-800 flex flex-col justify-between h-28">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono text-slate-400">surface-raised</span>
+            <div class="w-3 h-3 rounded-full bg-[#121826] border border-slate-600"></div>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-white">#121826</div>
+            <div class="text-[11px] text-slate-500">Elevated Modules</div>
+          </div>
+        </div>
+        <!-- Surface High / Active -->
+        <div class="p-3.5 rounded-lg bg-[#1a2236] border border-slate-800 flex flex-col justify-between h-28">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono text-slate-400">surface-high</span>
+            <div class="w-3 h-3 rounded-full bg-[#1a2236] border border-slate-600"></div>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-white">#1A2236</div>
+            <div class="text-[11px] text-slate-500">Hover & Active State</div>
+          </div>
+        </div>
+        <!-- Primary Accent: Cyan -->
+        <div class="p-3.5 rounded-lg bg-sky-950/40 border border-sky-500/30 flex flex-col justify-between h-28">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono text-sky-400">accent-cyan</span>
+            <div class="w-3 h-3 rounded-full bg-[#38bdf8] shadow-[0_0_8px_rgba(56,189,248,0.6)]"></div>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-sky-300">#38BDF8</div>
+            <div class="text-[11px] text-sky-400/70">Calby Cyan Accent</div>
+          </div>
+        </div>
+        <!-- Secondary Accent: Blue -->
+        <div class="p-3.5 rounded-lg bg-blue-950/40 border border-blue-500/30 flex flex-col justify-between h-28">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono text-blue-400">accent-blue</span>
+            <div class="w-3 h-3 rounded-full bg-[#2563eb]"></div>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-blue-300">#2563EB</div>
+            <div class="text-[11px] text-blue-400/70">Deep Brand Blue</div>
+          </div>
+        </div>
+
+        <!-- Typography: Primary White -->
+        <div class="p-3.5 rounded-lg bg-[#0c101a] border border-slate-800 flex flex-col justify-between h-28">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono text-slate-400">text-primary</span>
+            <div class="w-3 h-3 rounded-full bg-[#f8fafc]"></div>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-white">#F8FAFC</div>
+            <div class="text-[11px] text-slate-400">Headings & Primary Text</div>
+          </div>
+        </div>
+        <!-- Typography: Muted Blue-Gray -->
+        <div class="p-3.5 rounded-lg bg-[#0c101a] border border-slate-800 flex flex-col justify-between h-28">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono text-slate-400">text-muted</span>
+            <div class="w-3 h-3 rounded-full bg-[#94a3b8]"></div>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-slate-300">#94A3B8</div>
+            <div class="text-[11px] text-slate-400">Descriptions & Labels</div>
+          </div>
+        </div>
+        <!-- Typography: Dim / Tertiary -->
+        <div class="p-3.5 rounded-lg bg-[#0c101a] border border-slate-800 flex flex-col justify-between h-28">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono text-slate-400">text-dim</span>
+            <div class="w-3 h-3 rounded-full bg-[#64748b]"></div>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-slate-400">#64748B</div>
+            <div class="text-[11px] text-slate-500">Timestamps & Hints</div>
+          </div>
+        </div>
+        <!-- Semantic: Success -->
+        <div class="p-3.5 rounded-lg bg-emerald-950/20 border border-emerald-900/40 flex flex-col justify-between h-28">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono text-emerald-400">state-success</span>
+            <div class="w-3 h-3 rounded-full bg-[#10b981]"></div>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-emerald-300">#10B981</div>
+            <div class="text-[11px] text-emerald-400/70">Completed & Connected</div>
+          </div>
+        </div>
+        <!-- Semantic: Warning -->
+        <div class="p-3.5 rounded-lg bg-amber-950/20 border border-amber-900/40 flex flex-col justify-between h-28">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono text-amber-400">state-warning</span>
+            <div class="w-3 h-3 rounded-full bg-[#f59e0b]"></div>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-amber-300">#F59E0B</div>
+            <div class="text-[11px] text-amber-400/70">Due Soon & Attention</div>
+          </div>
+        </div>
+        <!-- Semantic: Error / Danger -->
+        <div class="p-3.5 rounded-lg bg-rose-950/20 border border-rose-900/40 flex flex-col justify-between h-28">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono text-rose-400">state-error</span>
+            <div class="w-3 h-3 rounded-full bg-[#ef4444]"></div>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-rose-300">#EF4444</div>
+            <div class="text-[11px] text-rose-400/70">Failed & Disconnected</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Typography, Spacing, Radius, Borders, Elevation -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      
+      <!-- Typography Scale -->
+      <div class="bg-[#0c101a] border border-slate-800/80 rounded-xl p-5 space-y-4">
+        <h4 class="text-xs font-mono uppercase tracking-wider text-sky-400 font-semibold">2. Typography Hierarchy</h4>
+        <div class="space-y-3">
+          <div>
+            <div class="text-xl font-bold text-white tracking-tight">Display Title (20px/28)</div>
+            <div class="text-[10px] font-mono text-slate-500">font-bold tracking-tight text-white</div>
+          </div>
+          <div>
+            <div class="text-base font-semibold text-white">Section Heading (16px/24)</div>
+            <div class="text-[10px] font-mono text-slate-500">font-semibold text-white</div>
+          </div>
+          <div>
+            <div class="text-sm font-medium text-slate-200">Body & Field Label (14px/20)</div>
+            <div class="text-[10px] font-mono text-slate-500">font-medium text-slate-200</div>
+          </div>
+          <div>
+            <div class="text-xs text-slate-400">Secondary Text & Captions (12px/16)</div>
+            <div class="text-[10px] font-mono text-slate-500">text-xs text-slate-400</div>
+          </div>
+          <div>
+            <div class="text-[10px] font-mono text-slate-500 uppercase tracking-wider">Metadata & Code (10px/14)</div>
+            <div class="text-[10px] font-mono text-slate-600">font-mono text-slate-500</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Spacing & Layout -->
+      <div class="bg-[#0c101a] border border-slate-800/80 rounded-xl p-5 space-y-4">
+        <h4 class="text-xs font-mono uppercase tracking-wider text-sky-400 font-semibold">3. Spacing Rhythm (8pt Grid)</h4>
+        <div class="space-y-2.5">
+          <div class="flex items-center gap-3">
+            <div class="w-2 h-4 bg-sky-500/40 border border-sky-400/60 rounded-xs"></div>
+            <span class="text-xs text-slate-300 font-mono">space-1 (4px) — micro padding</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-4 h-4 bg-sky-500/40 border border-sky-400/60 rounded-xs"></div>
+            <span class="text-xs text-slate-300 font-mono">space-2 (8px) — icon gap, pill pad</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-6 h-4 bg-sky-500/40 border border-sky-400/60 rounded-xs"></div>
+            <span class="text-xs text-slate-300 font-mono">space-3 (12px) — card inner pad</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-8 h-4 bg-sky-500/40 border border-sky-400/60 rounded-xs"></div>
+            <span class="text-xs text-slate-300 font-mono">space-4 (16px) — section padding</span>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-4 bg-sky-500/40 border border-sky-400/60 rounded-xs"></div>
+            <span class="text-xs text-slate-300 font-mono">space-6 (24px) — panel outer layout</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Radius & Borders -->
+      <div class="bg-[#0c101a] border border-slate-800/80 rounded-xl p-5 space-y-4">
+        <h4 class="text-xs font-mono uppercase tracking-wider text-sky-400 font-semibold">4. Radius & Border Standards</h4>
+        <div class="space-y-2.5">
+          <div class="flex items-center justify-between p-2 rounded bg-slate-900 border border-slate-800 text-xs">
+            <span class="text-slate-300">rounded-md (6px)</span>
+            <span class="font-mono text-slate-500">Buttons, Badges</span>
+          </div>
+          <div class="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-slate-800 text-xs">
+            <span class="text-slate-300">rounded-lg (8px)</span>
+            <span class="font-mono text-slate-500">Inputs, Menu Items</span>
+          </div>
+          <div class="flex items-center justify-between p-2 rounded-xl bg-slate-900 border border-slate-800 text-xs">
+            <span class="text-slate-300">rounded-xl (12px)</span>
+            <span class="font-mono text-slate-500">Cards, Modals</span>
+          </div>
+          <div class="flex items-center justify-between p-2 rounded-full bg-slate-900 border border-slate-800 text-xs">
+            <span class="text-slate-300">rounded-full</span>
+            <span class="font-mono text-slate-500">Toggles, Orb, Chips</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Elevation & Icons -->
+      <div class="bg-[#0c101a] border border-slate-800/80 rounded-xl p-5 space-y-4">
+        <h4 class="text-xs font-mono uppercase tracking-wider text-sky-400 font-semibold">5. Elevation & Icon Sizing</h4>
+        <div class="space-y-3">
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-300">Micro (14px)</span>
+            <span class="font-mono text-slate-500">Chevron, mini status</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-300">Regular (16px)</span>
+            <span class="font-mono text-slate-500">Buttons, field prefixes</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-300">Prominent (20px)</span>
+            <span class="font-mono text-slate-500">Modal headers, toasts</span>
+          </div>
+          <div class="pt-2 border-t border-slate-800 flex items-center justify-between text-xs">
+            <span class="text-slate-300">Motion Ease</span>
+            <span class="font-mono text-sky-400">cubic-bezier(0.16,1,0.3,1)</span>
+          </div>
+          <div class="flex items-center justify-between text-xs">
+            <span class="text-slate-300">Transitions</span>
+            <span class="font-mono text-slate-400">150ms hover / 250ms enter</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ==================== PART 2: VOICE ORB INTERACTION SYSTEM ==================== -->
+  <section class="space-y-6 pt-4">
+    <div class="flex items-center gap-3 pb-2 border-b border-slate-800/60">
+      <span class="text-xs font-mono font-semibold text-sky-400 uppercase tracking-wider">Part 2</span>
+      <h2 class="text-xl font-bold text-white tracking-tight">Voice Interaction Architecture (Calby Orb)</h2>
+    </div>
+
+    <div class="p-6 rounded-2xl bg-[#0c101a] border border-slate-800 space-y-6">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-2">
+        <p class="text-sm text-slate-300">Voice is Calby's primary desktop interface. The voice orb dynamically communicates state without jarring visual noise.</p>
+        <span class="text-xs font-mono text-slate-500">Requirements: Idle, Listening, Processing, Responding, Interrupted, Error</span>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        
+        <!-- Idle -->
+        <div class="flex flex-col items-center justify-center p-4 rounded-xl bg-[#070a11] border border-slate-800/80 space-y-3 text-center">
+          <div class="w-14 h-14 rounded-full bg-slate-900 border border-slate-700/60 flex items-center justify-center relative">
+            <div class="w-6 h-6 rounded-full bg-sky-500/20 border border-sky-400/40"></div>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-white">Idle</div>
+            <div class="text-[11px] text-slate-500">Ready for wake/click</div>
+          </div>
+        </div>
+
+        <!-- Listening -->
+        <div class="flex flex-col items-center justify-center p-4 rounded-xl bg-[#070a11] border border-sky-500/40 space-y-3 text-center relative overflow-hidden">
+          <div class="absolute inset-0 bg-sky-500/5 pointer-events-none"></div>
+          <div class="w-14 h-14 rounded-full bg-sky-950/70 border border-sky-400 flex items-center justify-center relative orb-glow">
+            <div class="w-7 h-7 rounded-full bg-sky-400 flex items-center justify-center text-slate-950">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+            </div>
+          </div>
+          <div class="relative">
+            <div class="text-xs font-semibold text-sky-400">Listening...</div>
+            <div class="text-[11px] text-slate-400">Speech wave active</div>
+          </div>
+        </div>
+
+        <!-- Processing -->
+        <div class="flex flex-col items-center justify-center p-4 rounded-xl bg-[#070a11] border border-indigo-500/30 space-y-3 text-center">
+          <div class="w-14 h-14 rounded-full bg-indigo-950/60 border border-indigo-400/80 flex items-center justify-center relative orb-glow-processing">
+            <div class="w-6 h-6 rounded-full border-2 border-indigo-300 border-t-transparent animate-spin"></div>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-indigo-300">Processing</div>
+            <div class="text-[11px] text-slate-400">Gemini intent parse</div>
+          </div>
+        </div>
+
+        <!-- Responding -->
+        <div class="flex flex-col items-center justify-center p-4 rounded-xl bg-[#070a11] border border-cyan-500/40 space-y-3 text-center">
+          <div class="w-14 h-14 rounded-full bg-cyan-950/50 border border-cyan-400/90 flex items-center justify-center relative shadow-[0_0_25px_rgba(34,211,238,0.3)]">
+            <div class="flex items-center gap-0.5">
+              <span class="w-1 h-3 bg-cyan-300 rounded-full"></span>
+              <span class="w-1 h-5 bg-cyan-200 rounded-full"></span>
+              <span class="w-1 h-4 bg-cyan-300 rounded-full"></span>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-cyan-300">Responding</div>
+            <div class="text-[11px] text-slate-400">Audio playback / speech</div>
+          </div>
+        </div>
+
+        <!-- Interrupted -->
+        <div class="flex flex-col items-center justify-center p-4 rounded-xl bg-[#070a11] border border-amber-500/30 space-y-3 text-center">
+          <div class="w-14 h-14 rounded-full bg-amber-950/40 border border-amber-400/60 flex items-center justify-center relative">
+            <div class="w-5 h-5 rounded-full bg-amber-400/20 flex items-center justify-center text-amber-300">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-amber-300">Interrupted</div>
+            <div class="text-[11px] text-slate-500">Cut-off handled</div>
+          </div>
+        </div>
+
+        <!-- Error -->
+        <div class="flex flex-col items-center justify-center p-4 rounded-xl bg-[#070a11] border border-rose-500/30 space-y-3 text-center">
+          <div class="w-14 h-14 rounded-full bg-rose-950/40 border border-rose-500/80 flex items-center justify-center relative orb-glow-error">
+            <div class="w-5 h-5 rounded-full bg-rose-500 flex items-center justify-center text-white">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </div>
+          </div>
+          <div>
+            <div class="text-xs font-semibold text-rose-400">Error / Retry</div>
+            <div class="text-[11px] text-slate-500">Clear recovery path</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ==================== PART 3: CORE REUSABLE COMPONENTS ==================== -->
+  <section class="space-y-8 pt-4">
+    <div class="flex items-center gap-3 pb-2 border-b border-slate-800/60">
+      <span class="text-xs font-mono font-semibold text-sky-400 uppercase tracking-wider">Part 3</span>
+      <h2 class="text-xl font-bold text-white tracking-tight">Core Reusable Components</h2>
+    </div>
+
+    <!-- 1. Buttons & Controls -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      
+      <!-- Button System -->
+      <div class="bg-[#0c101a] border border-slate-800 rounded-xl p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-white">Button & Icon Button Variants</h3>
+          <span class="text-xs font-mono text-slate-500">&lt;Button variant="..." /&gt;</span>
+        </div>
+        
+        <div class="space-y-3">
+          <!-- Button row -->
+          <div class="flex flex-wrap items-center gap-3">
+            <!-- Primary Cyan -->
+            <button class="px-3.5 py-1.5 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-medium text-xs shadow-[0_0_12px_rgba(56,189,248,0.3)] transition-all flex items-center gap-1.5 focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-950">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+              Primary Cyan
+            </button>
+
+            <!-- Secondary Subtle -->
+            <button class="px-3.5 py-1.5 rounded-lg bg-[#1a2236] hover:bg-[#232d45] text-slate-200 border border-slate-700/80 font-medium text-xs transition-all focus:outline-none focus:ring-2 focus:ring-slate-400">
+              Secondary
+            </button>
+
+            <!-- Ghost Button -->
+            <button class="px-3.5 py-1.5 rounded-lg hover:bg-slate-800/60 text-slate-300 font-medium text-xs transition-all">
+              Ghost Button
+            </button>
+
+            <!-- Danger Button -->
+            <button class="px-3.5 py-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/50 font-medium text-xs transition-all">
+              Danger / Clear
+            </button>
+
+            <!-- Disabled -->
+            <button disabled class="px-3.5 py-1.5 rounded-lg bg-slate-900 text-slate-600 border border-slate-800/60 font-medium text-xs cursor-not-allowed">
+              Disabled
+            </button>
+          </div>
+
+          <!-- Icon Buttons & Sizes -->
+          <div class="pt-3 border-t border-slate-800/80 flex items-center gap-3">
+            <span class="text-xs text-slate-400 mr-2">Icon Buttons:</span>
+            <!-- 32px standard -->
+            <button aria-label="Mic" class="w-8 h-8 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 flex items-center justify-center transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+            </button>
+            <button aria-label="Settings" class="w-8 h-8 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-800 flex items-center justify-center transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path></svg>
+            </button>
+            <button aria-label="Close" class="w-8 h-8 rounded-lg bg-slate-900 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 border border-slate-800 flex items-center justify-center transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Toggles, Select & Badges -->
+      <div class="bg-[#0c101a] border border-slate-800 rounded-xl p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-white">Toggle, Select & Status Badges</h3>
+          <span class="text-xs font-mono text-slate-500">Controls</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
+          <!-- Toggle (On/Off) -->
+          <div class="space-y-2">
+            <label class="text-xs font-medium text-slate-400 block">Toggle Switch</label>
+            <div class="flex items-center gap-4">
+              <!-- Checked -->
+              <button role="switch" aria-checked="true" class="w-10 h-5 rounded-full bg-sky-500 p-0.5 transition-colors relative flex items-center">
+                <span class="w-4 h-4 rounded-full bg-slate-950 shadow transform translate-x-5 transition-transform"></span>
+              </button>
+              <span class="text-xs text-slate-200">Enabled</span>
+            </div>
+            <div class="flex items-center gap-4 pt-1">
+              <!-- Unchecked -->
+              <button role="switch" aria-checked="false" class="w-10 h-5 rounded-full bg-slate-800 border border-slate-700 p-0.5 transition-colors relative flex items-center">
+                <span class="w-4 h-4 rounded-full bg-slate-400 shadow transform translate-x-0 transition-transform"></span>
+              </button>
+              <span class="text-xs text-slate-400">Disabled</span>
+            </div>
+          </div>
+
+          <!-- Select -->
+          <div class="space-y-2">
+            <label class="text-xs font-medium text-slate-400 block">Select Dropdown</label>
+            <div class="relative">
+              <select class="w-full bg-[#121826] border border-slate-700 text-xs text-slate-200 rounded-lg px-3 py-2 pr-8 focus:outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-400 appearance-none">
+                <option>Every 5 minutes</option>
+                <option>Every 10 minutes</option>
+                <option>1 hour before</option>
+              </select>
+              <div class="absolute right-2.5 top-2.5 pointer-events-none text-slate-400">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Badges & Status Pills -->
+        <div class="pt-3 border-t border-slate-800/80 space-y-2">
+          <label class="text-xs font-medium text-slate-400 block">Badges & Status</label>
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="px-2 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20 text-[11px] font-medium flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span> Active
+            </span>
+            <span class="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[11px] font-medium flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Connected
+            </span>
+            <span class="px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[11px] font-medium flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Snoozed
+            </span>
+            <span class="px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[11px] font-medium flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span> Error
+            </span>
+            <span class="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700/60 text-[11px] font-medium">
+              Offline
+            </span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 2. Inputs & Natural Language System -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      
+      <!-- Inputs & Search -->
+      <div class="bg-[#0c101a] border border-slate-800 rounded-xl p-5 space-y-4">
+        <h3 class="text-sm font-semibold text-white">Input & Search Input</h3>
+        
+        <div class="space-y-3">
+          <!-- Standard Text Input -->
+          <div class="space-y-1.5">
+            <label class="text-xs font-medium text-slate-300">Standard Text Input</label>
+            <input type="text" placeholder="e.g. Call dentist tomorrow at 2pm" class="w-full bg-[#121826] border border-slate-700/80 rounded-lg px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-400 transition-all">
+          </div>
+
+          <!-- Search Input -->
+          <div class="space-y-1.5">
+            <label class="text-xs font-medium text-slate-300">Search Input with Shortcut</label>
+            <div class="relative">
+              <div class="absolute left-3 top-2.5 text-slate-400">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+              </div>
+              <input type="text" placeholder="Search memory or reminders..." class="w-full bg-[#121826] border border-slate-700/80 rounded-lg pl-9 pr-14 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-400 transition-all">
+              <div class="absolute right-2.5 top-2 text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-400">
+                ⌘K
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Natural Language Input Component -->
+      <div class="bg-[#0c101a] border border-slate-800 rounded-xl p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-white">Natural Language Input (Voice + Text Prompt)</h3>
+          <span class="text-xs font-mono text-sky-400">Core Interaction</span>
+        </div>
+
+        <div class="space-y-3">
+          <p class="text-xs text-slate-400">Allows typed natural language command or instant one-click voice transcription trigger.</p>
+          
+          <div class="relative rounded-xl bg-[#121826] border border-slate-700/80 p-2 shadow-inner focus-within:border-sky-400 focus-within:ring-1 focus-within:ring-sky-400 transition-all">
+            <input type="text" value="Remind me to prep project roadmap tomorrow at 9am" class="w-full bg-transparent pl-2 pr-20 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none">
+            <div class="absolute right-2 top-2 flex items-center gap-1.5">
+              <!-- Voice trigger button -->
+              <button aria-label="Start Voice" class="w-7 h-7 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/30 flex items-center justify-center transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path></svg>
+              </button>
+              <!-- Submit enter -->
+              <button aria-label="Submit" class="w-7 h-7 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 flex items-center justify-center transition-colors shadow">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 text-[11px] text-slate-500">
+            <span>Example:</span>
+            <span class="text-slate-400">"What meetings do I have this afternoon?"</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 3. Navigation & Setting Row Component -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      
+      <!-- Navigation Item System -->
+      <div class="bg-[#0c101a] border border-slate-800 rounded-xl p-5 space-y-4">
+        <h3 class="text-sm font-semibold text-white">Navigation Items (Sidebar / Global Nav)</h3>
+        
+        <div class="space-y-1.5">
+          <!-- Active Nav Item -->
+          <div class="flex items-center justify-between px-3 py-2 rounded-lg bg-[#1a2236] border border-sky-500/30 text-white text-xs font-medium">
+            <div class="flex items-center gap-2.5">
+              <svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+              <span>Home & Voice Assistant</span>
+            </div>
+            <span class="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+          </div>
+
+          <!-- Normal Nav Item with Badge -->
+          <div class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-900 text-slate-300 text-xs font-medium cursor-pointer transition-colors">
+            <div class="flex items-center gap-2.5">
+              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              <span>Reminders</span>
+            </div>
+            <span class="px-1.5 py-0.5 rounded-full bg-sky-500/10 text-sky-400 text-[10px] font-mono border border-sky-500/20">3</span>
+          </div>
+
+          <!-- Normal Nav Item -->
+          <div class="flex items-center justify-between px-3 py-2 rounded-lg hover:bg-slate-900 text-slate-400 hover:text-slate-200 text-xs font-medium cursor-pointer transition-colors">
+            <div class="flex items-center gap-2.5">
+              <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+              <span>Calendar</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Setting Row Component -->
+      <div class="bg-[#0c101a] border border-slate-800 rounded-xl p-5 space-y-4">
+        <h3 class="text-sm font-semibold text-white">Setting Row Component</h3>
+        
+        <div class="space-y-3">
+          <!-- Row 1: with toggle -->
+          <div class="flex items-center justify-between p-3 rounded-lg bg-[#121826] border border-slate-800">
+            <div class="space-y-0.5">
+              <div class="text-xs font-medium text-white">Personal Memory</div>
+              <div class="text-[11px] text-slate-400">Remember facts and user context locally</div>
+            </div>
+            <button role="switch" aria-checked="true" class="w-9 h-5 rounded-full bg-sky-500 p-0.5 relative flex items-center">
+              <span class="w-4 h-4 rounded-full bg-slate-950 shadow transform translate-x-4 transition-transform"></span>
+            </button>
+          </div>
+
+          <!-- Row 2: with action button -->
+          <div class="flex items-center justify-between p-3 rounded-lg bg-[#121826] border border-slate-800">
+            <div class="space-y-0.5">
+              <div class="text-xs font-medium text-white">Google Calendar Integration</div>
+              <div class="text-[11px] text-emerald-400 flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Connected as alex@company.com
+              </div>
+            </div>
+            <button class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium border border-slate-700">
+              Disconnect
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 4. Domain Items: Reminder Item, Calendar Event, Memory Item -->
+    <div class="space-y-4">
+      <div class="flex items-center justify-between">
+        <h3 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Domain-Specific Calby Items</h3>
+        <span class="text-xs font-mono text-slate-500">Reminders, Calendar Context, Personal Memory</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        <!-- 1. Reminder Item -->
+        <div class="bg-[#0c101a] border border-slate-800 rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono uppercase text-sky-400 font-semibold">&lt;ReminderItem /&gt;</span>
+            <span class="px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400 text-[10px] font-mono border border-sky-500/20">Today, 2:30 PM</span>
+          </div>
+
+          <div class="flex items-start gap-3 p-3 rounded-lg bg-[#121826] border border-slate-800">
+            <input type="checkbox" class="mt-0.5 rounded border-slate-700 text-sky-500 focus:ring-sky-400 bg-slate-900">
+            <div class="space-y-1 flex-1">
+              <div class="text-xs font-medium text-white">Submit quarterly budget review</div>
+              <div class="flex items-center gap-2 text-[11px] text-slate-400">
+                <span class="flex items-center gap-1">
+                  <svg class="w-3 h-3 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                  2:30 PM (Alarm)
+                </span>
+                <span class="text-slate-600">•</span>
+                <span class="text-sky-400/80">Every Monday</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-1">
+              <button aria-label="Snooze" class="p-1 text-slate-400 hover:text-slate-200">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Calendar Event -->
+        <div class="bg-[#0c101a] border border-slate-800 rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono uppercase text-sky-400 font-semibold">&lt;CalendarEvent /&gt;</span>
+            <span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[10px] font-mono border border-emerald-500/20">In 20 mins</span>
+          </div>
+
+          <div class="p-3 rounded-lg bg-[#121826] border border-slate-800 space-y-2">
+            <div class="flex items-center justify-between">
+              <div class="text-xs font-medium text-white">Product Sync & Sprint Kickoff</div>
+              <span class="text-[10px] font-mono text-slate-400">3:00 - 3:45 PM</span>
+            </div>
+            <div class="text-[11px] text-slate-400 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-blue-500"></span> 4 participants • Google Meet
+            </div>
+            <div class="pt-1.5 border-t border-slate-800/80 flex items-center justify-between">
+              <button class="text-[11px] text-sky-400 hover:text-sky-300 font-medium flex items-center gap-1">
+                <span>View Prep Brief</span>
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Memory Item -->
+        <div class="bg-[#0c101a] border border-slate-800 rounded-xl p-4 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-mono uppercase text-sky-400 font-semibold">&lt;MemoryItem /&gt;</span>
+            <span class="text-[10px] font-mono text-slate-500">Local Stored</span>
+          </div>
+
+          <div class="p-3 rounded-lg bg-[#121826] border border-slate-800 space-y-2">
+            <div class="flex items-start justify-between gap-2">
+              <p class="text-xs text-slate-200">"Wife's birthday is October 14th; prefers dark chocolate"</p>
+              <button aria-label="Delete Fact" class="text-slate-500 hover:text-rose-400">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+              </button>
+            </div>
+            <div class="flex items-center gap-2 pt-1">
+              <span class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 text-[10px] font-mono">Personal Context</span>
+              <span class="text-[10px] text-slate-500">Saved 3 days ago</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- 5. Feedback, System States & Modals -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      
+      <!-- System Notification & Alarm Toast -->
+      <div class="bg-[#0c101a] border border-slate-800 rounded-xl p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-white">Desktop Notification & Alarm Toast</h3>
+          <span class="text-xs font-mono text-amber-400">High Priority</span>
+        </div>
+
+        <!-- Alarm Toast Card -->
+        <div class="p-4 rounded-xl bg-[#121826] border-l-4 border-l-sky-400 border border-slate-800 shadow-xl space-y-3">
+          <div class="flex items-start justify-between">
+            <div class="flex items-center gap-2.5">
+              <div class="w-7 h-7 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+              </div>
+              <div>
+                <div class="text-xs font-semibold text-white">Reminder Alarm: Team Standup</div>
+                <div class="text-[11px] text-slate-400">Starting now in 2 minutes</div>
+              </div>
+            </div>
+            <span class="text-[10px] font-mono text-slate-500">Local Alert</span>
+          </div>
+
+          <div class="flex items-center justify-end gap-2 pt-1">
+            <button class="px-3 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium">
+              Snooze 5m
+            </button>
+            <button class="px-3 py-1 rounded bg-sky-500 hover:bg-sky-400 text-slate-950 text-xs font-medium">
+              Dismiss
+            </button>
+          </div>
+        </div>
+
+        <!-- Alert & Feedback banners -->
+        <div class="space-y-2 pt-2">
+          <!-- Success State -->
+          <div class="p-2.5 rounded-lg bg-emerald-950/30 border border-emerald-800/40 flex items-center gap-2 text-xs text-emerald-300">
+            <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            <span>Reminder created for tomorrow at 9:00 AM.</span>
+          </div>
+
+          <!-- Error State / Recovery -->
+          <div class="p-2.5 rounded-lg bg-rose-950/30 border border-rose-800/40 flex items-center justify-between text-xs text-rose-300">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-rose-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+              <span>Google Calendar connection lost.</span>
+            </div>
+            <button class="text-xs text-sky-400 underline hover:text-sky-300">Reconnect</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Memory Modal & Dialog Spec -->
+      <div class="bg-[#0c101a] border border-slate-800 rounded-xl p-5 space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-semibold text-white">Memory Modal & Dialog Architecture</h3>
+          <span class="text-xs font-mono text-slate-500">&lt;Modal /&gt;</span>
+        </div>
+
+        <!-- Embedded Mini Modal Preview -->
+        <div class="rounded-xl bg-[#121826] border border-slate-700/80 p-4 shadow-2xl space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-2.5">
+            <div class="flex items-center gap-2">
+              <div class="w-5 h-5 rounded bg-sky-500/10 text-sky-400 flex items-center justify-center text-xs">
+                ✦
+              </div>
+              <h4 class="text-xs font-semibold text-white">Edit Stored Fact</h4>
+            </div>
+            <button aria-label="Dismiss Modal" class="text-slate-500 hover:text-slate-300 text-xs">✕</button>
+          </div>
+
+          <div class="space-y-3">
+            <div class="space-y-1">
+              <label class="text-[11px] font-medium text-slate-300">Memory Statement</label>
+              <textarea rows="2" class="w-full bg-[#0c101a] border border-slate-700 rounded-lg p-2 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-sky-400">Prefers remote sprint planning over asynchronous docs</textarea>
+            </div>
+            <div class="space-y-1">
+              <label class="text-[11px] font-medium text-slate-300">Category Tag</label>
+              <input type="text" value="Work Preference" class="w-full bg-[#0c101a] border border-slate-700 rounded-lg px-2.5 py-1 text-xs text-slate-100 focus:outline-none">
+            </div>
+          </div>
+
+          <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+            <button class="px-3 py-1 rounded text-xs font-medium text-slate-400 hover:text-slate-200">
+              Cancel
+            </button>
+            <button class="px-3 py-1 rounded bg-sky-500 hover:bg-sky-400 text-slate-950 text-xs font-medium shadow">
+              Save Fact
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 6. Empty States & Loading States -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      
+      <!-- Empty State Component -->
+      <div class="bg-[#0c101a] border border-slate-800 rounded-xl p-6 flex flex-col items-center justify-center text-center space-y-3">
+        <div class="w-12 h-12 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+        </div>
+        <div class="space-y-1">
+          <div class="text-xs font-semibold text-white">No Reminders Scheduled</div>
+          <div class="text-[11px] text-slate-400 max-w-xs">You're all caught up for today. Speak or type to create a new reminder.</div>
+        </div>
+        <button class="px-3 py-1.5 rounded-lg bg-[#1a2236] hover:bg-[#232d45] text-sky-400 border border-sky-500/20 text-xs font-medium flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+          Add Reminder
+        </button>
+      </div>
+
+      <!-- Loading & Action In Progress -->
+      <div class="bg-[#0c101a] border border-slate-800 rounded-xl p-6 flex flex-col items-center justify-center text-center space-y-3">
+        <div class="w-10 h-10 rounded-full border-2 border-sky-400 border-t-transparent animate-spin"></div>
+        <div class="space-y-1">
+          <div class="text-xs font-semibold text-white">Syncing Google Calendar...</div>
+          <div class="text-[11px] text-slate-400">Verifying upcoming meeting contexts and credentials</div>
+        </div>
+        <span class="text-[10px] font-mono text-sky-400/80 bg-sky-500/10 px-2 py-0.5 rounded-full border border-sky-500/20">Action in Progress</span>
+      </div>
+
+    </div>
+
+  </section>
+
+  <!-- Footer / Implementation Note -->
+  <footer class="pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500 font-mono">
+    <div>CALBY DESIGN SYSTEM • READY FOR STEP 3 (SHELL & SCREENS)</div>
+    <div class="flex items-center gap-4">
+      <span>Electron / React / Tailwind</span>
+      <span>•</span>
+      <span>Restrained Dark Aesthetic</span>
+    </div>
+  </footer>
+
+</body>
+</html>
