@@ -62,6 +62,10 @@ export class NotificationService {
     notification.on('click', () => {
       console.log(`[NotificationService] Notification clicked for reminder: ${reminder.id}`)
       this.focusMainWindow()
+      this.broadcastNavigation({
+        view: 'reminders',
+        reminderId: reminder.id
+      })
     })
 
     notification.show()
@@ -71,8 +75,22 @@ export class NotificationService {
     const windows = BrowserWindow.getAllWindows()
     if (windows.length > 0) {
       const win = windows[0]
-      if (win.isMinimized()) win.restore()
+      if (win.isMinimized()) {
+        win.restore()
+      }
+      if (!win.isVisible()) {
+        win.show()
+      }
       win.focus()
+    }
+  }
+
+  private broadcastNavigation(payload: { view: string; reminderId?: string }): void {
+    const windows = BrowserWindow.getAllWindows()
+    for (const win of windows) {
+      if (!win.isDestroyed()) {
+        win.webContents.send('system:navigate', payload)
+      }
     }
   }
 }

@@ -1,9 +1,14 @@
-export interface SystemInfo {
+﻿export interface SystemInfo {
   name: string
   version: string
   electronVersion: string
   platform: string
   arch: string
+}
+
+export interface NavigationPayload {
+  view: 'home' | 'reminders' | 'calendar' | 'memory' | 'settings'
+  reminderId?: string
 }
 
 export interface AuthStatus {
@@ -203,10 +208,13 @@ export interface CalbySettingsAPI {
   openMicrophoneSettings: () => Promise<IpcResult<void>>
 }
 
+export interface CalbySystemAPI {
+  getInfo: () => Promise<IpcResult<SystemInfo>>
+  onNavigate: (callback: (payload: NavigationPayload) => void) => () => void
+}
+
 export interface CalbyAPI {
-  system: {
-    getInfo: () => Promise<IpcResult<SystemInfo>>
-  }
+  system: CalbySystemAPI
   auth: {
     getStatus: () => Promise<IpcResult<AuthStatus>>
     validateAndSaveKey: (apiKey: string) => Promise<IpcResult<ValidateKeyResult>>

@@ -16,6 +16,7 @@ export const App: FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<ActiveView>('home')
+  const [highlightedReminderId, setHighlightedReminderId] = useState<string | null>(null)
 
   const checkStatus = async (): Promise<void> => {
     try {
@@ -41,6 +42,25 @@ export const App: FC = () => {
 
   useEffect(() => {
     void checkStatus()
+  }, [])
+
+  // Listen for deep link navigation requests (from system tray, notifications, or global hotkey)
+  useEffect(() => {
+    if (!window.calby?.system?.onNavigate) return
+
+    const unsubscribe = window.calby.system.onNavigate((payload) => {
+      console.log('[App] Received onNavigate event:', payload)
+      if (payload.view) {
+        setActiveView(payload.view as ActiveView)
+      }
+      if (payload.reminderId) {
+        setHighlightedReminderId(payload.reminderId)
+      }
+    })
+
+    return () => {
+      unsubscribe()
+    }
   }, [])
 
   // 1. Loading State
@@ -91,7 +111,10 @@ export const App: FC = () => {
         {activeView === 'home' && (
           <VoiceAssistantHome
             onResetSetup={() => void checkStatus()}
-            onNavigateToReminders={() => setActiveView('reminders')}
+            onNavigateToReminders={() => {
+              setHighlightedReminderId(null)
+              setActiveView('reminders')
+            }}
             onNavigateToCalendar={() => setActiveView('calendar')}
             onNavigateToMemory={() => setActiveView('memory')}
             onNavigateToSettings={() => setActiveView('settings')}
@@ -99,6 +122,7 @@ export const App: FC = () => {
         )}
         {activeView === 'reminders' && (
           <RemindersPage
+            highlightedReminderId={highlightedReminderId}
             onNavigateHome={() => setActiveView('home')}
             onNavigateCalendar={() => setActiveView('calendar')}
             onNavigateMemory={() => setActiveView('memory')}
@@ -108,7 +132,10 @@ export const App: FC = () => {
         {activeView === 'calendar' && (
           <CalendarPage
             onNavigateHome={() => setActiveView('home')}
-            onNavigateReminders={() => setActiveView('reminders')}
+            onNavigateReminders={() => {
+              setHighlightedReminderId(null)
+              setActiveView('reminders')
+            }}
             onNavigateMemory={() => setActiveView('memory')}
             onNavigateSettings={() => setActiveView('settings')}
           />
@@ -116,7 +143,10 @@ export const App: FC = () => {
         {activeView === 'memory' && (
           <MemoryPage
             onNavigateHome={() => setActiveView('home')}
-            onNavigateReminders={() => setActiveView('reminders')}
+            onNavigateReminders={() => {
+              setHighlightedReminderId(null)
+              setActiveView('reminders')
+            }}
             onNavigateCalendar={() => setActiveView('calendar')}
             onNavigateSettings={() => setActiveView('settings')}
           />
@@ -124,7 +154,10 @@ export const App: FC = () => {
         {activeView === 'settings' && (
           <SettingsPage
             onNavigateHome={() => setActiveView('home')}
-            onNavigateReminders={() => setActiveView('reminders')}
+            onNavigateReminders={() => {
+              setHighlightedReminderId(null)
+              setActiveView('reminders')
+            }}
             onNavigateCalendar={() => setActiveView('calendar')}
             onNavigateMemory={() => setActiveView('memory')}
             onResetSetup={() => void checkStatus()}

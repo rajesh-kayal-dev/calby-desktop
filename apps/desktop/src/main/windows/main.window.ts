@@ -1,4 +1,4 @@
-import { BrowserWindow, app } from 'electron'
+﻿import { BrowserWindow, app } from 'electron'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { is } from '@electron-toolkit/utils'
@@ -11,6 +11,14 @@ const WINDOW_CONFIG = {
   MIN_HEIGHT: 600,
   BG_COLOR: '#10131a'
 } as const
+
+let isQuitting = false
+
+export const setQuitting = (quitting: boolean): void => {
+  isQuitting = quitting
+}
+
+export const getQuitting = (): boolean => isQuitting
 
 const getPreloadPath = (): string => {
   const cjsPath = join(__dirname, '../preload/index.cjs')
@@ -44,6 +52,13 @@ export const createMainWindow = (): BrowserWindow => {
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+  })
+
+  mainWindow.on('close', (event) => {
+    if (!isQuitting && process.env.NODE_ENV !== 'test') {
+      event.preventDefault()
+      mainWindow.hide()
+    }
   })
 
   setupSecurityHandlers(mainWindow)

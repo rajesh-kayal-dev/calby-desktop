@@ -1,23 +1,37 @@
-import { ReminderService } from './reminder.service'
+﻿import { ReminderService } from './reminder.service'
 import { MemoryService } from './memory.service'
+import { GoogleCalendarService, type CalendarEvent } from './google-calendar.service'
 import type { Reminder } from '../storage/reminder.repository'
 import type { Memory, MemoryType } from '../storage/memory.repository'
 
-export interface ToolExecutionResult {
+export interface ToolDeclaration {
+  name: string
+  description: string
+  parameters: {
+    type: string
+    properties: Record<string, unknown>
+    required?: string[]
+  }
+}
+
+export interface ActionResult {
   success: boolean
   message: string
   data?: unknown
   ambiguous?: boolean
+  notConnected?: boolean
 }
 
 export class ActionExecutor {
   private static instance: ActionExecutor | null = null
   private reminderService: ReminderService
   private memoryService: MemoryService
+  private calendarService: GoogleCalendarService
 
   private constructor() {
     this.reminderService = ReminderService.getInstance()
     this.memoryService = MemoryService.getInstance()
+    this.calendarService = GoogleCalendarService.getInstance()
   }
 
   public static getInstance(): ActionExecutor {
@@ -27,26 +41,23 @@ export class ActionExecutor {
     return ActionExecutor.instance
   }
 
-  public getToolDeclarations(): unknown[] {
+  public getToolDeclarations(): ToolDeclaration[] {
     return [
-      // 1. Reminders Tools
+      // --- Reminders Tools ---
       {
         name: 'create_reminder',
-        description: 'Creates and schedules a reminder for the user at a specified future date and time.',
+        description:
+          'Create a new scheduled reminder with an alarm. Schedule time must be an ISO 8601 UTC date string.',
         parameters: {
           type: 'OBJECT',
           properties: {
             title: {
               type: 'STRING',
-              description: 'The short, descriptive title of what to be reminded about (e.g. "Call Rahul", "Team meeting").'
+              description: 'Clear, concise title or text of what to remember/do.'
             },
             scheduledAt: {
               type: 'STRING',
-              description: 'The exact ISO 8601 UTC date-time string when the reminder is scheduled to trigger (e.g. "2026-09-21T04:30:00.000Z").'
-            },
-            alarmEnabled: {
-              type: 'BOOLEAN',
-              description: 'Whether to enable sound/alarm notification for this reminder. Defaults to true.'
+              description: 'ISO 8601 UTC timestamp string when the reminder should trigger.'
             }
           },
           required: ['title', 'scheduledAt']
@@ -54,62 +65,73 @@ export class ActionExecutor {
       },
       {
         name: 'list_reminders',
-        description: 'Lists all currently scheduled and upcoming reminders for the user.',
-        parameters: {
-          type: 'OBJECT',
-          properties: {}
-        }
-      },
-      {
-        name: 'complete_reminder',
-        description: 'Marks a reminder as completed by its ID or exact title match.',
+        description: 'List active upcoming scheduled reminders.',
         parameters: {
           type: 'OBJECT',
           properties: {
-            id: {
+            filter: {
               type: 'STRING',
-              description: 'The unique ID of the reminder if known.'
-            },
-            title: {
-              type: 'STRING',
-              description: 'The exact title of the reminder to match if ID is not known.'
+              description: 'Optional filter: "upcoming" or "completed"'
             }
           }
         }
       },
       {
-        name: 'delete_reminder',
-        description: 'Deletes / cancels a reminder by its ID or exact title match.',
+        name: 'snooze_reminder',
+        description:
+          'Snooze a reminder by ID or matching title keyword for a specified number of minutes (default 5m).',
         parameters: {
           type: 'OBJECT',
           properties: {
             id: {
               type: 'STRING',
-              description: 'The unique ID of the reminder if known.'
+              description: 'Exact ID of the reminder if known.'
             },
             title: {
               type: 'STRING',
-              description: 'The exact title of the reminder to match if ID is not known.'
+              description: 'Title or keyword to identify the target reminder.'
+            },
+            minutes: {
+              type: 'INTEGER',
+              description: 'Minutes to snooze for (defaults to 5).'
+            }
+          }
+        }
+      },
+      {
+        name: 'cancel_reminder',
+        description: 'Cancel and delete a reminder by ID or title match.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            id: {
+              type: 'STRING',
+              description: 'Exact ID of the reminder if known.'
+            },
+            title: {
+              type: 'STRING',
+              description: 'Title or keyword to identify the reminder to cancel.'
             }
           }
         }
       },
 
-      // 2. Personal Memory Tools (Phase 5)
+      // --- Personal Memories Tools ---
       {
         name: 'create_memory',
-        description: 'Saves a personal fact, preference, person note, work note, or general detail to memory ONLY when the user explicitly instructs Calby to remember/save/keep something in memory (e.g. "Remember Rahul handles payments").',
+        description:
+          'Save a persistent personal memory, fact, preference, person detail, or work note for the user.',
         parameters: {
           type: 'OBJECT',
           properties: {
             content: {
               type: 'STRING',
-              description: 'The concise personal fact or note to remember (e.g. "Rahul handles the payment module").'
+              description: 'The memory content, statement, or fact to store.'
             },
             type: {
               type: 'STRING',
-              enum: ['fact', 'preference', 'person', 'work', 'general'],
-              description: 'The category of the memory. Defaults to general.'
+              description:
+                'Optional category: "fact", "preference", "person", "work", or "general" (defaults to "general").'
             }
           },
           required: ['content']
@@ -117,13 +139,13 @@ export class ActionExecutor {
       },
       {
         name: 'search_memory',
-        description: 'Searches stored personal memories by query/keyword when the user asks a question about their saved personal context (e.g. "Who handles payments?").',
+        description: 'Search personal memories and saved notes by query keywords.',
         parameters: {
           type: 'OBJECT',
           properties: {
             query: {
               type: 'STRING',
-              description: 'The search term or keyword to find relevant memories.'
+              description: 'Keywords to search for in saved memories.'
             }
           },
           required: ['query']
@@ -131,40 +153,39 @@ export class ActionExecutor {
       },
       {
         name: 'list_memories',
-        description: 'Lists stored personal memories, optionally filtered by category/type.',
+        description: 'List recent stored memories, optionally filtered by category type.',
         parameters: {
           type: 'OBJECT',
           properties: {
             type: {
               type: 'STRING',
-              enum: ['fact', 'preference', 'person', 'work', 'general'],
-              description: 'Optional category filter.'
+              description:
+                'Optional category filter: "fact", "preference", "person", "work", or "general".'
             }
           }
         }
       },
       {
         name: 'update_memory',
-        description: 'Updates the content or type of an existing memory when the user explicitly asks to change or correct a stored memory.',
+        description: 'Update the content or type of an existing memory by ID or query keyword match.',
         parameters: {
           type: 'OBJECT',
           properties: {
             id: {
               type: 'STRING',
-              description: 'The unique ID of the memory if known.'
+              description: 'Exact ID of the memory to update.'
             },
             query: {
               type: 'STRING',
-              description: 'A query or key phrase matching the old memory content to update if ID is not known.'
+              description: 'Unique query keyword to find the memory if ID is not known.'
             },
             newContent: {
               type: 'STRING',
-              description: 'The new replacement memory content.'
+              description: 'The updated replacement content for the memory.'
             },
             type: {
               type: 'STRING',
-              enum: ['fact', 'preference', 'person', 'work', 'general'],
-              description: 'Optional new category/type.'
+              description: 'Optional updated category type.'
             }
           },
           required: ['newContent']
@@ -172,17 +193,39 @@ export class ActionExecutor {
       },
       {
         name: 'delete_memory',
-        description: 'Deletes / forgets an existing memory when the user explicitly asks to forget or remove a stored memory.',
+        description: 'Delete/forget a personal memory by ID or query keyword match.',
         parameters: {
           type: 'OBJECT',
           properties: {
             id: {
               type: 'STRING',
-              description: 'The unique ID of the memory if known.'
+              description: 'Exact ID of the memory to delete.'
             },
             query: {
               type: 'STRING',
-              description: 'A query or key phrase matching the memory content to forget if ID is not known.'
+              description: 'Unique query keyword to find the memory to delete.'
+            }
+          }
+        }
+      },
+
+      // --- Google Calendar Tools (Phase 7) ---
+      {
+        name: 'get_upcoming_events',
+        description:
+          'Get upcoming calendar events from Google Calendar for relative time ranges such as "today", "tomorrow", "this_week", or "next_7_days". If calendar is not connected, returns connection guidance.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            range: {
+              type: 'STRING',
+              enum: ['today', 'tomorrow', 'this_week', 'next_7_days'],
+              description:
+                'Time range to query: "today", "tomorrow", "this_week", or "next_7_days" (default: "next_7_days").'
+            },
+            query: {
+              type: 'STRING',
+              description: 'Optional keyword to filter event titles, descriptions, or locations.'
             }
           }
         }
@@ -193,99 +236,78 @@ export class ActionExecutor {
   private findTargetReminder(
     id?: string | null,
     title?: string | null,
-    filterNonCompleted: boolean = false
-  ): { target: Reminder | null; ambiguityError?: string; notFoundError?: string } {
+    includeAll: boolean = false
+  ): { target?: Reminder; ambiguityError?: string; notFoundError?: string } {
     if (id) {
-      const target = this.reminderService.getById(id)
-      if (!target) {
-        return { target: null, notFoundError: 'No reminder found with ID "' + id + '".' }
+      const byId = this.reminderService.getById(id)
+      if (byId) return { target: byId }
+    }
+
+    if (title && title.trim()) {
+      const q = title.trim().toLowerCase()
+      const all = this.reminderService.listAll()
+      const candidates = includeAll
+        ? all
+        : all.filter(
+            (r) =>
+              r.status === 'scheduled' ||
+              r.status === 'triggered' ||
+              r.status === 'snoozed'
+          )
+      const matches = candidates.filter((r) => r.title.toLowerCase().includes(q))
+
+      if (matches.length === 1) {
+        return { target: matches[0] }
       }
-      return { target }
-    }
-
-    if (!title) {
-      return { target: null, notFoundError: 'Neither reminder ID nor title was provided.' }
-    }
-
-    const normalizedTarget = title.trim().toLowerCase()
-    if (!normalizedTarget) {
-      return { target: null, notFoundError: 'Provided title is empty.' }
-    }
-
-    let candidates = this.reminderService.listAll()
-    if (filterNonCompleted) {
-      candidates = candidates.filter((r) => r.status !== 'completed' && r.status !== 'dismissed')
-    }
-
-    const exactMatches = candidates.filter(
-      (r) => r.title.trim().toLowerCase() === normalizedTarget
-    )
-
-    if (exactMatches.length === 1) {
-      return { target: exactMatches[0] }
-    }
-
-    if (exactMatches.length > 1) {
-      return {
-        target: null,
-        ambiguityError: 'Found multiple reminders matching "' + title + '". Please specify which one by scheduled time or exact details.'
+      if (matches.length > 1) {
+        const exact = matches.filter((r) => r.title.toLowerCase() === q)
+        if (exact.length === 1) {
+          return { target: exact[0] }
+        }
+        return {
+          ambiguityError: `Found ${matches.length} matching reminders. Which one did you mean?`
+        }
       }
     }
 
-    return {
-      target: null,
-      notFoundError: 'No reminder found with exact title "' + title + '".'
-    }
+    return { notFoundError: 'Could not identify which reminder you were referring to.' }
   }
 
   private findTargetMemory(
     id?: string | null,
     query?: string | null
-  ): { target: Memory | null; ambiguityError?: string; notFoundError?: string } {
+  ): { target?: Memory; ambiguityError?: string; notFoundError?: string } {
     if (id) {
-      const target = this.memoryService.getById(id)
-      if (!target) {
-        return { target: null, notFoundError: 'No memory found with ID "' + id + '".' }
+      const byId = this.memoryService.getById(id)
+      if (byId) return { target: byId }
+    }
+
+    if (query && query.trim()) {
+      const matches = this.memoryService.search(query.trim(), 10)
+      if (matches.length === 1) {
+        return { target: matches[0] }
       }
-      return { target }
-    }
-
-    if (!query) {
-      return { target: null, notFoundError: 'Neither memory ID nor search query was provided.' }
-    }
-
-    const trimmedQuery = query.trim().toLowerCase()
-    if (!trimmedQuery) {
-      return { target: null, notFoundError: 'Provided query is empty.' }
-    }
-
-    const matches = this.memoryService.search(trimmedQuery, 20)
-
-    if (matches.length === 0) {
-      return {
-        target: null,
-        notFoundError: 'No memory found matching "' + query + '".'
+      if (matches.length > 1) {
+        const exact = matches.filter(
+          (m) => m.content.toLowerCase() === query.trim().toLowerCase()
+        )
+        if (exact.length === 1) {
+          return { target: exact[0] }
+        }
+        return {
+          ambiguityError: `Found ${matches.length} memories matching "${query}". Which one would you like to target?`
+        }
       }
     }
 
-    if (matches.length === 1) {
-      return { target: matches[0] }
-    }
-
-    // Check if there is an exact case-insensitive match among multiple
-    const exactMatches = matches.filter((m) => m.content.trim().toLowerCase() === trimmedQuery)
-    if (exactMatches.length === 1) {
-      return { target: exactMatches[0] }
-    }
-
-    return {
-      target: null,
-      ambiguityError: 'Found ' + matches.length + ' memories matching "' + query + '". Please clarify which memory you would like to modify.'
-    }
+    return { notFoundError: 'Could not identify which memory you were referring to.' }
   }
 
-  public async executeTool(name: string, args: Record<string, unknown>): Promise<ToolExecutionResult> {
-    console.log('[ActionExecutor] Executing tool "' + name + '" with args:', args)
+  public async executeTool(
+    name: string,
+    args: Record<string, unknown>
+  ): Promise<ActionResult> {
+    console.log(`[ActionExecutor] Executing tool "${name}" with args:`, args)
 
     try {
       switch (name) {
@@ -293,53 +315,60 @@ export class ActionExecutor {
         case 'create_reminder': {
           const title = String(args.title || '').trim()
           let scheduledAt = String(args.scheduledAt || '').trim()
-          const alarmEnabled = args.alarmEnabled !== undefined ? Boolean(args.alarmEnabled) : true
 
           if (!title) {
             return { success: false, message: 'Missing reminder title.' }
           }
 
-          const dateObj = new Date(scheduledAt)
-          if (isNaN(dateObj.getTime())) {
+          if (!scheduledAt) {
+            scheduledAt = new Date(Date.now() + 3600 * 1000).toISOString()
+          }
+
+          const parsedDate = new Date(scheduledAt)
+          if (isNaN(parsedDate.getTime())) {
             return {
               success: false,
-              message: 'Invalid scheduled date format: "' + scheduledAt + '". Must be an ISO 8601 string.'
+              message: `Invalid scheduledAt timestamp "${scheduledAt}". Must be an ISO 8601 string.`
             }
           }
 
-          scheduledAt = dateObj.toISOString()
-
           const reminder = await this.reminderService.create({
             title,
-            scheduledAt,
-            alarmEnabled
-          })
-
-          const localTime = new Date(reminder.scheduledAt).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit'
+            scheduledAt: parsedDate.toISOString(),
+            alarmEnabled: true
           })
 
           return {
             success: true,
-            message: 'Reminder "' + reminder.title + '" successfully created for ' + localTime + '.',
+            message: `Reminder set for "${reminder.title}" at ${new Date(reminder.scheduledAt).toLocaleTimeString()}.`,
             data: reminder
           }
         }
 
         case 'list_reminders': {
-          const reminders = this.reminderService.listAll()
-          const pending = reminders.filter((r) => r.status === 'scheduled' || r.status === 'snoozed')
+          const filter = String(args.filter || 'upcoming')
+          const all = this.reminderService.listAll()
+          const reminders =
+            filter === 'completed'
+              ? all.filter((r) => r.status === 'completed' || r.status === 'dismissed')
+              : all.filter(
+                  (r) =>
+                    r.status === 'scheduled' ||
+                    r.status === 'triggered' ||
+                    r.status === 'snoozed'
+                )
+
           return {
             success: true,
-            message: 'Found ' + pending.length + ' pending reminders.',
-            data: pending
+            message: `Found ${reminders.length} ${filter} reminder(s).`,
+            data: reminders
           }
         }
 
-        case 'complete_reminder': {
+        case 'snooze_reminder': {
           const id = args.id ? String(args.id).trim() : null
           const title = args.title ? String(args.title).trim() : null
+          const minutes = Number(args.minutes) || 5
 
           const matchResult = this.findTargetReminder(id, title, true)
 
@@ -354,19 +383,19 @@ export class ActionExecutor {
           if (!matchResult.target) {
             return {
               success: false,
-              message: matchResult.notFoundError || 'Could not find the specified reminder to complete.'
+              message: matchResult.notFoundError || 'Could not find the specified reminder to snooze.'
             }
           }
 
-          const completed = await this.reminderService.complete(matchResult.target.id)
+          const updated = await this.reminderService.snooze(matchResult.target.id, minutes)
           return {
             success: true,
-            message: 'Reminder "' + completed.title + '" marked as complete.',
-            data: completed
+            message: `Snoozed "${updated.title}" for ${minutes} minutes.`,
+            data: { id: updated.id, minutes, reminder: updated }
           }
         }
 
-        case 'delete_reminder': {
+        case 'cancel_reminder': {
           const id = args.id ? String(args.id).trim() : null
           const title = args.title ? String(args.title).trim() : null
 
@@ -395,7 +424,7 @@ export class ActionExecutor {
           }
         }
 
-        // --- Personal Memories (Phase 5) ---
+        // --- Personal Memories ---
         case 'create_memory': {
           const content = String(args.content || '').trim()
           const type = (args.type ? String(args.type).trim() : 'general') as MemoryType
@@ -422,7 +451,6 @@ export class ActionExecutor {
             return { success: false, message: 'Missing search query.' }
           }
 
-          // Bounded search limit (max 20)
           const memories = this.memoryService.search(query, 20)
           return {
             success: true,
@@ -507,6 +535,127 @@ export class ActionExecutor {
             success: true,
             message: 'Forgot memory: "' + matchResult.target.content + '".',
             data: { id: matchResult.target.id }
+          }
+        }
+
+        // --- Google Calendar (Phase 7) ---
+        case 'get_upcoming_events': {
+          let events: CalendarEvent[] | null = null
+          try {
+            events = await this.calendarService.getUpcomingEvents()
+          } catch (err: unknown) {
+            const errStr = err instanceof Error ? err.message : String(err)
+            if (
+              errStr.includes('NOT_AUTHENTICATED') ||
+              errStr.includes('not connected') ||
+              errStr.includes('AUTH_EXPIRED')
+            ) {
+              return {
+                success: true,
+                message: 'Google Calendar is not connected.',
+                data: {
+                  notConnected: true,
+                  instruction:
+                    'Google Calendar is not connected. Tell the user to connect Google Calendar in Settings.'
+                }
+              }
+            }
+            return {
+              success: false,
+              message: errStr
+            }
+          }
+
+          if (!events) {
+            return {
+              success: true,
+              message: 'Google Calendar is not connected.',
+              data: {
+                notConnected: true,
+                instruction:
+                  'Google Calendar is not connected. Tell the user to connect Google Calendar in Settings.'
+              }
+            }
+          }
+
+          // Canonical argument name: range
+          const range = String(args.range || 'next_7_days').toLowerCase()
+          const query = args.query ? String(args.query).trim().toLowerCase() : null
+
+          const now = new Date()
+          const todayStart = new Date(now)
+          todayStart.setHours(0, 0, 0, 0)
+          const todayEnd = new Date(now)
+          todayEnd.setHours(23, 59, 59, 999)
+
+          const tomorrowStart = new Date(todayStart.getTime() + 24 * 3600 * 1000)
+          const tomorrowEnd = new Date(todayEnd.getTime() + 24 * 3600 * 1000)
+
+          // this_week: from start of today until the end of current week (Sunday 23:59:59.999)
+          const currentDayOfWeek = now.getDay()
+          const daysUntilEndOfWeek = currentDayOfWeek === 0 ? 0 : 7 - currentDayOfWeek
+          const thisWeekEnd = new Date(todayEnd.getTime() + daysUntilEndOfWeek * 24 * 3600 * 1000)
+
+          // next_7_days: rolling 7 x 24-hour window starting now (start = now, end = now + 7 days)
+          const next7DaysStart = now
+          const next7DaysEnd = new Date(now.getTime() + 7 * 24 * 3600 * 1000)
+
+          const isEventInRange = (e: CalendarEvent, start: Date, end: Date): boolean => {
+            if (e.allDay && e.startDate) {
+              const [y, m, d] = e.startDate.split('-').map(Number)
+              const dayStart = new Date(y, m - 1, d, 0, 0, 0, 0)
+              const dayEnd = new Date(y, m - 1, d, 23, 59, 59, 999)
+              return dayEnd >= start && dayStart <= end
+            }
+            if (e.startDateTime) {
+              const dObj = new Date(e.startDateTime)
+              return dObj >= start && dObj <= end
+            }
+            return false
+          }
+
+          let filtered: CalendarEvent[]
+
+          if (range === 'today') {
+            filtered = events.filter((e) => isEventInRange(e, todayStart, todayEnd))
+          } else if (range === 'tomorrow') {
+            filtered = events.filter((e) => isEventInRange(e, tomorrowStart, tomorrowEnd))
+          } else if (range === 'this_week') {
+            filtered = events.filter((e) => isEventInRange(e, todayStart, thisWeekEnd))
+          } else if (range === 'next_7_days') {
+            filtered = events.filter((e) => isEventInRange(e, next7DaysStart, next7DaysEnd))
+          } else {
+            filtered = events.filter((e) => isEventInRange(e, next7DaysStart, next7DaysEnd))
+          }
+
+          if (query) {
+            filtered = filtered.filter(
+              (e) =>
+                (e.title && e.title.toLowerCase().includes(query)) ||
+                (e.description && e.description.toLowerCase().includes(query)) ||
+                (e.location && e.location.toLowerCase().includes(query))
+            )
+          }
+
+          const cleanEvents = filtered.slice(0, 20).map((e) => ({
+            id: e.id,
+            title: e.title,
+            allDay: e.allDay,
+            startDate: e.startDate || null,
+            startDateTime: e.startDateTime || null,
+            endDateTime: e.endDateTime || null,
+            location: e.location || null,
+            meetingUrl: e.meetingUrl || null
+          }))
+
+          return {
+            success: true,
+            message: `Found ${cleanEvents.length} calendar event(s).`,
+            data: {
+              range,
+              count: cleanEvents.length,
+              events: cleanEvents
+            }
           }
         }
 

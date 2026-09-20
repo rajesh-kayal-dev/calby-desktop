@@ -5,6 +5,7 @@ import { ReminderCard } from './ReminderCard'
 interface ReminderSectionProps {
   label: string
   reminders: Reminder[]
+  highlightedReminderId?: string | null
   onComplete: (id: string) => void
   onEdit: (reminder: Reminder) => void
   onDelete: (id: string) => void
@@ -13,6 +14,7 @@ interface ReminderSectionProps {
 export const ReminderSection: FC<ReminderSectionProps> = ({
   label,
   reminders,
+  highlightedReminderId,
   onComplete,
   onEdit,
   onDelete
@@ -29,6 +31,7 @@ export const ReminderSection: FC<ReminderSectionProps> = ({
           <ReminderCard
             key={reminder.id}
             reminder={reminder}
+            isHighlighted={reminder.id === highlightedReminderId}
             onComplete={onComplete}
             onEdit={onEdit}
             onDelete={onDelete}
