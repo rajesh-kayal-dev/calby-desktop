@@ -7,13 +7,21 @@ import { registerOnboardingIpcHandlers } from './ipc/onboarding.ipc'
 import { registerVoiceIpcHandlers } from './ipc/voice.ipc'
 import { registerRemindersIpc } from './ipc/reminders.ipc'
 import { registerCalendarIpc } from './ipc/calendar.ipc'
+import { registerMemoryIpc } from './ipc/memory.ipc'
 import { CredentialService } from './services/credential.service'
 import { AiVoiceService } from './services/ai-voice.service'
 import { ReminderService } from './services/reminder.service'
 import { GoogleCalendarService } from './services/google-calendar.service'
+import { MemoryService } from './services/memory.service'
 import { closeDatabase } from './storage/database'
 
-export { CredentialService, AiVoiceService, ReminderService, GoogleCalendarService }
+export {
+  CredentialService,
+  AiVoiceService,
+  ReminderService,
+  GoogleCalendarService,
+  MemoryService
+}
 
 // This method will be called when Electron has finished initialization
 app.whenReady().then(() => {
@@ -26,16 +34,14 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // Initialize Reminder Service and local SQLite database
-  ReminderService.getInstance().init()
-
-  // Register all main process IPC handlers
+  // Register all system IPC handlers
   registerSystemIpcHandlers()
   registerAuthIpcHandlers()
   registerOnboardingIpcHandlers()
   registerVoiceIpcHandlers()
   registerRemindersIpc()
   registerCalendarIpc()
+  registerMemoryIpc()
 
   // Create main application window
   createMainWindow()
@@ -47,13 +53,16 @@ app.whenReady().then(() => {
   })
 })
 
-app.on('before-quit', () => {
-  closeDatabase()
-})
-
-// Quit when all windows are closed, except on macOS.
+// Quit when all windows are closed, except on macOS. There, it's common
+// for applications and their menu bar to stay active until the user quits
+// explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
+    closeDatabase()
     app.quit()
   }
+})
+
+app.on('before-quit', () => {
+  closeDatabase()
 })

@@ -1,4 +1,4 @@
-﻿import { app } from 'electron'
+import { app } from 'electron'
 import { join } from 'node:path'
 import { mkdirSync } from 'node:fs'
 import Database from 'better-sqlite3'
@@ -14,7 +14,7 @@ export function getDatabase(): Database.Database {
   mkdirSync(userDataPath, { recursive: true })
   const dbPath = join(userDataPath, 'calby.db')
 
-  console.log(`[Database] Initializing SQLite database at: ${dbPath}`)
+  console.log('[Database] Initializing SQLite database at:', dbPath)
   const db = new Database(dbPath)
 
   // Configure WAL mode and busy timeout for high reliability
@@ -30,6 +30,7 @@ export function getDatabase(): Database.Database {
 
 function initSchema(db: Database.Database): void {
   const schema = `
+    -- Reminders table
     CREATE TABLE IF NOT EXISTS reminders (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
@@ -47,6 +48,21 @@ function initSchema(db: Database.Database): void {
 
     CREATE INDEX IF NOT EXISTS idx_reminders_created_at 
     ON reminders (created_at DESC);
+
+    -- Personal Memories table (Phase 5)
+    CREATE TABLE IF NOT EXISTS memories (
+      id TEXT PRIMARY KEY,
+      content TEXT NOT NULL,
+      type TEXT NOT NULL CHECK(type IN ('fact', 'preference', 'person', 'work', 'general')),
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_memories_type
+    ON memories (type);
+
+    CREATE INDEX IF NOT EXISTS idx_memories_created_at
+    ON memories (created_at DESC);
   `
 
   db.exec(schema)

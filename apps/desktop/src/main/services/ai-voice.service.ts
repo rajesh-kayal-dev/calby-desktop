@@ -164,6 +164,7 @@ export class AiVoiceService {
 
 Current reference time: ${nowIso} (User timezone: ${userTimeZone}).
 When the user asks to set, create, or schedule a reminder, resolve their date and time (e.g. "tomorrow at 10 AM", "in 15 minutes") relative to this reference time into a precise ISO 8601 UTC date string and call the "create_reminder" tool.
+When the user explicitly asks you to remember, save, or keep a note/preference/fact in memory (e.g. "Remember that Rahul handles payments", "Don't forget my coffee order is flat white"), call the "create_memory" tool. Do NOT automatically create memories from ordinary conversation unless explicitly asked. When the user asks what you remember or asks a question about their personal context, call "search_memory" or "list_memories".
 If required information is missing, ask a concise clarifying question.`
             }
           ]

@@ -5,9 +5,10 @@ import { OnboardingStep } from '../features/onboarding/types'
 import { VoiceAssistantHome } from '../features/voice/VoiceAssistantHome'
 import { RemindersPage } from '../features/reminders/RemindersPage'
 import { CalendarPage } from '../features/calendar/CalendarPage'
+import { MemoryPage } from '../features/memory/MemoryPage'
 import type { AuthStatus } from '../types/calby'
 
-export type ActiveView = 'home' | 'reminders' | 'calendar'
+export type ActiveView = 'home' | 'reminders' | 'calendar' | 'memory'
 
 export const App: FC = () => {
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null)
@@ -81,7 +82,7 @@ export const App: FC = () => {
     )
   }
 
-  // 3. Fully Configured and Onboarded -> Home View, Reminders View, or Calendar View
+  // 3. Fully Configured and Onboarded -> Home View, Reminders, Calendar, or Memory
   if (authStatus?.isConfigured && authStatus.isOnboarded) {
     return (
       <main className="w-full h-screen bg-[#070A11] flex flex-col select-none">
@@ -91,18 +92,28 @@ export const App: FC = () => {
             onResetSetup={() => void checkStatus()}
             onNavigateToReminders={() => setActiveView('reminders')}
             onNavigateToCalendar={() => setActiveView('calendar')}
+            onNavigateToMemory={() => setActiveView('memory')}
           />
         )}
         {activeView === 'reminders' && (
           <RemindersPage
             onNavigateHome={() => setActiveView('home')}
             onNavigateCalendar={() => setActiveView('calendar')}
+            onNavigateMemory={() => setActiveView('memory')}
           />
         )}
         {activeView === 'calendar' && (
           <CalendarPage
             onNavigateHome={() => setActiveView('home')}
             onNavigateReminders={() => setActiveView('reminders')}
+            onNavigateMemory={() => setActiveView('memory')}
+          />
+        )}
+        {activeView === 'memory' && (
+          <MemoryPage
+            onNavigateHome={() => setActiveView('home')}
+            onNavigateReminders={() => setActiveView('reminders')}
+            onNavigateCalendar={() => setActiveView('calendar')}
           />
         )}
       </main>

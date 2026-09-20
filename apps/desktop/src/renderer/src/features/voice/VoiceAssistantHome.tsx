@@ -14,12 +14,14 @@ interface VoiceAssistantHomeProps {
   onResetSetup?: () => void
   onNavigateToReminders?: () => void
   onNavigateToCalendar?: () => void
+  onNavigateToMemory?: () => void
 }
 
 export const VoiceAssistantHome: FC<VoiceAssistantHomeProps> = ({
   onResetSetup,
   onNavigateToReminders,
-  onNavigateToCalendar
+  onNavigateToCalendar,
+  onNavigateToMemory
 }) => {
   const {
     state,
@@ -143,6 +145,23 @@ export const VoiceAssistantHome: FC<VoiceAssistantHomeProps> = ({
 
         {/* Window Utility Actions & System Controls */}
         <div className="flex items-center gap-3">
+                    {/* Memory Navigation Link */}
+          {onNavigateToMemory && (
+            <button
+              onClick={onNavigateToMemory}
+              type="button"
+              data-testid="nav-memory-button"
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#111622] hover:bg-[#162238] border border-cyan-500/20 hover:border-cyan-400/40 text-xs font-medium text-slate-300 hover:text-[#38BDF8] transition-all cursor-pointer"
+              title="View Personal Memory"
+              aria-label="Memory"
+            >
+              <svg className="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span>Memory</span>
+            </button>
+          )}
+
           {/* Calendar Navigation Link */}
           {onNavigateToCalendar && (
             <button
