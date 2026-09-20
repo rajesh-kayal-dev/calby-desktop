@@ -1,5 +1,10 @@
 import { ipcMain } from 'electron'
-import { GoogleCalendarService, type CalendarStatus, type CalendarEvent } from '../services/google-calendar.service'
+import {
+  GoogleCalendarService,
+  type CalendarStatus,
+  type CalendarEvent,
+  type CreateCalendarEventInput
+} from '../services/google-calendar.service'
 
 export interface IpcResult<T> {
   ok: boolean
@@ -65,6 +70,44 @@ export function registerCalendarIpc(): void {
       return {
         ok: false,
         error: { code: 'CALENDAR_FETCH_ERROR', message }
+      }
+    }
+  })
+
+  // 5. Create Event
+  ipcMain.handle(
+    'calendar:create-event',
+    async (_event, input: CreateCalendarEventInput): Promise<IpcResult<CalendarEvent>> => {
+      try {
+        const created = await service.createEvent(input)
+        return { ok: true, data: created }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to create calendar event'
+        const code = message.includes('CALENDAR_WRITE_AUTH_REQUIRED')
+          ? 'CALENDAR_WRITE_AUTH_REQUIRED'
+          : message.includes('NOT_AUTHENTICATED')
+          ? 'NOT_AUTHENTICATED'
+          : message.includes('INVALID_INPUT')
+          ? 'INVALID_INPUT'
+          : 'CALENDAR_CREATE_ERROR'
+        return {
+          ok: false,
+          error: { code, message }
+        }
+      }
+    }
+  )
+
+  // 6. Request Write Access
+  ipcMain.handle('calendar:request-write-access', async (): Promise<IpcResult<CalendarStatus>> => {
+    try {
+      const status = await service.requestWriteAccess()
+      return { ok: true, data: status }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to request write access'
+      return {
+        ok: false,
+        error: { code: 'CALENDAR_WRITE_AUTH_ERROR', message }
       }
     }
   })

@@ -3,6 +3,7 @@ import type {
   CalbyCalendarAPI,
   CalendarStatus,
   CalendarEvent,
+  CreateCalendarEventInput,
   IpcResult
 } from '../index.d'
 
@@ -21,6 +22,14 @@ export const calendarApi: CalbyCalendarAPI = {
 
   getUpcoming: (): Promise<IpcResult<CalendarEvent[]>> => {
     return ipcRenderer.invoke('calendar:get-upcoming')
+  },
+
+  createEvent: (input: CreateCalendarEventInput): Promise<IpcResult<CalendarEvent>> => {
+    return ipcRenderer.invoke('calendar:create-event', input)
+  },
+
+  requestWriteAccess: (): Promise<IpcResult<CalendarStatus>> => {
+    return ipcRenderer.invoke('calendar:request-write-access')
   },
 
   onStatusChanged: (callback: (status: CalendarStatus) => void): (() => void) => {

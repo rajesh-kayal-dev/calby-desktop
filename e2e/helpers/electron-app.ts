@@ -1,8 +1,9 @@
 import { _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
-import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 export interface LaunchCalbyOptions {
   fakeAudioFile?: string
+  userDataDir?: string
 }
 
 export interface CalbyTestContext {
@@ -16,12 +17,15 @@ export interface CalbyTestContext {
  * Launches the built Calby Electron application and attaches console/error monitors.
  */
 export async function launchCalbyApp(options?: LaunchCalbyOptions): Promise<CalbyTestContext> {
-  const desktopAppDir = path.resolve('apps', 'desktop')
+  const desktopAppDir = fileURLToPath(new URL('../../apps/desktop', import.meta.url))
 
   const consoleErrors: string[] = []
   const unhandledErrors: Error[] = []
 
   const args = ['.']
+  if (options?.userDataDir) {
+    args.push(`--user-data-dir=${options.userDataDir}`)
+  }
   if (options?.fakeAudioFile) {
     args.push('--use-fake-device-for-media-stream')
     args.push(`--use-file-for-fake-audio-capture=${options.fakeAudioFile}%noloop`)
