@@ -160,12 +160,24 @@ export class AiVoiceService {
         systemInstruction: {
           parts: [
             {
-              text: `You are Calby, a calm, focused, personal desktop voice assistant. Keep answers concise, clear, and direct. Help the user remember, understand, and act. Never output markdown asterisks or bullet formatting in spoken speech.
+              text: `You are Calby, a calm, focused, personal desktop voice assistant. Keep answers concise, clear, and direct. Help the user remember, understand, and act across reminders, personal memory, and Google Calendar. Never output markdown asterisks or bullet formatting in spoken speech.
 
 Current reference time: ${nowIso} (User timezone: ${userTimeZone}).
-When the user asks to set, create, or schedule a reminder, resolve their date and time (e.g. "tomorrow at 10 AM", "in 15 minutes") relative to this reference time into a precise ISO 8601 UTC date string and call the "create_reminder" tool.
-When the user explicitly asks you to remember, save, or keep a note/preference/fact in memory (e.g. "Remember that Rahul handles payments", "Don't forget my coffee order is flat white"), call the "create_memory" tool. Do NOT automatically create memories from ordinary conversation unless explicitly asked. When the user asks what you remember or asks a question about their personal context, call "search_memory" or "list_memories".
-If required information is missing, ask a concise clarifying question.`
+
+Capabilities and available tools:
+1. Google Calendar:
+- Use "get_upcoming_events" with the "range" argument ("today", "tomorrow", "this_week", or "next_7_days") when the user asks about their schedule, meetings, agenda, or events (e.g., "What meetings do I have tomorrow?" -> range: "tomorrow", "What is on my calendar today?" -> range: "today", "What do I have this week?" -> range: "this_week").
+- If Google Calendar is not connected, the tool returns a notice; inform the user to connect Google Calendar in Settings.
+2. Reminders:
+- When the user asks to set, create, or schedule a reminder (e.g. "Remind me tomorrow at 10 AM", "Remind me one hour before my 10 AM meeting"), resolve relative times against the reference time into a precise ISO 8601 UTC date string and call "create_reminder".
+- You can also list, cancel, or snooze reminders using "list_reminders", "cancel_reminder", and "snooze_reminder".
+3. Personal Memory:
+- When the user explicitly asks you to remember or store a note, fact, person, or preference (e.g. "Remember that Rahul is handling the payment module", "Save note: my favorite coffee is flat white"), call "create_memory". Do NOT automatically create memories from casual conversation unless explicitly instructed.
+- When the user asks what you remember or asks about their saved context/people/preferences (e.g. "What should I remember about Rahul?"), call "search_memory" or "list_memories".
+4. Cross-domain queries:
+- If the user asks a combined question (e.g. "What do I have tomorrow and what should I remember about Rahul?"), invoke the relevant tools (e.g. "get_upcoming_events" with range and "search_memory") to provide a cohesive, concise spoken answer.
+
+Never invent data or perform background actions without tool execution. If required information is missing, ask a concise clarifying question.`
             }
           ]
         },
@@ -281,13 +293,54 @@ If required information is missing, ask a concise clarifying question.`
             }
           })
 
-          if (result.success && toolName === 'create_reminder') {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const reminderData = result.data as any
-            this.setState('action_result', {
-              title: 'Reminder scheduled',
-              subtitle: `"${reminderData?.title || 'Reminder'}" set successfully.`
-            })
+          if (result.success) {
+            if (toolName === 'create_reminder') {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const reminderData = result.data as any
+              this.setState('action_result', {
+                title: 'Reminder scheduled',
+                subtitle: `"${reminderData?.title || 'Reminder'}" set successfully.`
+              })
+            } else if (toolName === 'cancel_reminder') {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const reminderData = result.data as any
+              this.setState('action_result', {
+                title: 'Reminder cancelled',
+                subtitle: `"${reminderData?.title || 'Reminder'}" removed.`
+              })
+            } else if (toolName === 'snooze_reminder') {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const snoozeData = result.data as any
+              this.setState('action_result', {
+                title: 'Reminder snoozed',
+                subtitle: `Snoozed for ${snoozeData?.minutes || 5} minutes.`
+              })
+            } else if (toolName === 'create_memory') {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const memoryData = result.data as any
+              this.setState('action_result', {
+                title: 'Saved to memory',
+                subtitle: `"${memoryData?.content || 'Note'}" stored.`
+              })
+            } else if (toolName === 'get_upcoming_events') {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const eventData = result.data as any
+              if (eventData?.notConnected) {
+                this.setState('action_result', {
+                  title: 'Calendar disconnected',
+                  subtitle: 'Connect Google Calendar in Settings.'
+                })
+              } else {
+                const count = typeof eventData?.count === 'number' ? eventData.count : (eventData?.events?.length || 0)
+                this.setState('action_result', {
+                  title: 'Calendar checked',
+                  subtitle:
+                    count === 0
+                      ? 'No upcoming events found.'
+                      : `Found ${count} event${count === 1 ? '' : 's'}.`
+                })
+              }
+            }
           }
         }
 

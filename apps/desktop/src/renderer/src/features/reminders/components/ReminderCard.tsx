@@ -3,6 +3,7 @@ import type { Reminder } from '../types'
 
 interface ReminderCardProps {
   reminder: Reminder
+  isHighlighted?: boolean
   onComplete: (id: string) => void
   onEdit: (reminder: Reminder) => void
   onDelete: (id: string) => void
@@ -10,6 +11,7 @@ interface ReminderCardProps {
 
 export const ReminderCard: FC<ReminderCardProps> = ({
   reminder,
+  isHighlighted = false,
   onComplete,
   onEdit,
   onDelete
@@ -51,8 +53,14 @@ export const ReminderCard: FC<ReminderCardProps> = ({
 
   return (
     <article
-      className="flex items-center justify-between px-4 py-2.5 bg-[#0C101A] hover:bg-[#0e1320] border border-[#1E293B] rounded-xl transition-all group select-none"
+      className={`flex items-center justify-between px-4 py-2.5 rounded-xl transition-all group select-none ${
+        isHighlighted
+          ? 'bg-[#162238] border border-sky-400 ring-2 ring-sky-400/50 shadow-[0_0_20px_rgba(56,189,248,0.25)]'
+          : 'bg-[#0C101A] hover:bg-[#0e1320] border border-[#1E293B]'
+      }`}
       data-purpose="reminder-card"
+      data-highlighted={isHighlighted ? 'true' : undefined}
+      data-reminder-id={reminder.id}
     >
       <div className="flex items-center space-x-4 min-w-0">
         {/* Radio / Circle Checkbox */}
@@ -63,6 +71,8 @@ export const ReminderCard: FC<ReminderCardProps> = ({
           className={`w-4 h-4 rounded-full border transition-colors flex items-center justify-center cursor-pointer shrink-0 ${
             isCompleted
               ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400'
+              : isHighlighted
+              ? 'border-sky-400 bg-sky-400/10'
               : 'border-slate-500 hover:border-[#38BDF8]'
           }`}
           type="button"
@@ -77,7 +87,7 @@ export const ReminderCard: FC<ReminderCardProps> = ({
         {/* Time Tag */}
         <span
           className={`text-xs font-semibold w-16 tracking-tight shrink-0 font-mono ${
-            isCompleted ? 'text-slate-500 line-through' : 'text-slate-200'
+            isCompleted ? 'text-slate-500 line-through' : isHighlighted ? 'text-sky-300' : 'text-slate-200'
           }`}
         >
           {timeFormatted}
@@ -89,6 +99,8 @@ export const ReminderCard: FC<ReminderCardProps> = ({
             className={`text-xs font-semibold truncate transition-colors ${
               isCompleted
                 ? 'text-slate-500 line-through'
+                : isHighlighted
+                ? 'text-sky-100 font-bold'
                 : 'text-white group-hover:text-[#38BDF8]'
             }`}
           >
