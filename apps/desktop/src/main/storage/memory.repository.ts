@@ -143,6 +143,12 @@ export class MemoryRepository {
     return this.findById(data.id)
   }
 
+  public clearAll(): number {
+    const db = getDatabase()
+    const result = db.prepare('DELETE FROM memories').run()
+    return result.changes
+  }
+
   public delete(id: string): boolean {
     const db = getDatabase()
     const result = db.prepare('DELETE FROM memories WHERE id = ?').run(id)

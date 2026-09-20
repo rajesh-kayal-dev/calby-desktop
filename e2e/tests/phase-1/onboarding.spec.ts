@@ -3,7 +3,7 @@ import { test, expect } from '../../fixtures/electron-fixture'
 test.describe('Phase 1 — Onboarding Flow & Component Tests', () => {
   test('1. Onboarding UI components and navigation', async ({ calbyPage, consoleErrors, unhandledErrors }) => {
     // Check if on Home or Onboarding screen
-    const isHome = await calbyPage.locator('text=Calby is ready').isVisible()
+    const isHome = (await calbyPage.locator('button[aria-label="Settings"]').isVisible()) || (await calbyPage.locator('text=Rajesh').isVisible())
 
     if (isHome) {
       // Navigate to settings / setup reset

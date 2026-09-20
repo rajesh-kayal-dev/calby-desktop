@@ -20,11 +20,14 @@ import type {
   CreateMemoryInput,
   UpdateMemoryInput,
   MemoryChangedPayload,
+  ClearDataResult,
+  ClearMemoriesResult,
   IpcResult,
   CalbyVoiceAPI,
   CalbyRemindersAPI,
   CalbyCalendarAPI,
   CalbyMemoryAPI,
+  CalbySettingsAPI,
   CalbyAPI
 } from '../../../preload/index.d'
 
@@ -50,11 +53,14 @@ export type {
   CreateMemoryInput,
   UpdateMemoryInput,
   MemoryChangedPayload,
+  ClearDataResult,
+  ClearMemoriesResult,
   IpcResult,
   CalbyVoiceAPI,
   CalbyRemindersAPI,
   CalbyCalendarAPI,
   CalbyMemoryAPI,
+  CalbySettingsAPI,
   CalbyAPI
 }
 

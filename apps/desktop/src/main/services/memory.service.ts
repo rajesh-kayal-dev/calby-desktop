@@ -119,6 +119,17 @@ export class MemoryService {
     return updated
   }
 
+  public async clearAll(): Promise<number> {
+    const count = this.repository.clearAll()
+    const windows = BrowserWindow.getAllWindows()
+    for (const win of windows) {
+      if (!win.isDestroyed()) {
+        win.webContents.send('memory:changed', { action: 'deleted', memory: { id: 'all' } })
+      }
+    }
+    return count
+  }
+
   public async delete(id: string): Promise<{ id: string }> {
     const trimmedId = id?.trim()
     if (!trimmedId) {
