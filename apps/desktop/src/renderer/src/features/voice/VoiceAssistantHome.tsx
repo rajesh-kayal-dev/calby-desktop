@@ -4,16 +4,21 @@ import { LiveTranscript } from './LiveTranscript'
 import { ActionResultCard } from './ActionResultCard'
 import { ErrorView } from './ErrorView'
 import { BackgroundWaves } from './BackgroundWaves'
+import { HomeContextCard } from './HomeContextCard'
 import { useVoiceSession } from './useVoiceSession'
-import { ReminderAlarmToast } from '../reminders/components/ReminderAlarmToast'
-import type { Reminder } from '../reminders/types'
-import { snoozeReminder, dismissReminder } from '../reminders/reminders-api'
+import {
+  getTimePeriod,
+  getGreetingForPeriod,
+  CALBY_DYNAMIC_PROMPTS,
+  type TimePeriod
+} from './home-context'
 
 interface VoiceAssistantHomeProps {
   onResetSetup?: () => void
+  onNavigate?: (view: 'reminders' | 'calendar', reminderId?: string) => void
 }
 
-export const VoiceAssistantHome: FC<VoiceAssistantHomeProps> = ({ onResetSetup: _onResetSetup }) => {
+export const VoiceAssistantHome: FC<VoiceAssistantHomeProps> = ({ onNavigate }) => {
   const {
     state,
     stateMetadata,
@@ -26,14 +31,22 @@ export const VoiceAssistantHome: FC<VoiceAssistantHomeProps> = ({ onResetSetup: 
     retry
   } = useVoiceSession()
 
-  const greeting = useMemo(() => {
-    const hour = new Date().getHours()
-    if (hour >= 5 && hour < 12) return 'Good morning'
-    if (hour >= 12 && hour < 17) return 'Good afternoon'
-    return 'Good evening'
-  }, [])
-
   const [userName, setUserName] = useState<string>('')
+  const [greetingIndex] = useState<number>(() => Math.floor(Math.random() * 5))
+  const [promptIndex] = useState<number>(() => Math.floor(Math.random() * CALBY_DYNAMIC_PROMPTS.length))
+  const [currentPeriod, setCurrentPeriod] = useState<TimePeriod>(() => getTimePeriod())
+
+  // Period watcher (in case day period crosses boundary while open)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const p = getTimePeriod()
+      if (p !== currentPeriod) {
+        setCurrentPeriod(p)
+      }
+    }, 60000)
+
+    return () => clearInterval(timer)
+  }, [currentPeriod])
 
   // Dynamically load user name from config
   useEffect(() => {
@@ -52,42 +65,20 @@ export const VoiceAssistantHome: FC<VoiceAssistantHomeProps> = ({ onResetSetup: 
     void fetchUserName()
   }, [])
 
-  const [triggeredReminder, setTriggeredReminder] = useState<Reminder | null>(null)
+  // Calculate session greeting
+  const greetingText = useMemo(() => {
+    return getGreetingForPeriod(currentPeriod, greetingIndex, userName)
+  }, [currentPeriod, greetingIndex, userName])
 
-  // Listen for background alarm triggers while on Home
-  useEffect(() => {
-    const unsub = window.calby?.reminders?.onTriggered((payload) => {
-      console.log('[VoiceAssistantHome] Received reminder trigger:', payload)
-      setTriggeredReminder(payload.reminder)
-    })
-    return () => {
-      if (unsub) unsub()
-    }
-  }, [])
+  const dynamicPromptText = useMemo(() => {
+    return CALBY_DYNAMIC_PROMPTS[promptIndex % CALBY_DYNAMIC_PROMPTS.length]
+  }, [promptIndex])
 
   const handleOrbClick = (): void => {
     if (state === 'speaking') {
       void interrupt()
     } else {
       void toggleListening()
-    }
-  }
-
-  const handleSnooze = async (id: string): Promise<void> => {
-    try {
-      await snoozeReminder(id, 5)
-      setTriggeredReminder(null)
-    } catch (err) {
-      console.error('Failed to snooze reminder:', err)
-    }
-  }
-
-  const handleDismiss = async (id: string): Promise<void> => {
-    try {
-      await dismissReminder(id)
-      setTriggeredReminder(null)
-    } catch (err) {
-      console.error('Failed to dismiss reminder:', err)
     }
   }
 
@@ -98,97 +89,70 @@ export const VoiceAssistantHome: FC<VoiceAssistantHomeProps> = ({ onResetSetup: 
     return 'Press Space to talk'
   })()
 
+  // State text below orb
+  const stateLabel = (() => {
+    if (state === 'listening') return 'Listening…'
+    if (state === 'processing') return 'Thinking…'
+    if (state === 'speaking') return 'Speaking…'
+    return null
+  })()
+
   return (
     <div
       className="relative w-full flex-1 flex flex-col overflow-hidden select-none"
       style={{ backgroundColor: 'var(--ds-canvas-base)', color: 'var(--ds-text-primary)' }}
     >
-      {/* Voice Canvas — centered vertically */}
-      <main className="relative flex-1 flex flex-col items-center justify-between pt-10 pb-6 px-6 z-10">
+      {/* Top-Right Contextual Information Card */}
+      <div className="absolute top-6 right-6 z-20 pointer-events-auto">
+        <HomeContextCard onNavigate={onNavigate} />
+      </div>
 
-        {/* Top: Greeting (idle) or State label (active states) */}
-        <div className="text-center">
+      {/* Main Voice Canvas — Centered Layout */}
+      <main className="relative flex-1 flex flex-col items-center justify-between pt-12 pb-8 px-6 z-10">
+        {/* Top: Dynamic Greeting & Dynamic Capability Prompt */}
+        <header className="text-center max-w-lg mx-auto">
+          <h1
+            className="font-semibold tracking-tight transition-all duration-300"
+            style={{
+              fontSize: 'var(--ds-text-headline-lg)',
+              lineHeight: '36px',
+              letterSpacing: '-0.015em',
+              color: 'var(--ds-text-primary)'
+            }}
+          >
+            {greetingText}
+          </h1>
+
           {state === 'idle' && (
-            <>
-              <h1
-                className="font-semibold tracking-tight"
-                style={{ fontSize: 'var(--ds-text-headline-lg)', lineHeight: '32px', letterSpacing: '-0.015em', color: 'var(--ds-text-primary)' }}
-              >
-                {userName ? (
-                  <>
-                    {greeting}, <span style={{ color: '#38BDF8' }}>{userName}</span>
-                  </>
-                ) : (
-                  greeting
-                )}
-              </h1>
-              <p className="mt-1" style={{ fontSize: 'var(--ds-text-body-md)', color: 'var(--ds-text-secondary)' }}>
-                How can I help you today?
-              </p>
-            </>
-          )}
-          {state === 'listening' && (
-            <h1
-              className="font-semibold tracking-tight"
-              style={{ fontSize: 'var(--ds-text-headline-lg)', lineHeight: '32px', letterSpacing: '-0.015em', color: 'var(--ds-text-primary)' }}
+            <p
+              className="mt-1.5 transition-all duration-300 font-normal"
+              style={{ fontSize: 'var(--ds-text-body-md)', color: 'var(--ds-text-secondary)' }}
             >
-              Listening...
-            </h1>
+              {dynamicPromptText}
+            </p>
           )}
-          {state === 'processing' && (
-            <h1
-              className="font-semibold tracking-tight"
-              style={{ fontSize: 'var(--ds-text-headline-lg)', lineHeight: '32px', letterSpacing: '-0.015em', color: 'var(--ds-text-primary)' }}
+        </header>
+
+        {/* Center: Dynamic Voice Orb */}
+        <div className="my-auto flex flex-col items-center justify-center">
+          <VoiceOrb state={state} audioLevels={audioLevels} onClick={handleOrbClick} />
+
+          {/* Voice State Feedback Text */}
+          {stateLabel && (
+            <p
+              aria-live="polite"
+              className="mt-5 text-sm font-medium tracking-wide animate-pulse"
+              style={{
+                color: state === 'listening' ? '#38BDF8' : 'var(--ds-text-secondary)'
+              }}
             >
-              Processing...
-            </h1>
+              {stateLabel}
+            </p>
           )}
-          {state === 'speaking' && (
-            <>
-              <h1
-                className="font-semibold tracking-tight"
-                style={{ fontSize: 'var(--ds-text-headline-lg)', lineHeight: '32px', letterSpacing: '-0.015em', color: 'var(--ds-text-primary)' }}
-              >
-                Speaking...
-              </h1>
-              <p className="mt-1" style={{ fontSize: 'var(--ds-text-body-md)', color: 'var(--ds-text-secondary)' }}>
-                Here&apos;s your response.
-              </p>
-            </>
-          )}
-          {state === 'action_result' && (
-            <h1
-              className="font-semibold tracking-tight"
-              style={{ fontSize: 'var(--ds-text-headline-lg)', lineHeight: '32px', letterSpacing: '-0.015em', color: 'var(--ds-text-primary)' }}
-            >
-              Done
-            </h1>
-          )}
-          {/* Error state: no title — ErrorView handles it */}
         </div>
 
-        {/* Center: Voice Orb */}
-        <VoiceOrb state={state} audioLevels={audioLevels} onClick={handleOrbClick} />
-
-        {/* Below orb: transcript / action result / error / idle tagline */}
-        <div className="w-full flex flex-col items-center justify-center">
-          {state === 'idle' && (
-            <div className="text-center">
-              <p
-                className="font-medium"
-                style={{ fontSize: 'var(--ds-text-body-lg)', color: 'var(--ds-text-primary)' }}
-              >
-                Calby is ready
-              </p>
-              <p
-                className="mt-0.5"
-                style={{ fontSize: 'var(--ds-text-body-sm)', color: 'var(--ds-text-secondary)' }}
-              >
-                Ask naturally. Just speak.
-              </p>
-            </div>
-          )}
-
+        {/* Transcripts / Action Results / Error View */}
+        <div className="w-full flex flex-col items-center justify-center min-h-[64px] mb-2">
           {(state === 'listening' || state === 'processing' || state === 'speaking') && (
             <LiveTranscript
               userTranscript={userTranscript}
@@ -211,26 +175,35 @@ export const VoiceAssistantHome: FC<VoiceAssistantHomeProps> = ({ onResetSetup: 
           )}
         </div>
 
-        {/* Bottom: "Press Space to talk" keyboard pill — matching Phase 7 design */}
-        <div className="flex flex-col items-center gap-3">
-          {/* Keyboard pill button */}
+        {/* Bottom: Subtle manual push-to-talk pill */}
+        <footer className="flex flex-col items-center">
           <button
             onClick={() => void toggleListening()}
             type="button"
             aria-label={state === 'listening' ? 'Stop listening' : 'Activate voice listening'}
             className={[
-              'flex items-center gap-2 px-4 py-2 rounded-full border text-sm font-medium',
-              'transition-all duration-200 cursor-pointer',
+              'flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-medium',
+              'transition-all duration-200 cursor-pointer backdrop-blur-sm',
               state === 'listening'
                 ? 'border-[#38BDF8]/60 text-[#38BDF8] shadow-[0_0_16px_rgba(56,189,248,0.25)]'
-                : 'border-[#1E293B] hover:border-[#334155] text-[#94A3B8] hover:text-[#F8FAFC]',
+                : 'border-[#1E293B] hover:border-[#334155] text-[#94A3B8] hover:text-[#F8FAFC]'
             ].join(' ')}
             style={{
-              backgroundColor: state === 'listening' ? 'rgba(56,189,248,0.08)' : 'var(--ds-surface-card)',
+              backgroundColor: state === 'listening' ? 'rgba(56,189,248,0.08)' : 'rgba(15, 23, 42, 0.6)'
             }}
           >
             {/* Keyboard icon */}
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
               <rect x="2" y="4" width="20" height="16" rx="2" ry="2" />
               <line x1="6" y1="8" x2="6.01" y2="8" strokeWidth="3" />
               <line x1="10" y1="8" x2="10.01" y2="8" strokeWidth="3" />
@@ -242,27 +215,11 @@ export const VoiceAssistantHome: FC<VoiceAssistantHomeProps> = ({ onResetSetup: 
             </svg>
             <span>{spaceLabel}</span>
           </button>
-        </div>
+        </footer>
       </main>
-
-      {/* Footer tagline — bottom-left, matching Phase 7 */}
-      <div
-        className="absolute bottom-3 left-5 z-10 pointer-events-none"
-        style={{ fontSize: 'var(--ds-text-label-md)', color: 'var(--ds-text-muted)' }}
-      >
-        Your time, understood.
-      </div>
 
       {/* Background ethereal waves */}
       <BackgroundWaves state={state} />
-
-      {/* Floating alarm toast if triggered while on Home */}
-      <ReminderAlarmToast
-        reminder={triggeredReminder}
-        onSnooze={(id) => void handleSnooze(id)}
-        onDismiss={(id) => void handleDismiss(id)}
-        onClose={() => setTriggeredReminder(null)}
-      />
     </div>
   )
 }

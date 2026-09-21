@@ -1,4 +1,4 @@
-﻿import { app, BrowserWindow, globalShortcut } from 'electron'
+import { app, BrowserWindow, globalShortcut } from 'electron'
 import fs from 'node:fs'
 import path from 'node:path'
 
@@ -50,6 +50,7 @@ import { GoogleCalendarService } from './services/google-calendar.service'
 import { MemoryService } from './services/memory.service'
 import { SettingsService } from './services/settings.service'
 import { TrayService } from './services/tray.service'
+import { ReminderAlarmWindowManager } from './windows/alarm.window'
 import { closeDatabase } from './storage/database'
 
 export {
@@ -57,6 +58,7 @@ export {
   AiVoiceService,
   ActionExecutor,
   ReminderService,
+  ReminderAlarmWindowManager,
   GoogleCalendarService,
   MemoryService,
   SettingsService,
@@ -93,6 +95,7 @@ export function handleGlobalActivationShortcut(): void {
   TrayService,
   AiVoiceService,
   ReminderService,
+  ReminderAlarmWindowManager,
   MemoryService,
   SettingsService,
   CredentialService,
@@ -107,8 +110,18 @@ if (!gotSingleInstanceLock) {
   app.quit()
 } else {
 
-  app.on('second-instance', () => {
-    // When a second instance attempts to launch, focus and restore the primary window
+  app.on('second-instance', (_event, commandLine) => {
+    console.log('[Main] Second instance detected with command line:', commandLine)
+    const args = Array.isArray(commandLine) ? commandLine : []
+    const triggerIndex = args.findIndex((arg) => arg === '--trigger-reminder')
+    if (triggerIndex !== -1 && args[triggerIndex + 1]) {
+      const reminderId = args[triggerIndex + 1]
+      console.log('[Main] Second instance forwarded reminder trigger for ID:', reminderId)
+      void ReminderService.getInstance().onReminderDue(reminderId)
+      return
+    }
+
+    // When a second instance attempts to launch normally, focus and restore the primary window
     if (mainWindow && !mainWindow.isDestroyed()) {
       if (mainWindow.isMinimized()) {
         mainWindow.restore()
@@ -141,11 +154,30 @@ if (!gotSingleInstanceLock) {
     registerMemoryIpc()
     registerSettingsIpc()
 
+    // Check if launched by Windows Task Scheduler for a specific reminder
+    const triggerIndex = process.argv.findIndex((arg) => arg === '--trigger-reminder')
+    const isTriggerLaunch = triggerIndex !== -1 && Boolean(process.argv[triggerIndex + 1])
+    const triggerReminderId = isTriggerLaunch ? process.argv[triggerIndex + 1] : null
+
     // Create main application window
     mainWindow = createMainWindow()
 
     // Initialize System Tray
     TrayService.getInstance().init(mainWindow)
+
+    // Initialize Reminder Service and Scheduler (reconciles missed reminders & wake tasks)
+    ReminderService.getInstance().init()
+
+    if (isTriggerLaunch && triggerReminderId) {
+      console.log('[Main] App started via Task Scheduler with trigger for ID:', triggerReminderId)
+      // When woke up strictly for a reminder, keep main window in tray
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.hide()
+      }
+      setTimeout(() => {
+        void ReminderService.getInstance().onReminderDue(triggerReminderId)
+      }, 400)
+    }
 
     // Register Fixed Global Activation Shortcut
     try {

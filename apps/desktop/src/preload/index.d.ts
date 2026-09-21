@@ -44,24 +44,28 @@ export interface VoiceErrorPayload {
   message: string
 }
 
-export type ReminderStatus = 'scheduled' | 'triggered' | 'snoozed' | 'completed' | 'dismissed'
+export type ReminderStatus = 'scheduled' | 'triggered' | 'snoozed' | 'completed' | 'dismissed' | 'missed'
+export type AlertType = 'notification' | 'alarm'
 
 export interface Reminder {
   id: string
   title: string
   scheduledAt: string
   alarmEnabled: boolean
+  alertType: AlertType
   status: ReminderStatus
   snoozeCount: number
   createdAt: string
   updatedAt: string
   completedAt?: string | null
+  missedAt?: string | null
 }
 
 export interface CreateReminderInput {
   title: string
   scheduledAt: string
   alarmEnabled?: boolean
+  alertType?: AlertType
 }
 
 export interface UpdateReminderInput {
@@ -69,6 +73,7 @@ export interface UpdateReminderInput {
   title?: string
   scheduledAt?: string
   alarmEnabled?: boolean
+  alertType?: AlertType
 }
 
 export interface ReminderChangePayload {
@@ -184,6 +189,7 @@ export interface CalbyVoiceAPI {
   finishTurn: () => Promise<IpcResult<void>>
   interrupt: () => Promise<IpcResult<void>>
   getState: () => Promise<IpcResult<VoiceStateInfo>>
+  previewVoice: (voiceName: string) => Promise<IpcResult<{ audioBase64: string; mimeType: string }>>
   onStateChanged: (callback: (payload: VoiceStateInfo) => void) => () => void
   onAudioChunk: (callback: (base64Chunk: string) => void) => () => void
   onTranscript: (callback: (payload: VoiceTranscriptPayload) => void) => () => void
@@ -194,14 +200,19 @@ export interface CalbyVoiceAPI {
 
 export interface CalbyRemindersAPI {
   list: () => Promise<IpcResult<Reminder[]>>
+  getById: (id: string) => Promise<IpcResult<Reminder | null>>
   create: (input: CreateReminderInput) => Promise<IpcResult<Reminder>>
   update: (input: UpdateReminderInput) => Promise<IpcResult<Reminder>>
   delete: (id: string) => Promise<IpcResult<{ id: string }>>
   snooze: (id: string, minutes?: number) => Promise<IpcResult<Reminder>>
   complete: (id: string) => Promise<IpcResult<Reminder>>
   dismiss: (id: string) => Promise<IpcResult<Reminder>>
+  closeAlarm: () => Promise<IpcResult<void>>
   onChanged: (callback: (payload: ReminderChangePayload) => void) => () => void
   onTriggered: (callback: (payload: ReminderTriggeredPayload) => void) => () => void
+  onAlarmData?: (callback: (payload: { reminder: Reminder; isMissed: boolean }) => void) => () => void
+  onPlaySound: (callback: (payload: { sound: import('../shared/sound-catalog').CalbySound; category: string }) => void) => () => void
+  onNotificationStatus: (callback: (payload: { status: string; message: string }) => void) => () => void
 }
 
 export interface CalbyCalendarAPI {

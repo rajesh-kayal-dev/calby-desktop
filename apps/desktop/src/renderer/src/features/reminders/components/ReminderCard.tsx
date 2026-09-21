@@ -1,4 +1,4 @@
-﻿import type { FC } from 'react'
+import type { FC } from 'react'
 import type { Reminder } from '../types'
 
 interface ReminderCardProps {
@@ -16,6 +16,7 @@ export const ReminderCard: FC<ReminderCardProps> = ({
   onEdit,
   onDelete
 }) => {
+  const isMissed = reminder.status === 'missed'
   const isCompleted = reminder.status === 'completed' || reminder.status === 'dismissed'
 
   const dateObj = new Date(reminder.scheduledAt)
@@ -28,6 +29,20 @@ export const ReminderCard: FC<ReminderCardProps> = ({
   const getRelativeTimeString = (): string => {
     if (isCompleted) {
       return 'Completed'
+    }
+
+    if (isMissed) {
+      const diffMs = Date.now() - dateObj.getTime()
+      const diffMins = Math.max(1, Math.round(diffMs / (60 * 1000)))
+      if (diffMins < 60) {
+        return `Missed ${diffMins} min${diffMins === 1 ? '' : 's'} ago`
+      }
+      const diffHours = Math.round(diffMins / 60)
+      if (diffHours < 24) {
+        return `Missed ${diffHours} hour${diffHours === 1 ? '' : 's'} ago`
+      }
+      const diffDays = Math.round(diffHours / 24)
+      return `Missed ${diffDays} day${diffDays === 1 ? '' : 's'} ago`
     }
 
     const diffMs = dateObj.getTime() - Date.now()
@@ -56,6 +71,8 @@ export const ReminderCard: FC<ReminderCardProps> = ({
       className={`flex items-center justify-between px-4 py-2.5 rounded-xl transition-all group select-none ${
         isHighlighted
           ? 'bg-[#162238] border border-sky-400 ring-2 ring-sky-400/50 shadow-[0_0_20px_rgba(56,189,248,0.25)]'
+          : isMissed
+          ? 'bg-[#16121D] hover:bg-[#1A1424] border border-rose-900/60'
           : 'bg-[#0C101A] hover:bg-[#0e1320] border border-[#1E293B]'
       }`}
       data-purpose="reminder-card"
@@ -73,6 +90,8 @@ export const ReminderCard: FC<ReminderCardProps> = ({
               ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400'
               : isHighlighted
               ? 'border-sky-400 bg-sky-400/10'
+              : isMissed
+              ? 'border-rose-500 hover:border-rose-400'
               : 'border-slate-500 hover:border-[#38BDF8]'
           }`}
           type="button"
@@ -87,7 +106,13 @@ export const ReminderCard: FC<ReminderCardProps> = ({
         {/* Time Tag */}
         <span
           className={`text-xs font-semibold w-16 tracking-tight shrink-0 font-mono ${
-            isCompleted ? 'text-slate-500 line-through' : isHighlighted ? 'text-sky-300' : 'text-slate-200'
+            isCompleted
+              ? 'text-slate-500 line-through'
+              : isHighlighted
+              ? 'text-sky-300'
+              : isMissed
+              ? 'text-rose-400'
+              : 'text-slate-200'
           }`}
         >
           {timeFormatted}
@@ -108,20 +133,56 @@ export const ReminderCard: FC<ReminderCardProps> = ({
           </span>
 
           <div
-            className={`flex items-center space-x-1 text-[11px] font-medium shrink-0 ${
+            className={`flex items-center space-x-1.5 text-[11px] font-medium shrink-0 ${
               isCompleted
-                ? 'text-slate-500'
+                ? 'text-emerald-400'
+                : isMissed
+                ? 'text-rose-400'
                 : reminder.status === 'triggered'
                 ? 'text-amber-400'
                 : 'text-sky-400/90'
             }`}
           >
-            {reminder.alarmEnabled && !isCompleted && (
-              <svg className="w-3 h-3 text-sky-400" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
-              </svg>
+            {!isCompleted && reminder.alertType === 'alarm' && (
+              <>
+                <svg
+                  className={`w-3 h-3 ${isMissed ? 'text-rose-400' : 'text-amber-400'} shrink-0`}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <circle cx="12" cy="13" r="8" />
+                  <path d="M12 9v4l2 2M5 3L2 6M22 6l-3-3" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span data-testid="reminder-status-text">Alarm · {relativeTime}</span>
+              </>
             )}
-            <span>{relativeTime}</span>
+
+            {!isCompleted && reminder.alertType !== 'alarm' && (
+              <>
+                <svg
+                  className={`w-3 h-3 ${isMissed ? 'text-rose-400' : 'text-sky-400'} shrink-0`}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                <span data-testid="reminder-status-text">Notification · {relativeTime}</span>
+              </>
+            )}
+
+            {isCompleted && (
+              <span className="flex items-center gap-1 font-semibold">
+                <svg className="w-3 h-3 text-emerald-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+                <span>Completed</span>
+              </span>
+            )}
           </div>
         </div>
       </div>

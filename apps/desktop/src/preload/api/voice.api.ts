@@ -13,6 +13,7 @@ export const VOICE_CHANNELS = {
   SEND_AUDIO_CHUNK: 'voice:send-audio-chunk',
   INTERRUPT: 'voice:interrupt',
   GET_STATE: 'voice:get-state',
+  PREVIEW_VOICE: 'voice:preview-voice',
   STATE_CHANGED: 'voice:state-changed',
   AUDIO_CHUNK: 'voice:audio-chunk',
   TRANSCRIPT: 'voice:transcript',
@@ -109,6 +110,22 @@ export const voiceApi: CalbyVoiceAPI = {
   getState: async (): Promise<IpcResult<VoiceStateInfo>> => {
     try {
       return await ipcRenderer.invoke(VOICE_CHANNELS.GET_STATE)
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: 'IPC_ERROR',
+          message: error instanceof Error ? error.message : 'Unknown IPC error'
+        }
+      }
+    }
+  },
+
+  previewVoice: async (
+    voiceName: string
+  ): Promise<IpcResult<{ audioBase64: string; mimeType: string }>> => {
+    try {
+      return await ipcRenderer.invoke(VOICE_CHANNELS.PREVIEW_VOICE, voiceName)
     } catch (error) {
       return {
         ok: false,

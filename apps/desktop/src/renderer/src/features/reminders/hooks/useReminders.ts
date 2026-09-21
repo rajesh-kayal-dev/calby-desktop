@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import type { Reminder, RemindersTab, ReminderGroup } from '../types'
 import {
   fetchReminders,
@@ -43,6 +43,12 @@ export function useReminders() {
           )
         }
         if (payload.action === 'updated') {
+          const exists = prev.some((r) => r.id === payload.reminder.id)
+          if (!exists) {
+            return [...prev, payload.reminder].sort(
+              (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()
+            )
+          }
           return prev.map((r) => (r.id === payload.reminder.id ? payload.reminder : r))
         }
         if (payload.action === 'deleted') {
@@ -115,7 +121,11 @@ export function useReminders() {
   // Counts
   const upcomingReminders = useMemo(() => {
     return reminders.filter(
-      (r) => r.status === 'scheduled' || r.status === 'snoozed' || r.status === 'triggered'
+      (r) =>
+        r.status === 'scheduled' ||
+        r.status === 'snoozed' ||
+        r.status === 'triggered' ||
+        r.status === 'missed'
     )
   }, [reminders])
 
@@ -123,8 +133,9 @@ export function useReminders() {
     return reminders.filter((r) => r.status === 'completed' || r.status === 'dismissed')
   }, [reminders])
 
-  // Group upcoming reminders by date (Today, Tomorrow, Upcoming)
+  // Group upcoming reminders by date (Missed, Today, Tomorrow, Upcoming)
   const groupedUpcoming = useMemo((): ReminderGroup[] => {
+    const missed: Reminder[] = []
     const today: Reminder[] = []
     const tomorrow: Reminder[] = []
     const upcoming: Reminder[] = []
@@ -135,6 +146,10 @@ export function useReminders() {
     const dayAfterTomorrowStart = tomorrowStart + 24 * 60 * 60 * 1000
 
     for (const r of upcomingReminders) {
+      if (r.status === 'missed') {
+        missed.push(r)
+        continue
+      }
       const rTime = new Date(r.scheduledAt).getTime()
       if (rTime < tomorrowStart) {
         today.push(r)
@@ -146,6 +161,7 @@ export function useReminders() {
     }
 
     const groups: ReminderGroup[] = []
+    if (missed.length > 0) groups.push({ label: 'Missed', reminders: missed })
     if (today.length > 0) groups.push({ label: 'Today', reminders: today })
     if (tomorrow.length > 0) groups.push({ label: 'Tomorrow', reminders: tomorrow })
     if (upcoming.length > 0) groups.push({ label: 'Upcoming', reminders: upcoming })

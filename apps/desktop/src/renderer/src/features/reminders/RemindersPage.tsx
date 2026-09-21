@@ -3,7 +3,6 @@ import { useReminders } from './hooks/useReminders'
 import { ReminderSection } from './components/ReminderSection'
 import { ReminderCard } from './components/ReminderCard'
 import { CreateEditReminderModal } from './components/CreateEditReminderModal'
-import { ReminderAlarmToast } from './components/ReminderAlarmToast'
 import type { Reminder } from './types'
 
 interface RemindersPageProps {
@@ -20,13 +19,9 @@ export const RemindersPage: FC<RemindersPageProps> = ({ highlightedReminderId })
     completedCount,
     groupedUpcoming,
     completedReminders,
-    triggeredReminder,
-    setTriggeredReminder,
     refresh,
     onComplete,
-    onDelete,
-    onSnooze,
-    onDismiss
+    onDelete
   } = useReminders()
 
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false)
@@ -247,14 +242,6 @@ export const RemindersPage: FC<RemindersPageProps> = ({ highlightedReminderId })
         editingReminder={editingReminder}
         onClose={handleModalClose}
         onSaved={handleSaved}
-      />
-
-      {/* Floating In-App Alarm Toast */}
-      <ReminderAlarmToast
-        reminder={triggeredReminder}
-        onSnooze={(id) => void onSnooze(id)}
-        onDismiss={(id) => void onDismiss(id)}
-        onClose={() => setTriggeredReminder(null)}
       />
     </div>
   )

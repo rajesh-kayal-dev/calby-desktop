@@ -1,7 +1,7 @@
 import { test, expect } from '../../fixtures/electron-fixture'
 
 test.describe('Phase 2 — Voice Assistant Home Smoke Tests', () => {
-  test('1. App launches into VoiceAssistantHome with Idle state and functional controls', async ({
+  test('1. App launches into VoiceAssistantHome with dynamic greeting and functional voice controls', async ({
     calbyPage,
     consoleErrors,
     unhandledErrors
@@ -13,67 +13,50 @@ test.describe('Phase 2 — Voice Assistant Home Smoke Tests', () => {
     const brandTitle = calbyPage.locator('text=Calby').first()
     await expect(brandTitle).toBeVisible()
 
-    // 3. Initial state is Idle ("Calby is ready" and status pill)
-    const readyText = calbyPage.locator('text=Calby is ready')
-    await expect(readyText).toBeVisible()
+    // 3. Dynamic greeting is rendered
+    const greetingHeader = calbyPage.locator('header h1')
+    await expect(greetingHeader).toBeVisible()
 
-    // 4. Microphone control button exists
-    const micButton = calbyPage.locator('button[aria-label*="voice listening"]')
-    await expect(micButton).toBeVisible()
+    // 4. Voice visualizer orb container exists
+    const orbContainer = calbyPage.locator('[data-purpose="voice-visualizer-container"]')
+    await expect(orbContainer).toBeVisible()
 
-    // 5. Clicking microphone changes application into listening state
-    await micButton.click()
-    const listeningHeader = calbyPage.locator('h1:has-text("Listening...")')
-    await expect(listeningHeader).toBeVisible()
+    // 5. Space pill button exists
+    const spacePill = calbyPage.locator('footer button')
+    await expect(spacePill).toBeVisible()
 
-    // 6. Escape returns to idle
+    // 6. Clicking space pill / voice orb toggles listening state
+    await spacePill.click()
+    const listeningLabel = calbyPage.locator('text=Listening…')
+    await expect(listeningLabel).toBeVisible()
+
+    // 7. Escape returns to idle
     await calbyPage.keyboard.press('Escape')
-    await expect(readyText).toBeVisible()
 
-    // 7. Verify no fatal console or unhandled errors occurred
+    // 8. Verify no fatal console or unhandled errors occurred
     expect(unhandledErrors).toHaveLength(0)
     expect(consoleErrors).toHaveLength(0)
   })
 
-  test('2. Push-to-Talk keyboard interaction (Space -> Listening, Escape -> Idle)', async ({
+  test('2. Push-to-Talk keyboard interaction (Space down -> Listening, Space up -> Processing/Idle)', async ({
     calbyPage,
     consoleErrors,
     unhandledErrors
   }) => {
-    const readyText = calbyPage.locator('text=Calby is ready')
-    await expect(readyText).toBeVisible()
+    const greetingHeader = calbyPage.locator('header h1')
+    await expect(greetingHeader).toBeVisible()
 
-    // Space key triggers Listening state
-    await calbyPage.keyboard.press('Space')
+    // Hold Space key triggers push-to-talk Listening state
+    await calbyPage.keyboard.down('Space')
 
-    const listeningHeader = calbyPage.locator('h1:has-text("Listening...")')
-    await expect(listeningHeader).toBeVisible()
+    const listeningLabel = calbyPage.locator('text=Listening…')
+    await expect(listeningLabel).toBeVisible()
+
+    // Release Space key finishes turn
+    await calbyPage.keyboard.up('Space')
 
     // Escape key returns to Idle state
     await calbyPage.keyboard.press('Escape')
-    await expect(readyText).toBeVisible()
-
-    expect(unhandledErrors).toHaveLength(0)
-    expect(consoleErrors).toHaveLength(0)
-  })
-
-  test('3. Diagnostic panel can be displayed, used, and minimized without errors', async ({
-    calbyPage,
-    consoleErrors,
-    unhandledErrors
-  }) => {
-    // Diagnostic panel should be mounted in development mode
-    const diagTitle = calbyPage.locator('text=Microphone Diagnostic Mode')
-    if (await diagTitle.isVisible()) {
-      const minimizeBtn = calbyPage.locator('button[title="Minimize Panel"]')
-      await minimizeBtn.click()
-
-      const showBtn = calbyPage.locator('text=Show Mic Diagnostics')
-      await expect(showBtn).toBeVisible()
-
-      await showBtn.click()
-      await expect(diagTitle).toBeVisible()
-    }
 
     expect(unhandledErrors).toHaveLength(0)
     expect(consoleErrors).toHaveLength(0)

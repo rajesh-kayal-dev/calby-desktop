@@ -1,4 +1,4 @@
-﻿import { BrowserWindow, app } from 'electron'
+import { BrowserWindow, app } from 'electron'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { is } from '@electron-toolkit/utils'
@@ -46,7 +46,8 @@ export const createMainWindow = (): BrowserWindow => {
       preload: getPreloadPath(),
       contextIsolation: true,
       nodeIntegration: false,
-      webSecurity: true
+      webSecurity: true,
+      backgroundThrottling: false
     }
   })
 

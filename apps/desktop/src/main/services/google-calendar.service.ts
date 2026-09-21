@@ -230,12 +230,10 @@ export class GoogleCalendarService {
       .map((item) => this.mapGoogleEvent(item, calendarSummary, calendarTimeZone))
 
     this.cachedStatus.lastSyncedAt = new Date().toISOString()
-    this.updateStatus({
-      status: 'connected',
-      connectedEmail: tokens.userEmail || 'Google Account',
-      lastSyncedAt: this.cachedStatus.lastSyncedAt,
-      hasWriteAccess: this.checkHasWriteAccess(tokens.scope)
-    })
+    this.cachedStatus.hasWriteAccess = this.checkHasWriteAccess(tokens.scope)
+    if (tokens.userEmail) {
+      this.cachedStatus.connectedEmail = tokens.userEmail
+    }
 
     return events
   }
@@ -627,11 +625,22 @@ export class GoogleCalendarService {
   }
 
   private updateStatus(status: CalendarStatus): void {
+    const prev = this.cachedStatus
     this.cachedStatus = status
-    const windows = BrowserWindow.getAllWindows()
-    for (const win of windows) {
-      if (!win.isDestroyed()) {
-        win.webContents.send('calendar:status-changed', status)
+
+    const isSame =
+      prev &&
+      prev.status === status.status &&
+      prev.connectedEmail === status.connectedEmail &&
+      prev.hasWriteAccess === status.hasWriteAccess &&
+      prev.error === status.error
+
+    if (!isSame) {
+      const windows = BrowserWindow.getAllWindows()
+      for (const win of windows) {
+        if (!win.isDestroyed()) {
+          win.webContents.send('calendar:status-changed', status)
+        }
       }
     }
   }

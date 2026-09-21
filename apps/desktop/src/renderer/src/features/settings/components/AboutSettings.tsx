@@ -1,4 +1,4 @@
-import { type FC } from 'react'
+import { type FC, type ReactNode } from 'react'
 import type { SystemInfo } from '../types'
 
 interface AboutSettingsProps {
@@ -92,7 +92,7 @@ const CloudIcon = () => (
 
 // Glow Node Component
 interface WorkflowNodeProps {
-  icon: React.ReactNode
+  icon: ReactNode
   label: string
   color: string
   glowColor: string

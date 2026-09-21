@@ -32,6 +32,9 @@ export const EventDetailsModal: FC<EventDetailsModalProps> = ({ event, onClose, 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={event?.title || 'Event Details'}
         className="w-full max-w-lg bg-[#151C2C] border border-[#1E293B] rounded-2xl p-6 shadow-2xl relative select-text"
         onClick={(e) => e.stopPropagation()}
       >

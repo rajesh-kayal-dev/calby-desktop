@@ -8,46 +8,46 @@ interface VoiceOrbProps {
 }
 
 export const VoiceOrb: FC<VoiceOrbProps> = ({ state, audioLevels, onClick }) => {
-  // Convert 0..1 audio levels to px bar heights (min 6px, max 44px)
-  const barHeights = audioLevels.map((lvl) => Math.round(6 + lvl * 38))
+  // Convert 0..1 audio levels to px bar heights (min 6px, max 42px)
+  const barHeights = audioLevels.map((lvl) => Math.round(6 + lvl * 36))
 
   return (
     <div
       className="relative flex items-center justify-center my-auto select-none"
       data-purpose="voice-visualizer-container"
     >
-      {/* 1. IDLE STATE ORB */}
+      {/* 1. IDLE / PASSIVE LISTENING STATE ORB */}
       {state === 'idle' && (
         <div className="relative flex items-center justify-center">
-          {/* Ambient cyan glow */}
-          <div className="absolute w-48 h-48 rounded-full bg-cyan-500/15 blur-2xl pointer-events-none animate-pulse" />
+          {/* Subtle ambient cyan glow */}
+          <div className="absolute w-44 h-44 rounded-full bg-cyan-500/10 blur-2xl pointer-events-none animate-pulse" />
 
           {/* Orb container */}
           <button
             onClick={onClick}
             type="button"
-            className="w-32 h-32 rounded-full bg-[#08101C] border-2 border-cyan-400/80 flex items-center justify-center shadow-[0_0_45px_-8px_rgba(56,189,248,0.4),inset_0_0_20px_rgba(56,189,248,0.2)] hover:shadow-[0_0_60px_-4px_rgba(56,189,248,0.6)] relative cursor-pointer group transition-all duration-300"
+            className="w-32 h-32 rounded-full bg-[#08101C] border border-cyan-400/50 flex items-center justify-center shadow-[0_0_35px_-8px_rgba(56,189,248,0.25),inset_0_0_15px_rgba(56,189,248,0.15)] hover:border-cyan-400/80 hover:shadow-[0_0_45px_-4px_rgba(56,189,248,0.45)] relative cursor-pointer group transition-all duration-300"
             aria-label="Activate voice assistant"
           >
             <div className="flex items-center gap-[5px] h-10 px-4">
               <span
-                className="w-[3px] bg-white/90 rounded-full transition-all duration-200"
+                className="w-[3px] bg-slate-300/80 rounded-full transition-all duration-300"
                 style={{ height: `${barHeights[0]}px` }}
               />
               <span
-                className="w-[3px] bg-white/90 rounded-full transition-all duration-200"
+                className="w-[3px] bg-slate-200/90 rounded-full transition-all duration-300"
                 style={{ height: `${barHeights[1]}px` }}
               />
               <span
-                className="w-[3.5px] bg-white rounded-full transition-all duration-200 shadow-[0_0_6px_#fff]"
+                className="w-[3.5px] bg-white rounded-full transition-all duration-300 shadow-[0_0_6px_rgba(255,255,255,0.7)]"
                 style={{ height: `${barHeights[2]}px` }}
               />
               <span
-                className="w-[3px] bg-white/90 rounded-full transition-all duration-200"
+                className="w-[3px] bg-slate-200/90 rounded-full transition-all duration-300"
                 style={{ height: `${barHeights[3]}px` }}
               />
               <span
-                className="w-[3px] bg-white/90 rounded-full transition-all duration-200"
+                className="w-[3px] bg-slate-300/80 rounded-full transition-all duration-300"
                 style={{ height: `${barHeights[4]}px` }}
               />
             </div>
@@ -55,20 +55,19 @@ export const VoiceOrb: FC<VoiceOrbProps> = ({ state, audioLevels, onClick }) => 
         </div>
       )}
 
-      {/* 2. LISTENING STATE ORB */}
+      {/* 2. ACTIVE LISTENING STATE ORB */}
       {state === 'listening' && (
         <div className="relative flex items-center justify-center">
           {/* Ambient Outer Glow */}
-          <div className="absolute w-[440px] h-[440px] rounded-full bg-cyan-600/10 blur-3xl pointer-events-none" />
+          <div className="absolute w-[400px] h-[400px] rounded-full bg-cyan-600/15 blur-3xl pointer-events-none" />
 
           {/* Outer Acoustic Radial Ripple Waves */}
-          <div className="absolute w-[360px] h-[360px] rounded-full border border-sky-400/10 animate-ping opacity-25" />
-          <div className="absolute w-[300px] h-[300px] rounded-full border border-sky-400/20" />
-          <div className="absolute w-[240px] h-[240px] rounded-full border border-cyan-400/35" />
+          <div className="absolute w-[340px] h-[340px] rounded-full border border-sky-400/20 animate-ping opacity-25" />
+          <div className="absolute w-[280px] h-[280px] rounded-full border border-sky-400/30" />
+          <div className="absolute w-[220px] h-[220px] rounded-full border border-cyan-400/40" />
 
-          {/* Lateral parenthetical resonance arcs */}
-          <div className="absolute w-[200px] h-[200px] rounded-full border-l-2 border-r-2 border-t-transparent border-b-transparent border-cyan-400/50 pointer-events-none" />
-          <div className="absolute w-[270px] h-[270px] rounded-full border-l-2 border-r-2 border-t-transparent border-b-transparent border-sky-400/30 pointer-events-none" />
+          {/* Lateral resonance arcs */}
+          <div className="absolute w-[180px] h-[180px] rounded-full border-l-2 border-r-2 border-t-transparent border-b-transparent border-cyan-400/60 pointer-events-none" />
 
           {/* Primary Glowing Cyan Ring */}
           <button
@@ -77,7 +76,7 @@ export const VoiceOrb: FC<VoiceOrbProps> = ({ state, audioLevels, onClick }) => 
             className="relative w-36 h-36 rounded-full border-2 border-cyan-400 shadow-[0_0_35px_rgba(56,189,248,0.55),inset_0_0_20px_rgba(56,189,248,0.35)] flex items-center justify-center bg-[#060D18]/90 cursor-pointer"
             aria-label="Stop listening"
           >
-            <div className="absolute inset-2 rounded-full bg-gradient-to-b from-cyan-500/10 to-transparent" />
+            <div className="absolute inset-2 rounded-full bg-gradient-to-b from-cyan-500/15 to-transparent" />
             <div className="flex items-center gap-1.5 z-10">
               <span
                 className="w-1 bg-sky-300 rounded-full transition-all duration-75"
@@ -104,11 +103,11 @@ export const VoiceOrb: FC<VoiceOrbProps> = ({ state, audioLevels, onClick }) => 
         </div>
       )}
 
-      {/* 3. PROCESSING STATE ORB */}
+      {/* 3. THINKING / PROCESSING STATE ORB */}
       {state === 'processing' && (
         <div className="relative flex items-center justify-center">
           {/* Ambient rotating gradient glow */}
-          <div className="absolute w-52 h-52 rounded-full bg-gradient-to-tr from-cyan-500/20 via-blue-600/20 to-sky-400/20 blur-2xl animate-spin" />
+          <div className="absolute w-48 h-48 rounded-full bg-gradient-to-tr from-cyan-500/20 via-blue-600/20 to-sky-400/20 blur-2xl animate-spin" />
 
           {/* Processing Orb with rotating gradient ring */}
           <div className="relative w-32 h-32 rounded-full p-[2px] bg-gradient-to-r from-sky-400 via-blue-500 to-cyan-300 animate-spin">
@@ -144,7 +143,7 @@ export const VoiceOrb: FC<VoiceOrbProps> = ({ state, audioLevels, onClick }) => 
             </svg>
           </div>
 
-          {/* Mid-frequency Acoustic Wave Rings */}
+          {/* Acoustic Wave Rings */}
           <div className="absolute w-[200px] h-[200px] rounded-full border border-cyan-400/30 animate-ping opacity-20 pointer-events-none" />
           <div className="absolute w-[240px] h-[240px] rounded-full border border-blue-500/20 pointer-events-none" />
 

@@ -130,14 +130,15 @@ test.describe('Phase 4 - Google Calendar Integration Feature Tests', () => {
   })
 
   test('4. Event details modal interaction and Set Reminder action', async ({ calbyPage, electronApp }) => {
-    const todayIso = new Date().toISOString()
+    // Use a start time 2h in the future to avoid immediately triggering an alarm surface
+    const futureStart = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
     const mockEvent = {
       id: 'evt-modal-1',
       title: '1-on-1 Product Review',
       description: 'Discussing Phase 4 Calendar roadmap and milestone deliverables.',
       allDay: false,
-      startDateTime: todayIso,
-      endDateTime: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      startDateTime: futureStart,
+      endDateTime: new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString(),
       timeZone: 'Asia/Kolkata',
       location: 'Conference Room B',
       meetingUrl: 'https://meet.google.com/prd-rvw-cal',
@@ -165,7 +166,8 @@ test.describe('Phase 4 - Google Calendar Integration Feature Tests', () => {
     await calbyPage.locator('h4:has-text("1-on-1 Product Review")').click()
 
     // Verify modal elements inside modal overlay
-    const modal = calbyPage.locator('.fixed.inset-0')
+    // Use role="dialog" which is now set on the inner modal card div
+    const modal = calbyPage.locator('[role="dialog"]').filter({ hasText: '1-on-1 Product Review' })
     await expect(modal.locator('h3:has-text("1-on-1 Product Review")')).toBeVisible()
     await expect(modal.locator('text=Discussing Phase 4 Calendar roadmap')).toBeVisible()
     await expect(modal.locator('text=Conference Room B')).toBeVisible()
@@ -427,7 +429,8 @@ test.describe('Phase 4 - Google Calendar Integration Feature Tests', () => {
 
     // 2. Open EventDetailsModal and verify timezone and date/time formatting
     await eventCard.click()
-    const modal = calbyPage.locator('div[role="dialog"], div.fixed.inset-0')
+    // Use role="dialog" scoped to the event name — now set on the inner EventDetailsModal card div
+    const modal = calbyPage.locator('[role="dialog"]').filter({ hasText: 'Global Engineering Sync' })
     await expect(modal).toBeVisible()
     await expect(modal.locator('text=Timezone: UTC')).toBeVisible()
 

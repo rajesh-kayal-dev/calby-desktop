@@ -8,6 +8,10 @@ import { CalendarPage } from '../features/calendar/CalendarPage'
 import { MemoryPage } from '../features/memory/MemoryPage'
 import { SettingsPage } from '../features/settings/SettingsPage'
 import type { AuthStatus } from '../types/calby'
+import type { Reminder } from '../features/reminders/types'
+import { findAlarmSound } from '../features/settings/sound-catalog'
+import { CalbySoundPlayer } from '../services/sound-player.service'
+import { ReminderAlarmSurface } from '../features/reminders/components/ReminderAlarmSurface'
 
 export type ActiveView = 'home' | 'reminders' | 'calendar' | 'memory' | 'settings'
 
@@ -17,6 +21,7 @@ export const App: FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<ActiveView>('home')
   const [highlightedReminderId, setHighlightedReminderId] = useState<string | null>(null)
+  const [activeAlarmReminder, setActiveAlarmReminder] = useState<Reminder | null>(null)
 
   const checkStatus = async (): Promise<void> => {
     try {
@@ -62,6 +67,90 @@ export const App: FC = () => {
       unsubscribe()
     }
   }, [])
+
+  // Listen for reminder triggers, notification sounds, and alarm dismissals
+  useEffect(() => {
+    if (!window.calby?.reminders) return
+
+    // 1. Alarm trigger listener
+    const unsubscribeTriggered = window.calby.reminders.onTriggered(async (payload) => {
+      console.log('[App] Reminder triggered:', payload)
+      if (!payload?.reminder) return
+
+      try {
+        const configRes = await window.calby.settings.getConfig()
+        const cfg = configRes.ok ? configRes.data : null
+        const reminderSettings = cfg?.reminders
+
+        const isAlarm = payload.reminder.alertType === 'alarm' || payload.reminder.alarmEnabled
+        const isAlarmEnabled = isAlarm && (reminderSettings?.alarmEnabled ?? true)
+
+        if (isAlarmEnabled) {
+          setActiveAlarmReminder(payload.reminder)
+          const soundObj = findAlarmSound(reminderSettings?.alarmSound)
+          void CalbySoundPlayer.getInstance().ringAlarm(soundObj, reminderSettings?.alarmDuration)
+        }
+      } catch (err) {
+        console.error('[App] Failed to trigger alarm sound:', err)
+      }
+    })
+
+    // 2. Notification sound playback listener (for desktop notifications)
+    const unsubscribePlaySound = window.calby.reminders.onPlaySound?.((payload) => {
+      console.log('[App] Received onPlaySound event:', payload)
+      if (payload?.sound) {
+        void CalbySoundPlayer.getInstance().playNotification(payload.sound)
+      }
+    })
+
+    // 3. Reminders change listener (dismiss active alarm if updated elsewhere)
+    const unsubscribeChanged = window.calby.reminders.onChanged((payload) => {
+      if (
+        activeAlarmReminder &&
+        payload.reminder.id === activeAlarmReminder.id &&
+        payload.reminder.status !== 'triggered'
+      ) {
+        CalbySoundPlayer.getInstance().stopAll()
+        setActiveAlarmReminder(null)
+      }
+    })
+
+    return () => {
+      unsubscribeTriggered()
+      if (unsubscribePlaySound) unsubscribePlaySound()
+      if (unsubscribeChanged) unsubscribeChanged()
+    }
+  }, [activeAlarmReminder])
+
+  const handleStopAlarm = async (id: string): Promise<void> => {
+    CalbySoundPlayer.getInstance().stopAll()
+    try {
+      await window.calby.reminders.dismiss(id)
+    } catch (err) {
+      console.error('Failed to dismiss reminder on stop:', err)
+    }
+    setActiveAlarmReminder(null)
+  }
+
+  const handleSnoozeAlarm = async (id: string): Promise<void> => {
+    CalbySoundPlayer.getInstance().stopAll()
+    try {
+      await window.calby.reminders.snooze(id, 5)
+    } catch (err) {
+      console.error('Failed to snooze reminder:', err)
+    }
+    setActiveAlarmReminder(null)
+  }
+
+  const handleCompleteAlarm = async (id: string): Promise<void> => {
+    CalbySoundPlayer.getInstance().stopAll()
+    try {
+      await window.calby.reminders.complete(id)
+    } catch (err) {
+      console.error('Failed to complete reminder:', err)
+    }
+    setActiveAlarmReminder(null)
+  }
 
   // Derive connection status from authStatus — NOT from voice session state.
   // Connected = Gemini API key is configured and valid.
@@ -140,6 +229,10 @@ export const App: FC = () => {
           {activeView === 'home' && (
             <VoiceAssistantHome
               onResetSetup={() => void checkStatus()}
+              onNavigate={(view, reminderId) => {
+                if (reminderId) setHighlightedReminderId(reminderId)
+                setActiveView(view)
+              }}
             />
           )}
           {activeView === 'reminders' && (
@@ -163,6 +256,14 @@ export const App: FC = () => {
             />
           )}
         </div>
+
+        {/* Floating global Alarm Surface */}
+        <ReminderAlarmSurface
+          reminder={activeAlarmReminder}
+          onStop={handleStopAlarm}
+          onSnooze={handleSnoozeAlarm}
+          onComplete={handleCompleteAlarm}
+        />
       </main>
     )
   }

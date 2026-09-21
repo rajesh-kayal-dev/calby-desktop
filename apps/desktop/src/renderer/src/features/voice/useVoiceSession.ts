@@ -58,6 +58,11 @@ export function useVoiceSession(): UseVoiceSessionResult {
   const [error, setError] = useState<VoiceErrorPayload | null>(null)
   const [audioLevels, setAudioLevels] = useState<number[]>([0.15, 0.35, 0.6, 0.3, 0.15])
 
+  const stateRef = useRef<VoiceState>('idle')
+  useEffect(() => {
+    stateRef.current = state
+  }, [state])
+
   // Diagnostic State
   const [diagnostics, setDiagnostics] = useState<DiagnosticInfo>({
     micPermission: 'unknown',
@@ -76,7 +81,7 @@ export function useVoiceSession(): UseVoiceSessionResult {
     inputTranscriptEvents: 0,
     geminiStatus: 'Disconnected',
     lastGeminiEvent: 'None',
-    vadState: 'Listening',
+    vadState: 'Ready to listen',
     outputChunksReceived: 0,
     outputPlaybackState: 'idle'
   })
@@ -92,6 +97,14 @@ export function useVoiceSession(): UseVoiceSessionResult {
   const hasReceivedUserTranscriptRef = useRef<boolean>(false)
   const noAudioTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // VAD tracking refs
+  const isSpeechActiveRef = useRef<boolean>(false)
+  const consecutiveSpeechFramesRef = useRef<number>(0)
+  const silenceFramesRef = useRef<number>(0)
+  const manualPushToTalkRef = useRef<boolean>(false)
+  const noiseFloorRef = useRef<number>(0.01)
+  const preRollBufferRef = useRef<string[]>([]) // last ~300ms chunks
+
   // Enumerate input microphones
   const refreshMicrophoneDevices = useCallback(async (): Promise<void> => {
     try {
@@ -106,6 +119,17 @@ export function useVoiceSession(): UseVoiceSessionResult {
 
   useEffect(() => {
     void refreshMicrophoneDevices()
+    if (window.calby?.settings?.getConfig) {
+      void window.calby.settings.getConfig().then((res) => {
+        if (res.ok && res.data.voice?.selectedMicDeviceId) {
+          const savedId = res.data.voice.selectedMicDeviceId
+          setDiagnostics((prev) => ({
+            ...prev,
+            selectedDeviceId: savedId === 'default' ? '' : savedId
+          }))
+        }
+      })
+    }
     if (navigator.mediaDevices?.addEventListener) {
       navigator.mediaDevices.addEventListener('devicechange', () => {
         void refreshMicrophoneDevices()
@@ -170,7 +194,7 @@ export function useVoiceSession(): UseVoiceSessionResult {
     }))
   }, [])
 
-  // Start microphone capture and 16kHz resampling
+  // Start microphone capture and 16kHz resampling with local VAD
   const startMicrophoneCapture = useCallback(
     async (deviceId?: string): Promise<void> => {
       stopMicrophoneCapture()
@@ -285,7 +309,6 @@ export function useVoiceSession(): UseVoiceSessionResult {
 
         let audioAccumulator: number[] = []
 
-        // Defensive diagnostic check: if no audio frames received in 5s, surface error
         if (noAudioTimerRef.current) clearTimeout(noAudioTimerRef.current)
         noAudioTimerRef.current = setTimeout(() => {
           if (micStreamRef.current && diagnostics.pcmChunksProduced === 0) {
@@ -310,6 +333,9 @@ export function useVoiceSession(): UseVoiceSessionResult {
           const rms = Math.sqrt(sumSq / inputData.length)
           const normLevel = Math.min(1, Math.max(0, rms * 8.0))
 
+          // Track background noise floor slowly
+          noiseFloorRef.current = noiseFloorRef.current * 0.98 + rms * 0.02
+
           for (let i = 0; i < inputData.length; i++) {
             audioAccumulator.push(inputData[i])
           }
@@ -326,7 +352,7 @@ export function useVoiceSession(): UseVoiceSessionResult {
               if (abs > chunkPeak) chunkPeak = abs
             }
 
-            // Controlled software gain scaling for soft hardware inputs (target peak ~0.25, max 4x boost)
+            // Controlled software gain scaling for soft hardware inputs
             if (chunkPeak > 0.001 && chunkPeak < 0.2) {
               const targetPeak = 0.25
               const boostMultiplier = Math.min(4.0, targetPeak / chunkPeak)
@@ -344,14 +370,85 @@ export function useVoiceSession(): UseVoiceSessionResult {
               pcmChunksProduced: prev.pcmChunksProduced + 1
             }))
 
-            // Send to Main process only if not in Mic-Only Test mode
-            if (!isMicOnlyTestingRef.current) {
+            // Ignore Gemini session if in Mic-Only Test mode
+            if (isMicOnlyTestingRef.current) {
+              return
+            }
+
+            // === LOCAL VOICE ACTIVITY DETECTION (VAD) ===
+            const speechThreshold = Math.max(0.02, noiseFloorRef.current * 2.2)
+            const isSpeechDetected = rms > speechThreshold
+
+            if (isSpeechDetected) {
+              consecutiveSpeechFramesRef.current += 1
+
+              // Speech confirmed (~60ms of continuous energy)
+              if (consecutiveSpeechFramesRef.current >= 3) {
+                silenceFramesRef.current = 0
+
+                // 1. Barge-in detection during speaking
+                if (stateRef.current === 'speaking') {
+                  console.log('[VOICE][VAD] User speaking while assistant talking -> Barge-in triggered')
+                  if (pcmPlayerRef.current) {
+                    pcmPlayerRef.current.interrupt()
+                  }
+                  void window.calby?.voice?.interrupt()
+                  isSpeechActiveRef.current = true
+                  setState('listening')
+                  setDiagnostics((prev) => ({ ...prev, vadState: 'Speech detected (Barge-in)' }))
+                } else if (stateRef.current === 'idle' || stateRef.current === 'action_result') {
+                  // 2. Automatic start of user turn
+                  console.log('[VOICE][VAD] Speech started -> Entering Listening state')
+                  isSpeechActiveRef.current = true
+                  setState('listening')
+                  setDiagnostics((prev) => ({ ...prev, vadState: 'Speech detected' }))
+
+                  // Ensure session is active
+                  void window.calby?.voice?.startSession()
+
+                  // Flush pre-roll buffer so initial syllables are intact
+                  if (preRollBufferRef.current.length > 0) {
+                    for (const prChunk of preRollBufferRef.current) {
+                      void window.calby?.voice?.sendAudioChunk(prChunk)
+                    }
+                    preRollBufferRef.current = []
+                  }
+                }
+              }
+            } else {
+              consecutiveSpeechFramesRef.current = Math.max(0, consecutiveSpeechFramesRef.current - 1)
+
+              // Check for end of speech turn if automatic listening is active
+              if (isSpeechActiveRef.current && !manualPushToTalkRef.current && stateRef.current === 'listening') {
+                silenceFramesRef.current += 1
+
+                // ~1.3s of continuous silence after speech
+                if (silenceFramesRef.current >= 62) {
+                  console.log('[VOICE][VAD] Silence detected after speech -> Finalizing turn')
+                  isSpeechActiveRef.current = false
+                  silenceFramesRef.current = 0
+                  consecutiveSpeechFramesRef.current = 0
+                  setState('processing')
+                  setDiagnostics((prev) => ({ ...prev, vadState: 'Processing audio turn' }))
+                  void window.calby?.voice?.finishTurn()
+                }
+              }
+            }
+
+            // Stream audio chunk to Gemini Live if in active speech or manual push-to-talk
+            if (isSpeechActiveRef.current || manualPushToTalkRef.current || stateRef.current === 'listening') {
               setDiagnostics((prev) => ({
                 ...prev,
                 pcmChunksSent: prev.pcmChunksSent + 1,
                 geminiInputAudioAccepted: prev.geminiInputAudioAccepted + 1
               }))
-              void window.calby.voice.sendAudioChunk(base64Chunk)
+              void window.calby?.voice?.sendAudioChunk(base64Chunk)
+            } else {
+              // Maintain circular pre-roll buffer of last 6 chunks (~300ms)
+              preRollBufferRef.current.push(base64Chunk)
+              if (preRollBufferRef.current.length > 6) {
+                preRollBufferRef.current.shift()
+              }
             }
           }
         }
@@ -378,6 +475,34 @@ export function useVoiceSession(): UseVoiceSessionResult {
     },
     [stopMicrophoneCapture, refreshMicrophoneDevices, diagnostics.pcmChunksProduced]
   )
+
+  // Auto-start microphone capture on mount
+  useEffect(() => {
+    let isMounted = true
+
+    const initMic = async (): Promise<void> => {
+      let targetMicId = ''
+      try {
+        const cfg = await window.calby?.settings?.getConfig?.()
+        if (cfg?.ok && cfg.data.voice?.selectedMicDeviceId) {
+          const savedId = cfg.data.voice.selectedMicDeviceId
+          targetMicId = savedId === 'default' ? '' : savedId
+        }
+      } catch {
+        // use default
+      }
+      if (isMounted) {
+        void startMicrophoneCapture(targetMicId)
+      }
+    }
+
+    void initMic()
+
+    return () => {
+      isMounted = false
+      stopMicrophoneCapture()
+    }
+  }, [startMicrophoneCapture, stopMicrophoneCapture])
 
   // Subscribe to IPC voice events
   useEffect(() => {
@@ -489,37 +614,42 @@ export function useVoiceSession(): UseVoiceSessionResult {
     }
   }, [])
 
-  // Dynamic Audio Visualizer Animation Loop (Driven by REAL Microphone RMS)
+  // Dynamic Audio Visualizer Animation Loop
   useEffect(() => {
-    const updateAudioLevels = (): void => {
-      let analyser: AnalyserNode | null = null
+    let lastTime = 0
 
-      if (state === 'listening') {
-        analyser = micAnalyserRef.current
-      } else if (state === 'speaking' && pcmPlayerRef.current) {
-        analyser = pcmPlayerRef.current.getAnalyser()
-      }
+    const updateAudioLevels = (timestamp: number): void => {
+      // Throttle visualizer state update to ~30fps to minimize React overhead while keeping smooth movement
+      if (timestamp - lastTime >= 33) {
+        lastTime = timestamp
+        let analyser: AnalyserNode | null = null
 
-      if (analyser) {
-        const bufferLength = analyser.frequencyBinCount
-        const dataArray = new Uint8Array(bufferLength)
-        analyser.getByteFrequencyData(dataArray)
+        if (state === 'listening') {
+          analyser = micAnalyserRef.current
+        } else if (state === 'speaking' && pcmPlayerRef.current) {
+          analyser = pcmPlayerRef.current.getAnalyser()
+        }
 
-        // Sample 5 frequency bins across spectrum
-        const binStep = Math.floor(bufferLength / 5)
-        const levels = [
-          Math.min(1, Math.max(0.1, (dataArray[0] || 0) / 255)),
-          Math.min(1, Math.max(0.15, (dataArray[binStep] || 0) / 255)),
-          Math.min(1, Math.max(0.2, (dataArray[binStep * 2] || 0) / 255)),
-          Math.min(1, Math.max(0.15, (dataArray[binStep * 3] || 0) / 255)),
-          Math.min(1, Math.max(0.1, (dataArray[binStep * 4] || 0) / 255))
-        ]
-        setAudioLevels(levels)
-      } else {
-        if (state === 'idle') {
-          setAudioLevels([0.15, 0.35, 0.6, 0.3, 0.15])
-        } else if (state === 'processing') {
-          setAudioLevels([0.25, 0.5, 0.8, 0.5, 0.25])
+        if (analyser) {
+          const bufferLength = analyser.frequencyBinCount
+          const dataArray = new Uint8Array(bufferLength)
+          analyser.getByteFrequencyData(dataArray)
+
+          const binStep = Math.floor(bufferLength / 5)
+          const levels = [
+            Math.min(1, Math.max(0.1, (dataArray[0] || 0) / 255)),
+            Math.min(1, Math.max(0.15, (dataArray[binStep] || 0) / 255)),
+            Math.min(1, Math.max(0.2, (dataArray[binStep * 2] || 0) / 255)),
+            Math.min(1, Math.max(0.15, (dataArray[binStep * 3] || 0) / 255)),
+            Math.min(1, Math.max(0.1, (dataArray[binStep * 4] || 0) / 255))
+          ]
+          setAudioLevels(levels)
+        } else {
+          if (state === 'idle') {
+            setAudioLevels([0.15, 0.35, 0.6, 0.3, 0.15])
+          } else if (state === 'processing') {
+            setAudioLevels([0.25, 0.5, 0.8, 0.5, 0.25])
+          }
         }
       }
 
@@ -540,37 +670,59 @@ export function useVoiceSession(): UseVoiceSessionResult {
     isMicOnlyTestingRef.current = false
     isTextDiagnosticRef.current = false
     hasReceivedUserTranscriptRef.current = false
+    isSpeechActiveRef.current = true
+    silenceFramesRef.current = 0
     setError(null)
     setUserTranscript('')
     setAssistantTranscript('')
+    setState('listening')
     setDiagnostics((prev) => ({
       ...prev,
       geminiStatus: 'Connected',
       lastGeminiEvent: 'session starting',
       vadState: 'Listening'
     }))
-    await startMicrophoneCapture(diagnostics.selectedDeviceId)
+
+    if (!micStreamRef.current) {
+      let targetMicId = diagnostics.selectedDeviceId
+      try {
+        const cfg = await window.calby?.settings?.getConfig?.()
+        if (cfg?.ok && cfg.data.voice?.selectedMicDeviceId) {
+          const savedId = cfg.data.voice.selectedMicDeviceId
+          targetMicId = savedId === 'default' ? '' : savedId
+        }
+      } catch {
+        // Use currently held state
+      }
+      await startMicrophoneCapture(targetMicId)
+    }
+
     await window.calby?.voice?.startSession()
   }, [startMicrophoneCapture, diagnostics.selectedDeviceId])
 
   const finishTurn = useCallback(async (): Promise<void> => {
     isMicOnlyTestingRef.current = false
-    stopMicrophoneCapture()
+    isSpeechActiveRef.current = false
+    silenceFramesRef.current = 0
+    consecutiveSpeechFramesRef.current = 0
     setDiagnostics((prev) => ({ ...prev, vadState: 'Processing audio turn' }))
     setState('processing')
     await window.calby?.voice?.finishTurn()
-  }, [stopMicrophoneCapture])
+  }, [])
 
   const stopListening = useCallback(async (): Promise<void> => {
     isMicOnlyTestingRef.current = false
     isTextDiagnosticRef.current = false
     hasReceivedUserTranscriptRef.current = false
-    stopMicrophoneCapture()
+    isSpeechActiveRef.current = false
+    silenceFramesRef.current = 0
+    consecutiveSpeechFramesRef.current = 0
     if (pcmPlayerRef.current) {
       pcmPlayerRef.current.interrupt()
     }
+    setState('idle')
     await window.calby?.voice?.stopSession()
-  }, [stopMicrophoneCapture])
+  }, [])
 
   const toggleListening = useCallback(async (): Promise<void> => {
     if (state === 'speaking') {
@@ -653,14 +805,19 @@ export function useVoiceSession(): UseVoiceSessionResult {
         e.preventDefault()
         if (e.repeat || isSpacePressed) return
         isSpacePressed = true
+        manualPushToTalkRef.current = true
+        isSpeechActiveRef.current = true
+        silenceFramesRef.current = 0
 
-        if (state === 'speaking') {
+        if (stateRef.current === 'speaking') {
           void interrupt()
         }
         void startListening()
       } else if (e.code === 'Escape') {
         e.preventDefault()
         isSpacePressed = false
+        manualPushToTalkRef.current = false
+        isSpeechActiveRef.current = false
         void stopListening()
       }
     }
@@ -669,7 +826,8 @@ export function useVoiceSession(): UseVoiceSessionResult {
       if (e.code === 'Space') {
         e.preventDefault()
         isSpacePressed = false
-        if (state === 'listening') {
+        manualPushToTalkRef.current = false
+        if (stateRef.current === 'listening') {
           void finishTurn()
         }
       }
@@ -681,7 +839,7 @@ export function useVoiceSession(): UseVoiceSessionResult {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
     }
-  }, [state, startListening, finishTurn, stopListening, interrupt])
+  }, [startListening, finishTurn, stopListening, interrupt])
 
   return {
     state,
