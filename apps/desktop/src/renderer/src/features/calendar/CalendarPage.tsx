@@ -14,19 +14,9 @@ import { CalendarWeekStrip } from './components/CalendarWeekStrip'
 import { CreateCalendarEventModal } from './components/CreateCalendarEventModal'
 import { getEventDateKey, getDateKey } from './utils/dateTime'
 
-export interface CalendarPageProps {
-  onNavigateHome?: () => void
-  onNavigateReminders?: () => void
-  onNavigateMemory?: () => void
-  onNavigateSettings?: () => void
-}
 
-export const CalendarPage: FC<CalendarPageProps> = ({
-  onNavigateHome,
-  onNavigateSettings,
-  onNavigateMemory,
-  onNavigateReminders
-}) => {
+export const CalendarPage: FC = () => {
+
   const [status, setStatus] = useState<CalendarStatus>({ status: 'disconnected' })
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -262,99 +252,52 @@ export const CalendarPage: FC<CalendarPageProps> = ({
   const isConnected = status.status === 'connected'
 
   return (
-    <div data-testid="calendar-page" className="flex flex-col h-full bg-[#0B0F19] text-slate-100 overflow-hidden">
-      {/* 1. Header & Navigation */}
-      <header className="flex items-center justify-between px-6 py-4 border-b border-[#1E293B] bg-[#0B0F19] shrink-0">
-        <div className="flex items-center gap-3">
-          {onNavigateHome && (
-            <button
-              onClick={onNavigateHome}
-              type="button"
-              className="p-2 rounded-xl bg-[#121826] hover:bg-[#1A2236] border border-[#1E293B] text-slate-300 hover:text-white transition-colors cursor-pointer"
-              title="Back to Home"
-              aria-label="Back to Home"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M10 19l-7-7m0 0l7-7m-7 7h18" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
-          )}
-          <div>
-            <h1 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-              <span>Calendar & Schedule</span>
-            </h1>
-            <p className="text-xs text-slate-400">Google Calendar integration for Calby voice & schedule awareness.</p>
-          </div>
+    <div data-testid="calendar-page" className="flex flex-col h-full overflow-hidden" style={{ backgroundColor: 'var(--ds-canvas-base)', color: 'var(--ds-text-primary)' }}>
+      {/* Page Header — Phase 4 layout: title left, Create Event + Refresh right */}
+      <header
+        className="flex items-center justify-between px-6 py-4 border-b shrink-0"
+        style={{ backgroundColor: 'var(--ds-canvas-base)', borderBottomColor: 'var(--ds-border-subtle)' }}
+      >
+        <div>
+          <h1
+            className="font-semibold tracking-tight"
+            style={{ fontSize: 'var(--ds-text-headline-lg)', lineHeight: '32px', letterSpacing: '-0.015em', color: 'var(--ds-text-primary)' }}
+          >
+            Calendar &amp; Schedule
+          </h1>
+          <p style={{ fontSize: 'var(--ds-text-body-md)', color: 'var(--ds-text-secondary)' }}>
+            Your upcoming schedule. Smarter with Calby. Google Calendar integration for Calby voice.
+          </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Create Event Button */}
+        <div className="flex items-center gap-2">
+          {/* Create Event Button — only when connected */}
           {isConnected && (
             <button
               onClick={() => setIsCreateModalOpen(true)}
               type="button"
               data-testid="create-event-button"
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-500 hover:bg-sky-400 text-slate-950 text-xs font-semibold rounded-lg shadow-sm transition-colors cursor-pointer"
+              className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] active:scale-[0.98] text-white font-medium text-sm px-4 py-2 rounded-lg transition-all cursor-pointer"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
               <span>Create Event</span>
             </button>
           )}
 
-          {onNavigateSettings && (
-            <button
-              onClick={onNavigateSettings}
-              type="button"
-              data-testid="calendar-nav-settings-button"
-              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-[#38BDF8] transition-colors font-medium cursor-pointer"
-            >
-              <svg className="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span>Settings</span>
-            </button>
-          )}
-
-          {onNavigateMemory && (
-            <button
-              onClick={onNavigateMemory}
-              type="button"
-              data-testid="calendar-nav-memory-button"
-              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-[#38BDF8] transition-colors font-medium cursor-pointer"
-            >
-              <svg className="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span>Memory</span>
-            </button>
-          )}
-
-          {onNavigateReminders && (
-            <button
-              onClick={onNavigateReminders}
-              type="button"
-              className="px-3 py-1.5 rounded-lg bg-[#121826] hover:bg-[#162238] border border-[#1E293B] text-xs font-medium text-slate-300 hover:text-[#38BDF8] transition-colors cursor-pointer flex items-center gap-1.5"
-            >
-              <svg className="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span>Reminders</span>
-            </button>
-          )}
-
+          {/* Refresh */}
           <button
             onClick={() => void fetchEvents()}
             disabled={isLoading || isConnecting}
             type="button"
-            className="p-2 rounded-xl bg-[#121826] hover:bg-[#1A2236] border border-[#1E293B] text-slate-300 hover:text-[#38BDF8] transition-colors cursor-pointer disabled:opacity-50"
+            className="w-9 h-9 flex items-center justify-center rounded-lg border transition-colors cursor-pointer disabled:opacity-40"
+            style={{ backgroundColor: 'var(--ds-surface-card)', borderColor: 'var(--ds-border-subtle)', color: 'var(--ds-text-secondary)' }}
             title="Refresh schedule"
             aria-label="Refresh calendar"
           >
             <svg
-              className={`w-4 h-4 ${isLoading ? 'animate-spin text-sky-400' : ''}`}
+              className={`w-4 h-4 ${isLoading ? 'animate-spin text-[#38BDF8]' : ''}`}
               fill="none"
               stroke="currentColor"
               strokeWidth="2"

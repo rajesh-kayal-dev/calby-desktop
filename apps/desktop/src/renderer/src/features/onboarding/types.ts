@@ -3,7 +3,8 @@ export enum OnboardingStep {
   CONNECT_GEMINI = 2,
   VALIDATING = 3,
   SUCCESS = 4,
-  MICROPHONE = 5
+  USER_NAME = 5,
+  MICROPHONE = 6
 }
 
 export interface OnboardingState {

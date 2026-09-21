@@ -3,7 +3,12 @@ import type {
   CalendarStatus,
   SystemInfo,
   ClearDataResult,
-  ClearMemoriesResult
+  ClearMemoriesResult,
+  AppConfig,
+  GeneralSettings,
+  PersonalizeSettings,
+  VoiceSettings,
+  ReminderSettings
 } from '../../types/calby'
 
 export type {
@@ -11,7 +16,12 @@ export type {
   CalendarStatus,
   SystemInfo,
   ClearDataResult,
-  ClearMemoriesResult
+  ClearMemoriesResult,
+  AppConfig,
+  GeneralSettings,
+  PersonalizeSettings,
+  VoiceSettings,
+  ReminderSettings
 }
 
 export type MicPermissionState = 'granted' | 'denied' | 'prompt' | 'unknown'

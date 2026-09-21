@@ -1,4 +1,4 @@
-﻿import { test, expect } from '../../fixtures/electron-fixture'
+import { test, expect } from '../../fixtures/electron-fixture'
 import { launchCalbyApp } from '../../helpers/electron-app'
 
 test.describe('Phase 3 — Reminders Feature Tests', () => {
@@ -112,18 +112,17 @@ test.describe('Phase 3 — Reminders Feature Tests', () => {
       calbyPage.locator(`article[data-purpose="reminder-card"]:has-text("${uniqueTitle}")`)
     ).toBeVisible()
 
-    // Close app
+    // Close app and preserve userDataDir
+    const userDataDir = await electronApp.evaluate(({ app }) => app.getPath('userData'))
     await electronApp.close()
 
-    // Re-launch app
-    const freshContext = await launchCalbyApp()
+    // Re-launch app with same userDataDir
+    const freshContext = await launchCalbyApp({ userDataDir })
     const freshPage = freshContext.page
 
     // Navigate to Reminders
     const freshNavBtn = freshPage.locator('button[aria-label="Reminders"]')
-    if (await freshNavBtn.isVisible()) {
-      await freshNavBtn.click()
-    }
+    await freshNavBtn.click()
 
     // Verify reminder survived restart and was restored from SQLite
     await expect(

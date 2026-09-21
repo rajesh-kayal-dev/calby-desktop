@@ -1,9 +1,14 @@
-﻿import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import type {
   AuthStatus,
   CalendarStatus,
   SystemInfo,
-  MicPermissionState
+  MicPermissionState,
+  AppConfig,
+  GeneralSettings,
+  PersonalizeSettings,
+  VoiceSettings,
+  ReminderSettings
 } from '../types'
 import {
   clearAllMemories as apiClearMemories,
@@ -20,6 +25,8 @@ export function useSettings(onDataReset?: () => void) {
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [actionError, setActionError] = useState<string | null>(null)
   const [actionSuccess, setActionSuccess] = useState<string | null>(null)
+
+  const [config, setConfig] = useState<AppConfig | null>(null)
 
   const loadData = useCallback(async () => {
     try {
@@ -50,7 +57,13 @@ export function useSettings(onDataReset?: () => void) {
         if (memRes.ok) setMemoryCount(memRes.data.length)
       }
 
-      // 5. Microphone permission query via navigator.permissions where supported
+      // 5. Config Settings
+      if (window.calby?.settings?.getConfig) {
+        const cfgRes = await window.calby.settings.getConfig()
+        if (cfgRes.ok) setConfig(cfgRes.data)
+      }
+
+      // 6. Microphone permission query via navigator.permissions where supported
       try {
         if (navigator.permissions && navigator.permissions.query) {
           const perm = await navigator.permissions.query({ name: 'microphone' as unknown as Parameters<typeof navigator.permissions.query>[0]['name'] })
@@ -89,6 +102,49 @@ export function useSettings(onDataReset?: () => void) {
       if (unsubMemory) unsubMemory()
     }
   }, [loadData])
+
+  const updatePersonalize = async (input: Partial<PersonalizeSettings>): Promise<boolean> => {
+    if (!window.calby?.settings?.updatePersonalize) return false
+    try {
+      setActionError(null)
+      const res = await window.calby.settings.updatePersonalize(input)
+      if (!res.ok) throw new Error(res.error.message)
+      setConfig((prev) => (prev ? { ...prev, personalize: res.data } : null))
+      setActionSuccess('Personalization preferences saved.')
+      return true
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to save personalization preferences')
+      return false
+    }
+  }
+
+  const updateVoiceSettings = async (input: Partial<VoiceSettings>): Promise<boolean> => {
+    if (!window.calby?.settings?.updateVoiceSettings) return false
+    try {
+      setActionError(null)
+      const res = await window.calby.settings.updateVoiceSettings(input)
+      if (!res.ok) throw new Error(res.error.message)
+      setConfig((prev) => (prev ? { ...prev, voice: res.data } : null))
+      return true
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to update voice settings')
+      return false
+    }
+  }
+
+  const updateReminderSettings = async (input: Partial<ReminderSettings>): Promise<boolean> => {
+    if (!window.calby?.settings?.updateReminderSettings) return false
+    try {
+      setActionError(null)
+      const res = await window.calby.settings.updateReminderSettings(input)
+      if (!res.ok) throw new Error(res.error.message)
+      setConfig((prev) => (prev ? { ...prev, reminders: res.data } : null))
+      return true
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to update reminder settings')
+      return false
+    }
+  }
 
   const disconnectCalendar = async (): Promise<void> => {
     if (!window.calby?.calendar) return
@@ -151,12 +207,37 @@ export function useSettings(onDataReset?: () => void) {
     }
   }
 
+  const updateGeneralSettings = async (input: Partial<GeneralSettings>): Promise<boolean> => {
+    if (!window.calby?.settings?.updateGeneralSettings) return false
+    try {
+      setActionError(null)
+      const res = await window.calby.settings.updateGeneralSettings(input)
+      if (!res.ok) throw new Error(res.error.message)
+      setConfig((prev) => (prev ? { ...prev, general: res.data } : null))
+      return true
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Failed to update general settings')
+      return false
+    }
+  }
+
+  const openNotificationSettings = async (): Promise<void> => {
+    try {
+      if (window.calby?.settings?.openNotificationSettings) {
+        await window.calby.settings.openNotificationSettings()
+      }
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Unable to open system notification settings')
+    }
+  }
+
   return {
     authStatus,
     calendarStatus,
     systemInfo,
     memoryCount,
     micState,
+    config,
     isLoading,
     actionError,
     actionSuccess,
@@ -166,11 +247,16 @@ export function useSettings(onDataReset?: () => void) {
       setActionError(null)
       setActionSuccess(null)
     },
+    updateGeneralSettings,
+    updatePersonalize,
+    updateVoiceSettings,
+    updateReminderSettings,
     disconnectCalendar,
     connectCalendar,
     clearMemories,
     clearAllData,
     openMicSettings,
+    openNotificationSettings,
     refresh: loadData
   }
 }

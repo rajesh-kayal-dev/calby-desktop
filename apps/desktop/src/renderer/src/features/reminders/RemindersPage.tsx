@@ -1,4 +1,4 @@
-﻿import { useState, type FC } from 'react'
+import { useState, type FC } from 'react'
 import { useReminders } from './hooks/useReminders'
 import { ReminderSection } from './components/ReminderSection'
 import { ReminderCard } from './components/ReminderCard'
@@ -8,19 +8,9 @@ import type { Reminder } from './types'
 
 interface RemindersPageProps {
   highlightedReminderId?: string | null
-  onNavigateHome: () => void
-  onNavigateCalendar?: () => void
-  onNavigateMemory?: () => void
-  onNavigateSettings?: () => void
 }
 
-export const RemindersPage: FC<RemindersPageProps> = ({
-  highlightedReminderId,
-  onNavigateHome,
-  onNavigateCalendar,
-  onNavigateMemory,
-  onNavigateSettings
-}) => {
+export const RemindersPage: FC<RemindersPageProps> = ({ highlightedReminderId }) => {
   const {
     isLoading,
     error,
@@ -62,197 +52,179 @@ export const RemindersPage: FC<RemindersPageProps> = ({
   }
 
   return (
-    <div className="relative flex-1 px-8 pt-4 pb-6 flex flex-col overflow-hidden bg-[#070A11] text-white select-none">
-      {/* Top Navigation / Back Link */}
-      <div className="flex items-center justify-between mb-2">
-        <button
-          onClick={onNavigateHome}
-          className="inline-flex items-center text-xs text-slate-400 hover:text-[#38BDF8] transition-colors font-medium group cursor-pointer"
-          type="button"
-        >
-          <svg
-            className="w-3.5 h-3.5 mr-1.5 transform group-hover:-translate-x-0.5 transition-transform"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path d="M10 19l-7-7m0 0l7-7m-7 7h18" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
-          </svg>
-          Home
-        </button>
+    <div
+      className="relative flex-1 flex flex-col overflow-hidden select-none"
+      style={{ backgroundColor: 'var(--ds-canvas-base)', color: 'var(--ds-text-primary)' }}
+    >
+      {/* Page content — Phase 3 layout preserved */}
+      <div className="flex-1 flex flex-col overflow-hidden px-8 pt-5 pb-6">
 
-        <div className="flex items-center space-x-3">
-          {onNavigateMemory && (
-            <button
-              onClick={onNavigateMemory}
-              type="button"
-              data-testid="reminders-nav-memory-button"
-              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-[#38BDF8] transition-colors font-medium cursor-pointer"
+        {/* Header Row: Title + New Reminder button — matching Phase 3 design */}
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h1
+              className="font-semibold tracking-tight"
+              style={{ fontSize: 'var(--ds-text-headline-lg)', lineHeight: '32px', letterSpacing: '-0.015em', color: 'var(--ds-text-primary)' }}
             >
-              <svg className="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span>Memory</span>
-            </button>
-          )}
-          {onNavigateCalendar && (
-            <button
-              onClick={onNavigateCalendar}
-              type="button"
-              data-testid="reminders-nav-calendar-button"
-              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-[#38BDF8] transition-colors font-medium cursor-pointer"
-            >
-              <svg className="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span>Calendar</span>
-            </button>
-          )}
-          {onNavigateSettings && (
-            <button
-              onClick={onNavigateSettings}
-              type="button"
-              data-testid="reminders-nav-settings-button"
-              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-[#38BDF8] transition-colors font-medium cursor-pointer"
-            >
-              <svg className="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span>Settings</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Header Row: Title & Action */}
-      <div className="flex items-center justify-between mb-3.5">
-        <div>
-          <h1 className="text-[26px] font-bold tracking-tight text-white leading-tight">Reminders</h1>
-          <p className="text-xs text-slate-400 mt-0.5">Stay on track with what matters.</p>
-        </div>
-
-        {/* Primary Action Button: + New Reminder */}
-        <button
-          onClick={handleOpenCreate}
-          className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-[#2563EB] hover:from-blue-500 hover:to-blue-600 active:scale-95 text-white font-medium text-xs px-4 py-2 rounded-lg shadow-lg shadow-blue-500/20 transition-all cursor-pointer"
-          type="button"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path d="M12 4v16m8-8H4" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" />
-          </svg>
-          <span>New Reminder</span>
-        </button>
-      </div>
-
-      {/* Filter Tabs: Upcoming & Completed */}
-      <div className="flex items-center space-x-2 mb-4" data-purpose="tab-filter-bar">
-        {/* Upcoming Tab */}
-        <button
-          onClick={() => setActiveTab('upcoming')}
-          className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors cursor-pointer ${
-            activeTab === 'upcoming'
-              ? 'bg-sky-950/40 text-[#38BDF8] border border-[#38BDF8]/40'
-              : 'bg-[#111622]/60 hover:bg-[#111622] text-slate-400 hover:text-slate-200 border border-[#1E293B]'
-          }`}
-          type="button"
-        >
-          <span>Upcoming</span>
-          <span
-            className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
-              activeTab === 'upcoming' ? 'bg-[#38BDF8]/20 text-[#38BDF8]' : 'bg-slate-800 text-slate-400'
-            }`}
-          >
-            {upcomingCount}
-          </span>
-        </button>
-
-        {/* Completed Tab */}
-        <button
-          onClick={() => setActiveTab('completed')}
-          className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-            activeTab === 'completed'
-              ? 'bg-sky-950/40 text-[#38BDF8] border border-[#38BDF8]/40'
-              : 'bg-[#111622]/60 hover:bg-[#111622] text-slate-400 hover:text-slate-200 border border-[#1E293B]'
-          }`}
-          type="button"
-        >
-          <span>Completed</span>
-          <span
-            className={`px-1.5 py-0.2 rounded-full text-[10px] font-semibold ${
-              activeTab === 'completed' ? 'bg-[#38BDF8]/20 text-[#38BDF8]' : 'bg-slate-800 text-slate-400'
-            }`}
-          >
-            {completedCount}
-          </span>
-        </button>
-      </div>
-
-      {/* Error Banner if any */}
-      {error && (
-        <div className="mb-4 px-4 py-2.5 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400 flex items-center gap-2">
-          <span>{error}</span>
-        </div>
-      )}
-
-      {/* Main List Container */}
-      <div className="flex-1 overflow-y-auto pr-1 space-y-4" data-purpose="reminders-list-container">
-        {isLoading ? (
-          <div className="h-48 flex flex-col items-center justify-center">
-            <div className="w-6 h-6 border-2 border-sky-400 border-t-transparent rounded-full animate-spin mb-2" />
-            <p className="text-xs text-slate-500 font-mono">Loading reminders...</p>
+              Reminders
+            </h1>
+            <p className="mt-0.5" style={{ fontSize: 'var(--ds-text-body-md)', color: 'var(--ds-text-secondary)' }}>
+              Stay on track with what matters.
+            </p>
           </div>
-        ) : activeTab === 'upcoming' ? (
-          groupedUpcoming.length === 0 ? (
-            <div className="h-64 flex flex-col items-center justify-center text-center p-6 border border-dashed border-[#1E293B] rounded-2xl">
-              <div className="w-12 h-12 rounded-2xl bg-sky-500/10 border border-sky-500/20 flex items-center justify-center text-sky-400 mb-3">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
-                </svg>
-              </div>
-              <h3 className="text-sm font-semibold text-white mb-1">No upcoming reminders</h3>
-              <p className="text-xs text-slate-400 max-w-xs mb-4">
-                You’re all caught up. Say &quot;Remind me to...&quot; or create one manually.
-              </p>
-              <button
-                onClick={handleOpenCreate}
-                className="px-3.5 py-1.5 bg-[#111622] hover:bg-[#162238] border border-cyan-500/30 text-sky-300 text-xs rounded-lg transition-colors cursor-pointer"
-                type="button"
+
+          {/* Primary Action: + New Reminder */}
+          <button
+            onClick={handleOpenCreate}
+            className="flex items-center gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] active:scale-[0.98] text-white font-medium text-sm px-4 py-2 rounded-lg transition-all cursor-pointer"
+            type="button"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 4v16m8-8H4" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+            </svg>
+            <span>New Reminder</span>
+          </button>
+        </div>
+
+        {/* Filter Tabs: Upcoming & Completed — Phase 3 tab design */}
+        <div className="flex items-center gap-2 mb-5" data-purpose="tab-filter-bar">
+          <button
+            onClick={() => setActiveTab('upcoming')}
+            data-testid="reminders-tab-upcoming"
+            className={[
+              'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-semibold transition-colors cursor-pointer',
+              activeTab === 'upcoming'
+                ? 'bg-[#38BDF8]/10 text-[#38BDF8] border border-[#38BDF8]/40'
+                : 'text-[#94A3B8] hover:text-[#F8FAFC] border border-[#1E293B] hover:border-[#334155]',
+            ].join(' ')}
+            style={{ backgroundColor: activeTab === 'upcoming' ? undefined : 'var(--ds-surface-card)' }}
+            type="button"
+          >
+            <span>Upcoming</span>
+            <span
+              className={[
+                'px-1.5 py-0.5 rounded-full text-xs font-bold leading-none',
+                activeTab === 'upcoming'
+                  ? 'bg-[#38BDF8]/20 text-[#38BDF8]'
+                  : 'bg-[#1E293B] text-[#64748B]',
+              ].join(' ')}
+            >
+              {upcomingCount}
+            </span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('completed')}
+            data-testid="reminders-tab-completed"
+            className={[
+              'flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer',
+              activeTab === 'completed'
+                ? 'bg-[#38BDF8]/10 text-[#38BDF8] border border-[#38BDF8]/40'
+                : 'text-[#94A3B8] hover:text-[#F8FAFC] border border-[#1E293B] hover:border-[#334155]',
+            ].join(' ')}
+            style={{ backgroundColor: activeTab === 'completed' ? undefined : 'var(--ds-surface-card)' }}
+            type="button"
+          >
+            <span>Completed</span>
+            <span
+              className={[
+                'px-1.5 py-0.5 rounded-full text-xs font-bold leading-none',
+                activeTab === 'completed'
+                  ? 'bg-[#38BDF8]/20 text-[#38BDF8]'
+                  : 'bg-[#1E293B] text-[#64748B]',
+              ].join(' ')}
+            >
+              {completedCount}
+            </span>
+          </button>
+        </div>
+
+        {/* Error Banner */}
+        {error && (
+          <div
+            className="mb-4 px-4 py-2.5 rounded-xl text-sm flex items-center gap-2"
+            style={{ backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444' }}
+          >
+            <span>{error}</span>
+          </div>
+        )}
+
+        {/* Main List */}
+        <div className="flex-1 overflow-y-auto pr-1 space-y-4" data-purpose="reminders-list-container">
+          {isLoading ? (
+            <div className="h-48 flex flex-col items-center justify-center gap-2">
+              <div className="w-5 h-5 border-2 border-[#38BDF8] border-t-transparent rounded-full animate-spin" />
+              <p className="text-xs font-mono" style={{ color: 'var(--ds-text-muted)' }}>Loading reminders...</p>
+            </div>
+          ) : activeTab === 'upcoming' ? (
+            groupedUpcoming.length === 0 ? (
+              /* Empty state */
+              <div
+                className="h-56 flex flex-col items-center justify-center text-center p-6 rounded-2xl border border-dashed"
+                style={{ borderColor: 'var(--ds-border-subtle)' }}
               >
-                + Create Reminder
-              </button>
-            </div>
-          ) : (
-            groupedUpcoming.map((group) => (
-              <ReminderSection
-                key={group.label}
-                label={group.label}
-                reminders={group.reminders}
-                highlightedReminderId={highlightedReminderId}
-                onComplete={onComplete}
-                onEdit={handleOpenEdit}
-                onDelete={onDelete}
-              />
-            ))
-          )
-        ) : (
-          completedReminders.length === 0 ? (
-            <div className="h-64 flex flex-col items-center justify-center text-center p-6 border border-dashed border-[#1E293B] rounded-2xl">
-              <div className="w-12 h-12 rounded-2xl bg-slate-800/40 border border-slate-700/40 flex items-center justify-center text-slate-400 mb-3">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
-                </svg>
+                <div
+                  className="w-11 h-11 rounded-2xl flex items-center justify-center mb-3"
+                  style={{ backgroundColor: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.15)', color: '#38BDF8' }}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+                  </svg>
+                </div>
+                <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--ds-text-primary)' }}>No upcoming reminders</h3>
+                <p className="text-xs mb-4" style={{ color: 'var(--ds-text-secondary)', maxWidth: '240px' }}>
+                  You&apos;re all caught up. Say &quot;Remind me to...&quot; or create one manually.
+                </p>
+                <button
+                  onClick={handleOpenCreate}
+                  className="px-3.5 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer"
+                  style={{ backgroundColor: 'var(--ds-surface-card)', border: '1px solid rgba(56,189,248,0.25)', color: '#38BDF8' }}
+                  type="button"
+                >
+                  + Create Reminder
+                </button>
               </div>
-              <h3 className="text-sm font-semibold text-white mb-1">No completed reminders</h3>
-              <p className="text-xs text-slate-400 max-w-xs">
-                Completed and dismissed reminders will appear here.
-              </p>
-            </div>
+            ) : (
+              groupedUpcoming.map((group) => (
+                <ReminderSection
+                  key={group.label}
+                  label={group.label}
+                  reminders={group.reminders}
+                  highlightedReminderId={highlightedReminderId}
+                  onComplete={onComplete}
+                  onEdit={handleOpenEdit}
+                  onDelete={onDelete}
+                />
+              ))
+            )
           ) : (
-            <div className="space-y-1.5">
-              <div className="text-[11px] font-semibold tracking-wider text-slate-400 uppercase pl-1">
-                Completed
+            completedReminders.length === 0 ? (
+              /* Completed empty state */
+              <div
+                className="h-56 flex flex-col items-center justify-center text-center p-6 rounded-2xl border border-dashed"
+                style={{ borderColor: 'var(--ds-border-subtle)' }}
+              >
+                <div
+                  className="w-11 h-11 rounded-2xl flex items-center justify-center mb-3"
+                  style={{ backgroundColor: 'var(--ds-surface-card)', border: '1px solid var(--ds-border-subtle)', color: 'var(--ds-text-muted)' }}
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" />
+                  </svg>
+                </div>
+                <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--ds-text-primary)' }}>No completed reminders</h3>
+                <p className="text-xs" style={{ color: 'var(--ds-text-secondary)' }}>
+                  Completed and dismissed reminders will appear here.
+                </p>
               </div>
-              <div className="space-y-1.5">
+            ) : (
+              <div className="space-y-2">
+                <div
+                  className="text-xs font-semibold tracking-wider uppercase pl-1 pb-1"
+                  style={{ color: 'var(--ds-text-muted)' }}
+                >
+                  Completed
+                </div>
                 {completedReminders.map((reminder) => (
                   <ReminderCard
                     key={reminder.id}
@@ -264,9 +236,9 @@ export const RemindersPage: FC<RemindersPageProps> = ({
                   />
                 ))}
               </div>
-            </div>
-          )
-        )}
+            )
+          )}
+        </div>
       </div>
 
       {/* Create / Edit Modal */}
