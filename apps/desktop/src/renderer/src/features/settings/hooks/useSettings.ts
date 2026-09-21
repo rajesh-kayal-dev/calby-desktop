@@ -26,6 +26,22 @@ export function useSettings(onDataReset?: () => void) {
   const [actionError, setActionError] = useState<string | null>(null)
   const [actionSuccess, setActionSuccess] = useState<string | null>(null)
 
+  useEffect(() => {
+    if (!actionSuccess) return
+    const timer = setTimeout(() => {
+      setActionSuccess(null)
+    }, 4000)
+    return () => clearTimeout(timer)
+  }, [actionSuccess])
+
+  useEffect(() => {
+    if (!actionError) return
+    const timer = setTimeout(() => {
+      setActionError(null)
+    }, 5000)
+    return () => clearTimeout(timer)
+  }, [actionError])
+
   const [config, setConfig] = useState<AppConfig | null>(null)
 
   const loadData = useCallback(async () => {

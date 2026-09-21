@@ -1,11 +1,6 @@
 import { useState, useEffect, useMemo, type FC } from 'react'
-import {
-  getCalendarStatus,
-  connectGoogleCalendar,
-  disconnectGoogleCalendar,
-  getUpcomingCalendarEvents
-} from './calendar-api'
-import type { CalendarEvent, CalendarStatus } from './types'
+import { useCalendar } from './hooks/useCalendar'
+import type { CalendarEvent } from './types'
 import { CalendarEventCard } from './components/CalendarEventCard'
 import { CalendarEmptyState } from './components/CalendarEmptyState'
 import { CalendarConnectionBanner } from './components/CalendarConnectionBanner'
@@ -14,14 +9,21 @@ import { CalendarWeekStrip } from './components/CalendarWeekStrip'
 import { CreateCalendarEventModal } from './components/CreateCalendarEventModal'
 import { getEventDateKey, getDateKey } from './utils/dateTime'
 
-
 export const CalendarPage: FC = () => {
+  const {
+    status,
+    events,
+    isLoading,
+    isSyncing,
+    isConnecting,
+    error,
+    refresh,
+    connect,
+    disconnect,
+    setError,
+    addEvent
+  } = useCalendar()
 
-  const [status, setStatus] = useState<CalendarStatus>({ status: 'disconnected' })
-  const [events, setEvents] = useState<CalendarEvent[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [isConnecting, setIsConnecting] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null)
   const [selectedDate, setSelectedDate] = useState<Date>(new Date())
   const [activeTab, setActiveTab] = useState<'today' | 'tomorrow' | 'upcoming'>('today')
@@ -35,85 +37,22 @@ export const CalendarPage: FC = () => {
     }, 4000)
   }
 
-  const fetchStatus = async () => {
-    try {
-      const currentStatus = await getCalendarStatus()
-      setStatus(currentStatus)
-    } catch (err) {
-      console.error('[CalendarPage] Failed to fetch status:', err)
-    }
-  }
-
-  const fetchEvents = async () => {
-    setIsLoading(true)
-    setError(null)
-    try {
-      const data = await getUpcomingCalendarEvents()
-      setEvents(data)
-    } catch (err: unknown) {
-      console.error('[CalendarPage] Failed to fetch events:', err)
-      const errMessage = err instanceof Error ? err.message : 'Failed to load upcoming events'
-      if (!errMessage.includes('NOT_AUTHENTICATED')) {
-        setError(errMessage)
-      }
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
+  // Silent background revalidation on mount
   useEffect(() => {
-    let prevStatus = status?.status
-    const loadInitial = async () => {
-      await fetchStatus()
-      setIsLoading(false)
-    }
-    loadInitial()
-
-    if (window.calby?.calendar?.onStatusChanged) {
-      const cleanup = window.calby.calendar.onStatusChanged((newStatus) => {
-        if (prevStatus !== 'connected' && newStatus.status === 'connected') {
-          showToast('Google Calendar connected successfully')
-        }
-        prevStatus = newStatus.status
-        setStatus(newStatus)
-        if (newStatus.status === 'connected') {
-          fetchEvents()
-        } else {
-          setEvents([])
-        }
-      })
-      return cleanup
-    }
-    return undefined
-  }, [])
-
-  useEffect(() => {
-    if (status?.status === 'connected') {
-      fetchEvents()
-    }
-  }, [status?.status])
+    void refresh(false)
+  }, [refresh])
 
   const handleConnect = async () => {
-    setIsConnecting(true)
     setError(null)
-    try {
-      await connectGoogleCalendar()
-      await fetchStatus()
+    const success = await connect()
+    if (success) {
       showToast('Google Calendar connected successfully')
-      await fetchEvents()
-    } catch (err: unknown) {
-      console.error('[CalendarPage] Connect error:', err)
-      setError(err instanceof Error ? err.message : 'Authentication failed')
-    } finally {
-      setIsConnecting(false)
     }
   }
 
   const handleDisconnect = async () => {
     try {
-      await disconnectGoogleCalendar()
-      setStatus({ status: 'disconnected', hasWriteAccess: false })
-      setEvents([])
+      await disconnect()
     } catch (err: unknown) {
       console.error('[CalendarPage] Disconnect error:', err)
       setError(err instanceof Error ? err.message : 'Failed to disconnect')
@@ -288,8 +227,8 @@ export const CalendarPage: FC = () => {
 
           {/* Refresh */}
           <button
-            onClick={() => void fetchEvents()}
-            disabled={isLoading || isConnecting}
+            onClick={() => void refresh(false)}
+            disabled={isLoading || isSyncing || isConnecting}
             type="button"
             className="w-9 h-9 flex items-center justify-center rounded-lg border transition-colors cursor-pointer disabled:opacity-40"
             style={{ backgroundColor: 'var(--ds-surface-card)', borderColor: 'var(--ds-border-subtle)', color: 'var(--ds-text-secondary)' }}
@@ -297,7 +236,7 @@ export const CalendarPage: FC = () => {
             aria-label="Refresh calendar"
           >
             <svg
-              className={`w-4 h-4 ${isLoading ? 'animate-spin text-[#38BDF8]' : ''}`}
+              className={`w-4 h-4 ${isLoading || isSyncing ? 'animate-spin text-[#38BDF8]' : ''}`}
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
@@ -460,15 +399,20 @@ export const CalendarPage: FC = () => {
         hasWriteAccess={status?.hasWriteAccess ?? true}
         onClose={() => setIsCreateModalOpen(false)}
         onWriteAccessGranted={() => {
-          fetchStatus()
+          void refresh(false)
         }}
         onSuccess={(createdEvent) => {
           showToast('Event created successfully')
-          fetchEvents()
-          fetchStatus()
           if (createdEvent) {
+            addEvent(createdEvent)
             setSelectedEvent(createdEvent)
+            const dateKey = getEventDateKey(createdEvent)
+            if (dateKey) {
+              const [y, m, d] = dateKey.split('-').map(Number)
+              setSelectedDate(new Date(y, m - 1, d))
+            }
           }
+          void refresh(false)
         }}
       />
 

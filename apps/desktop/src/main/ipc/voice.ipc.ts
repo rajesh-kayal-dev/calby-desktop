@@ -9,11 +9,33 @@ export const VOICE_CHANNELS = {
   SEND_TEXT_INPUT: 'voice:send-text-input',
   FINISH_TURN: 'voice:finish-turn',
   INTERRUPT: 'voice:interrupt',
-  GET_STATE: 'voice:get-state'
+  GET_STATE: 'voice:get-state',
+  PREVIEW_VOICE: 'voice:preview-voice'
 } as const
 
 export function registerVoiceIpcHandlers(): void {
   const voiceService = AiVoiceService.getInstance()
+
+  ipcMain.handle(
+    VOICE_CHANNELS.PREVIEW_VOICE,
+    async (
+      _event,
+      voiceName: string
+    ): Promise<IpcResult<{ audioBase64: string; mimeType: string }>> => {
+      try {
+        const result = await voiceService.previewVoice(voiceName)
+        return { ok: true, data: result }
+      } catch (error) {
+        return {
+          ok: false,
+          error: {
+            code: 'PREVIEW_VOICE_FAILED',
+            message: error instanceof Error ? error.message : 'Failed to generate voice preview'
+          }
+        }
+      }
+    }
+  )
 
   ipcMain.handle(VOICE_CHANNELS.START_SESSION, async (): Promise<IpcResult<void>> => {
     try {

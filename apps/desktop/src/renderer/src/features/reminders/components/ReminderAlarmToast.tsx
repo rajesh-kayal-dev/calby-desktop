@@ -1,5 +1,6 @@
-﻿import type { FC } from 'react'
+import type { FC } from 'react'
 import type { Reminder } from '../types'
+import { CalbySoundPlayer } from '../../../services/sound-player.service'
 
 interface ReminderAlarmToastProps {
   reminder: Reminder | null
@@ -15,6 +16,21 @@ export const ReminderAlarmToast: FC<ReminderAlarmToastProps> = ({
   onClose
 }) => {
   if (!reminder) return null
+
+  const handleSnooze = (id: string) => {
+    CalbySoundPlayer.getInstance().stopAll()
+    onSnooze(id)
+  }
+
+  const handleDismiss = (id: string) => {
+    CalbySoundPlayer.getInstance().stopAll()
+    onDismiss(id)
+  }
+
+  const handleClose = () => {
+    CalbySoundPlayer.getInstance().stopAll()
+    onClose()
+  }
 
   const scheduledDate = new Date(reminder.scheduledAt)
   const timeFormatted = scheduledDate.toLocaleTimeString([], {
@@ -40,7 +56,7 @@ export const ReminderAlarmToast: FC<ReminderAlarmToastProps> = ({
           </div>
 
           <button
-            onClick={onClose}
+            onClick={handleClose}
             aria-label="Close toast"
             className="text-slate-400 hover:text-white transition-colors p-1 rounded-md hover:bg-slate-800/60 cursor-pointer"
             type="button"
@@ -72,7 +88,7 @@ export const ReminderAlarmToast: FC<ReminderAlarmToastProps> = ({
         {/* Actions */}
         <div className="grid grid-cols-2 gap-2.5 mt-4">
           <button
-            onClick={() => onSnooze(reminder.id)}
+            onClick={() => handleSnooze(reminder.id)}
             className="flex items-center justify-center space-x-1.5 py-2 px-3 rounded-xl bg-[#161F33] hover:bg-[#1C2842] border border-[#23314D] text-slate-200 text-xs font-medium transition-colors cursor-pointer"
             type="button"
           >
@@ -84,7 +100,7 @@ export const ReminderAlarmToast: FC<ReminderAlarmToastProps> = ({
           </button>
 
           <button
-            onClick={() => onDismiss(reminder.id)}
+            onClick={() => handleDismiss(reminder.id)}
             className="flex items-center justify-center py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-all shadow-[0_4px_18px_rgba(2,132,199,0.45)] cursor-pointer"
             type="button"
           >

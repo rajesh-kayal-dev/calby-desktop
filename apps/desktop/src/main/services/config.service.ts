@@ -40,8 +40,42 @@ export interface AppConfig {
   reminders?: ReminderSettings
 }
 
-export const DEFAULT_CALBY_INSTRUCTION =
-  'You are Calby, a calm, focused, personal desktop voice assistant. Keep answers concise, clear, and direct. Help the user remember, understand, and act across reminders, personal memory, and Google Calendar.'
+export const DEFAULT_CALBY_INSTRUCTION = `You are Calby, a personal desktop voice assistant.
+
+Your job is to help the user stay organized, remember important things, understand their schedule, and take useful actions when asked.
+
+Speak naturally, warmly, and clearly, like a helpful human assistant.
+
+Keep responses concise for simple requests and provide more detail only when it is useful or requested.
+
+Do not sound robotic, overly formal, or like customer support.
+
+Avoid unnecessary phrases such as:
+'Certainly.'
+'Of course.'
+'I would be happy to assist you.'
+
+Prefer natural responses such as:
+'Done.'
+'Got it.'
+'I'll remind you at 6.'
+'You have a meeting at 10.'
+
+Use the user's preferred name and personal information when relevant.
+
+Respect the user's instructions and preferences.
+
+Only remember information when the user explicitly asks you to remember it.
+
+Use reminders, memory, and calendar capabilities when they are relevant to the user's request.
+
+Do not claim that an action was completed unless the corresponding action actually succeeded.
+
+When an action fails, explain the problem simply and suggest the next useful step.
+
+Do not perform unrelated actions without the user's request.
+
+Keep spoken responses easy to understand and natural for voice conversation.`
 
 const CONFIG_FILE = 'config.json'
 
@@ -60,7 +94,7 @@ const DEFAULT_CONFIG: AppConfig = {
     userInstructions: DEFAULT_CALBY_INSTRUCTION
   },
   voice: {
-    voiceName: 'Aoede',
+    voiceName: 'Achird',
     voiceSpeed: 'normal',
     selectedMicDeviceId: 'default'
   },
@@ -69,8 +103,8 @@ const DEFAULT_CONFIG: AppConfig = {
     notificationSoundEnabled: true,
     alarmEnabled: true,
     alarmDuration: 'until_stopped',
-    notificationSound: 'Gentle Chime',
-    alarmSound: 'Calby Alert'
+    notificationSound: 'Calby Soft',
+    alarmSound: 'Calby Wake'
   }
 }
 
@@ -98,11 +132,18 @@ export class ConfigService {
       if (existsSync(this.configPath)) {
         const raw = readFileSync(this.configPath, 'utf-8')
         const parsed = JSON.parse(raw)
+        const personalize = {
+          ...DEFAULT_CONFIG.personalize,
+          ...parsed.personalize
+        }
+        if (!personalize.userInstructions || !personalize.userInstructions.trim()) {
+          personalize.userInstructions = DEFAULT_CALBY_INSTRUCTION
+        }
         return {
           ...DEFAULT_CONFIG,
           ...parsed,
           general: { ...DEFAULT_CONFIG.general, ...parsed.general },
-          personalize: { ...DEFAULT_CONFIG.personalize, ...parsed.personalize },
+          personalize,
           voice: { ...DEFAULT_CONFIG.voice, ...parsed.voice },
           reminders: { ...DEFAULT_CONFIG.reminders, ...parsed.reminders }
         }
@@ -156,17 +197,28 @@ export class ConfigService {
 
   public getPersonalize(): PersonalizeSettings {
     const defaults = DEFAULT_CONFIG.personalize!
+    const current = this.config.personalize || {}
+    const userInstructions =
+      current.userInstructions && current.userInstructions.trim().length > 0
+        ? current.userInstructions
+        : DEFAULT_CALBY_INSTRUCTION
+
     return {
       ...defaults,
-      ...(this.config.personalize || {})
+      ...current,
+      userInstructions
     }
   }
 
   public updatePersonalize(input: Partial<PersonalizeSettings>): PersonalizeSettings {
-    this.config.personalize = {
+    const updated = {
       ...this.getPersonalize(),
       ...input
     }
+    if (!updated.userInstructions || !updated.userInstructions.trim()) {
+      updated.userInstructions = DEFAULT_CALBY_INSTRUCTION
+    }
+    this.config.personalize = updated
     this.saveConfig()
     return this.config.personalize
   }

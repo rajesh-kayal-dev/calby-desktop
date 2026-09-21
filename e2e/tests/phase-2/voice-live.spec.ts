@@ -1,4 +1,4 @@
-﻿import { test, expect } from '@playwright/test'
+import { test, expect } from '@playwright/test'
 import path from 'node:path'
 import { launchCalbyApp, type CalbyTestContext } from '../../helpers/electron-app'
 
@@ -54,17 +54,17 @@ test.describe('Phase 2 — Real Gemini Live Voice Pipeline (Playwright + Fake Mi
     }
 
     // 3. Verify initial state is Idle
-    const readyText = page.locator('text=Calby is ready')
-    await expect(readyText).toBeVisible({ timeout: 5000 })
+    const header = page.locator('header h1')
+    await expect(header).toBeVisible({ timeout: 5000 })
 
     // 4. Start Voice Listening (Push-to-Talk or Click)
-    const micButton = page.locator('button[aria-label*="voice listening"]')
+    const micButton = page.locator('footer button')
     await expect(micButton).toBeVisible()
     await micButton.click()
 
     // 5. Confirm state becomes Listening
-    const listeningHeader = page.locator('h1:has-text("Listening...")')
-    await expect(listeningHeader).toBeVisible({ timeout: 10000 })
+    const listeningLabel = page.locator('text=Listening…')
+    await expect(listeningLabel).toBeVisible({ timeout: 10000 })
 
     // 6. Allow prerecorded speech WAV to stream through AudioWorklet to Gemini Live (~3.5 seconds)
     await page.waitForTimeout(3500)

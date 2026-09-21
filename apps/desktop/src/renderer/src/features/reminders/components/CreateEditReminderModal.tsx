@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, type FC, type FormEvent } from 'react'
+import { useState, useEffect, type FC, type FormEvent } from 'react'
 import type { Reminder, CreateReminderInput, UpdateReminderInput } from '../types'
 import { createReminder, updateReminder } from '../reminders-api'
 
@@ -18,7 +18,7 @@ export const CreateEditReminderModal: FC<CreateEditReminderModalProps> = ({
   const [title, setTitle] = useState('')
   const [dateStr, setDateStr] = useState('')
   const [timeStr, setTimeStr] = useState('10:00')
-  const [alarmEnabled, setAlarmEnabled] = useState(true)
+  const [alertType, setAlertType] = useState<'notification' | 'alarm'>('notification')
   const [error, setError] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -31,7 +31,9 @@ export const CreateEditReminderModal: FC<CreateEditReminderModalProps> = ({
 
     if (editingReminder) {
       setTitle(editingReminder.title)
-      setAlarmEnabled(editingReminder.alarmEnabled)
+      const savedType =
+        editingReminder.alertType || (editingReminder.alarmEnabled ? 'alarm' : 'notification')
+      setAlertType(savedType)
       const dateObj = new Date(editingReminder.scheduledAt)
       const year = dateObj.getFullYear()
       const month = String(dateObj.getMonth() + 1).padStart(2, '0')
@@ -50,7 +52,7 @@ export const CreateEditReminderModal: FC<CreateEditReminderModalProps> = ({
       const hours = String(future.getHours()).padStart(2, '0')
       setTimeStr(`${hours}:00`)
       setTitle('')
-      setAlarmEnabled(true)
+      setAlertType('notification')
     }
     setError(null)
   }, [isOpen, editingReminder])
@@ -84,14 +86,17 @@ export const CreateEditReminderModal: FC<CreateEditReminderModalProps> = ({
 
     // Construct local Date and parse ISO
     const [year, month, day] = dateStr.split('-').map(Number)
-    const [hours, minutes] = timeStr.split(':').map(Number)
+    const timeParts = timeStr.split(':').map(Number)
+    const hours = timeParts[0]
+    const minutes = timeParts[1]
+    const seconds = timeParts.length > 2 ? timeParts[2] : 0
 
-    if (isNaN(year) || isNaN(month) || isNaN(day) || isNaN(hours) || isNaN(minutes)) {
+    if (isNaN(year) || isNaN(month) || isNaN(day) || isNaN(hours) || isNaN(minutes) || isNaN(seconds)) {
       setError('Invalid date or time format.')
       return
     }
 
-    const scheduledDate = new Date(year, month - 1, day, hours, minutes, 0, 0)
+    const scheduledDate = new Date(year, month - 1, day, hours, minutes, seconds, 0)
     if (isNaN(scheduledDate.getTime())) {
       setError('Invalid scheduled date/time.')
       return
@@ -108,7 +113,8 @@ export const CreateEditReminderModal: FC<CreateEditReminderModalProps> = ({
           id: editingReminder.id,
           title: trimmedTitle,
           scheduledAt: scheduledAtIso,
-          alarmEnabled
+          alertType,
+          alarmEnabled: alertType === 'alarm'
         }
         const updated = await updateReminder(updateInput)
         onSaved(updated)
@@ -116,7 +122,8 @@ export const CreateEditReminderModal: FC<CreateEditReminderModalProps> = ({
         const createInput: CreateReminderInput = {
           title: trimmedTitle,
           scheduledAt: scheduledAtIso,
-          alarmEnabled
+          alertType,
+          alarmEnabled: alertType === 'alarm'
         }
         const created = await createReminder(createInput)
         onSaved(created)
@@ -222,38 +229,122 @@ export const CreateEditReminderModal: FC<CreateEditReminderModalProps> = ({
               <input
                 id="reminder-time"
                 type="time"
+                step="1"
                 value={timeStr}
                 onChange={(e) => setTimeStr(e.target.value)}
                 className="w-full bg-[#080C14] border border-[#1E293B] rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500 transition cursor-pointer [color-scheme:dark]"
               />
             </div>
+
+            {/* Quick Presets for Development / Fast Verification */}
+            <div className="col-span-2 flex items-center justify-between text-xs px-0.5">
+              <span className="text-slate-500 text-[11px]">Quick test:</span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = new Date(Date.now() + 20 * 1000)
+                    const y = target.getFullYear()
+                    const m = String(target.getMonth() + 1).padStart(2, '0')
+                    const d = String(target.getDate()).padStart(2, '0')
+                    setDateStr(`${y}-${m}-${d}`)
+                    const hh = String(target.getHours()).padStart(2, '0')
+                    const mm = String(target.getMinutes()).padStart(2, '0')
+                    const ss = String(target.getSeconds()).padStart(2, '0')
+                    setTimeStr(`${hh}:${mm}:${ss}`)
+                  }}
+                  className="px-2 py-0.5 rounded bg-[#161F33] hover:bg-[#1E2B45] text-sky-400 font-mono text-[11px] border border-sky-400/20 transition-colors cursor-pointer"
+                >
+                  +20s
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const target = new Date(Date.now() + 60 * 1000)
+                    const y = target.getFullYear()
+                    const m = String(target.getMonth() + 1).padStart(2, '0')
+                    const d = String(target.getDate()).padStart(2, '0')
+                    setDateStr(`${y}-${m}-${d}`)
+                    const hh = String(target.getHours()).padStart(2, '0')
+                    const mm = String(target.getMinutes()).padStart(2, '0')
+                    const ss = String(target.getSeconds()).padStart(2, '0')
+                    setTimeStr(`${hh}:${mm}:${ss}`)
+                  }}
+                  className="px-2 py-0.5 rounded bg-[#161F33] hover:bg-[#1E2B45] text-sky-400 font-mono text-[11px] border border-sky-400/20 transition-colors cursor-pointer"
+                >
+                  +1m
+                </button>
+              </div>
+            </div>
           </div>
 
-          {/* Alarm Configuration Toggle */}
-          <div className="space-y-1.5 pt-1" data-purpose="form-field-alarm-toggle">
+          {/* Alert Type Radio Selection */}
+          <div className="space-y-2 pt-1" data-purpose="form-field-alert-type">
             <span className="block text-[13px] font-medium text-slate-300">
-              Alarm
+              Alert type
             </span>
-            <div className="bg-[#080C14] border border-[#1E293B] rounded-lg px-3.5 py-3 flex items-center justify-between shadow-inner">
-              <div className="flex items-center gap-2.5 text-slate-200">
-                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
-                <span className="text-sm font-medium">Enable alarm</span>
-              </div>
-
-              {/* Interactive Toggle Switch */}
-              <label aria-label="Toggle alarm on or off" className="relative inline-flex items-center cursor-pointer">
+            <div className="grid grid-cols-2 gap-3">
+              {/* Notification Option */}
+              <label
+                className={`flex items-center gap-2.5 p-3 rounded-xl border transition-all cursor-pointer select-none ${
+                  alertType === 'notification'
+                    ? 'bg-blue-600/15 border-blue-500/60 text-white shadow-[0_0_15px_rgba(59,130,246,0.15)]'
+                    : 'bg-[#080C14] border-[#1E293B] text-slate-400 hover:border-slate-700 hover:text-slate-300'
+                }`}
+              >
                 <input
-                  type="checkbox"
-                  checked={alarmEnabled}
-                  onChange={(e) => setAlarmEnabled(e.target.checked)}
-                  className="sr-only peer"
+                  type="radio"
+                  name="alertType"
+                  value="notification"
+                  checked={alertType === 'notification'}
+                  onChange={() => {
+                    setAlertType('notification')
+                  }}
+                  className="text-blue-600 focus:ring-blue-500 focus:ring-offset-0 bg-[#080C14] border-slate-600 w-4 h-4 cursor-pointer"
                 />
-                <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600" />
+                <div className="flex items-center gap-2 min-w-0">
+                  <svg className="w-4 h-4 text-sky-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span className="text-sm font-medium">Notification</span>
+                </div>
+              </label>
+
+              {/* Alarm Option */}
+              <label
+                className={`flex items-center gap-2.5 p-3 rounded-xl border transition-all cursor-pointer select-none ${
+                  alertType === 'alarm'
+                    ? 'bg-blue-600/15 border-blue-500/60 text-white shadow-[0_0_15px_rgba(59,130,246,0.15)]'
+                    : 'bg-[#080C14] border-[#1E293B] text-slate-400 hover:border-slate-700 hover:text-slate-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="alertType"
+                  value="alarm"
+                  checked={alertType === 'alarm'}
+                  onChange={() => {
+                    setAlertType('alarm')
+                  }}
+                  className="text-blue-600 focus:ring-blue-500 focus:ring-offset-0 bg-[#080C14] border-slate-600 w-4 h-4 cursor-pointer"
+                />
+                <div className="flex items-center gap-2 min-w-0">
+                  <svg className="w-4 h-4 text-amber-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <circle cx="12" cy="13" r="8" />
+                    <path d="M12 9v4l2 2M5 3L2 6M22 6l-3-3" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  <span className="text-sm font-medium">Alarm</span>
+                </div>
               </label>
             </div>
+
+            {/* Subtle Helper Text */}
+            <p className="text-xs text-slate-400 pt-0.5">
+              {alertType === 'notification'
+                ? "Calby will show a desktop notification when it's time."
+                : "Calby will play your selected alarm sound when it's time."}
+            </p>
           </div>
 
           {/* Action Buttons */}

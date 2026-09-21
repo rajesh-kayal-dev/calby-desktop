@@ -1,17 +1,20 @@
-﻿import { getDatabase } from './database'
+import { getDatabase } from './database'
 
-export type ReminderStatus = 'scheduled' | 'triggered' | 'snoozed' | 'completed' | 'dismissed'
+export type ReminderStatus = 'scheduled' | 'triggered' | 'snoozed' | 'completed' | 'dismissed' | 'missed'
+export type AlertType = 'notification' | 'alarm'
 
 export interface Reminder {
   id: string
   title: string
   scheduledAt: string
   alarmEnabled: boolean
+  alertType: AlertType
   status: ReminderStatus
   snoozeCount: number
   createdAt: string
   updatedAt: string
   completedAt?: string | null
+  missedAt?: string | null
 }
 
 export interface ReminderRow {
@@ -19,11 +22,13 @@ export interface ReminderRow {
   title: string
   scheduled_at: number
   alarm_enabled: number
+  alert_type: string
   status: string
   snooze_count: number
   created_at: number
   updated_at: number
   completed_at: number | null
+  missed_at: number | null
 }
 
 export interface CreateReminderRecord {
@@ -31,6 +36,7 @@ export interface CreateReminderRecord {
   title: string
   scheduledAt: number
   alarmEnabled: boolean
+  alertType?: AlertType
   status?: ReminderStatus
 }
 
@@ -39,9 +45,11 @@ export interface UpdateReminderRecord {
   title?: string
   scheduledAt?: number
   alarmEnabled?: boolean
+  alertType?: AlertType
   status?: ReminderStatus
   snoozeCount?: number
   completedAt?: number | null
+  missedAt?: number | null
 }
 
 export class ReminderRepository {
@@ -57,16 +65,26 @@ export class ReminderRepository {
   }
 
   private mapRowToReminder(row: ReminderRow): Reminder {
+    const rawType = row.alert_type as AlertType | undefined
+    const alertType: AlertType =
+      rawType === 'alarm' || rawType === 'notification'
+        ? rawType
+        : row.alarm_enabled
+        ? 'alarm'
+        : 'notification'
+
     return {
       id: row.id,
       title: row.title,
       scheduledAt: new Date(row.scheduled_at).toISOString(),
       alarmEnabled: Boolean(row.alarm_enabled),
+      alertType,
       status: row.status as ReminderStatus,
       snoozeCount: row.snooze_count,
       createdAt: new Date(row.created_at).toISOString(),
       updatedAt: new Date(row.updated_at).toISOString(),
-      completedAt: row.completed_at ? new Date(row.completed_at).toISOString() : null
+      completedAt: row.completed_at ? new Date(row.completed_at).toISOString() : null,
+      missedAt: row.missed_at ? new Date(row.missed_at).toISOString() : null
     }
   }
 
@@ -88,6 +106,16 @@ export class ReminderRepository {
     return rows.map((row) => this.mapRowToReminder(row))
   }
 
+  public listActive(): Reminder[] {
+    const db = getDatabase()
+    const rows = db
+      .prepare(
+        "SELECT * FROM reminders WHERE status IN ('scheduled', 'snoozed', 'triggered', 'missed') ORDER BY scheduled_at ASC"
+      )
+      .all() as ReminderRow[]
+    return rows.map((row) => this.mapRowToReminder(row))
+  }
+
   public findById(id: string): Reminder | null {
     const db = getDatabase()
     const row = db.prepare('SELECT * FROM reminders WHERE id = ?').get(id) as
@@ -100,12 +128,13 @@ export class ReminderRepository {
     const db = getDatabase()
     const now = Date.now()
     const status = data.status || 'scheduled'
+    const alertType: AlertType = data.alertType || (data.alarmEnabled ? 'alarm' : 'notification')
 
     const stmt = db.prepare(`
       INSERT INTO reminders (
-        id, title, scheduled_at, alarm_enabled, status, snooze_count, created_at, updated_at, completed_at
+        id, title, scheduled_at, alarm_enabled, alert_type, status, snooze_count, created_at, updated_at, completed_at
       ) VALUES (
-        @id, @title, @scheduled_at, @alarm_enabled, @status, 0, @created_at, @updated_at, NULL
+        @id, @title, @scheduled_at, @alarm_enabled, @alert_type, @status, 0, @created_at, @updated_at, NULL
       )
     `)
 
@@ -114,6 +143,7 @@ export class ReminderRepository {
       title: data.title,
       scheduled_at: data.scheduledAt,
       alarm_enabled: data.alarmEnabled ? 1 : 0,
+      alert_type: alertType,
       status,
       created_at: now,
       updated_at: now
@@ -154,6 +184,11 @@ export class ReminderRepository {
       params.alarm_enabled = data.alarmEnabled ? 1 : 0
     }
 
+    if (data.alertType !== undefined) {
+      updates.push('alert_type = @alert_type')
+      params.alert_type = data.alertType
+    }
+
     if (data.status !== undefined) {
       updates.push('status = @status')
       params.status = data.status
@@ -167,6 +202,11 @@ export class ReminderRepository {
     if (data.completedAt !== undefined) {
       updates.push('completed_at = @completed_at')
       params.completed_at = data.completedAt
+    }
+
+    if (data.missedAt !== undefined) {
+      updates.push('missed_at = @missed_at')
+      params.missed_at = data.missedAt
     }
 
     const query = `UPDATE reminders SET ${updates.join(', ')} WHERE id = @id`

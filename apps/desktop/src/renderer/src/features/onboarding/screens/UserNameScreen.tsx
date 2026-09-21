@@ -1,4 +1,4 @@
-import { useState, useEffect, type FC } from 'react'
+import { useState, useEffect, type FC, type KeyboardEvent } from 'react'
 
 interface UserNameScreenProps {
   onBack: () => void
@@ -42,7 +42,7 @@ export const UserNameScreen: FC<UserNameScreenProps> = ({ onBack, onNext }) => {
     }
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>): void => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>): void => {
     if (e.key === 'Enter') {
       void handleContinue()
     }

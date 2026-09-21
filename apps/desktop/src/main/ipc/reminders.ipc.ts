@@ -1,10 +1,11 @@
-﻿import { ipcMain } from 'electron'
+import { ipcMain } from 'electron'
 import {
   ReminderService,
   type CreateReminderInput,
   type UpdateReminderInput
 } from '../services/reminder.service'
 import type { Reminder } from '../storage/reminder.repository'
+import { ReminderAlarmWindowManager } from '../windows/alarm.window'
 
 type IpcResult<T> =
   | { ok: true; data: T }
@@ -25,6 +26,40 @@ export function registerRemindersIpc(): void {
         error: {
           code: 'FETCH_FAILED',
           message: err instanceof Error ? err.message : 'Failed to retrieve reminders'
+        }
+      }
+    }
+  })
+
+  // 1b. Get Reminder By ID
+  ipcMain.handle('reminders:get-by-id', async (_event, { id }: { id: string }): Promise<IpcResult<Reminder | null>> => {
+    try {
+      const data = reminderService.getById(id)
+      return { ok: true, data }
+    } catch (err) {
+      console.error('[IPC][reminders:get-by-id] Error:', err)
+      return {
+        ok: false,
+        error: {
+          code: 'FETCH_FAILED',
+          message: err instanceof Error ? err.message : 'Failed to retrieve reminder'
+        }
+      }
+    }
+  })
+
+  // 1c. Close Alarm Window
+  ipcMain.handle('reminders:close-alarm', async (): Promise<IpcResult<void>> => {
+    try {
+      ReminderAlarmWindowManager.getInstance().closeAlarmWindow()
+      return { ok: true, data: undefined }
+    } catch (err) {
+      console.error('[IPC][reminders:close-alarm] Error:', err)
+      return {
+        ok: false,
+        error: {
+          code: 'CLOSE_FAILED',
+          message: err instanceof Error ? err.message : 'Failed to close alarm window'
         }
       }
     }

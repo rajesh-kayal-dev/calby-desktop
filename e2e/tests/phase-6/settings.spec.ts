@@ -95,21 +95,29 @@ test.describe('Phase 6 — Settings Redesign & Features', () => {
 
     await expect(calbyPage.locator('[data-testid="voice-microphone-settings"]')).toBeVisible()
 
-    // Test Voice selection
+    // Test Voice preview button
+    await expect(calbyPage.locator('[data-testid="preview-voice-Puck"]')).toBeVisible()
     await calbyPage.click('[data-testid="preview-voice-Puck"]')
     await calbyPage.waitForTimeout(300)
 
-    // Test Microphone dropdown selection
-    const micSelect = calbyPage.locator('[data-testid="mic-device-select"]')
-    await expect(micSelect).toBeVisible()
+    // Test Voice row selection
+    const puckVoiceRow = calbyPage.locator('[data-testid="voice-option-Puck"]')
+    await expect(puckVoiceRow).toBeVisible()
+    await puckVoiceRow.click()
+    await calbyPage.waitForTimeout(300)
 
-    // Test Microphone Test button
-    const testMicBtn = calbyPage.locator('[data-testid="test-microphone-button"]')
-    await expect(testMicBtn).toBeVisible()
-    await testMicBtn.click()
+    // Verify Save changes button is enabled and save voice
+    const saveVoiceBtn = calbyPage.locator('[data-testid="save-voice-button"]')
+    await expect(saveVoiceBtn).toBeVisible()
+    await expect(saveVoiceBtn).toBeEnabled()
+    await saveVoiceBtn.click()
+    await expect(calbyPage.locator('[data-testid="voice-save-confirmation"]')).toBeVisible()
 
-    // Verify test state executes
-    await calbyPage.waitForTimeout(500)
+    // Verify microphone section is visible
+    await expect(calbyPage.locator('[data-testid="microphone-settings"]')).toBeVisible()
+    await expect(calbyPage.locator('[data-testid="mic-permission-badge"]')).toBeVisible()
+    await expect(calbyPage.locator('[data-testid="mic-device-select"]')).toBeVisible()
+    await expect(calbyPage.locator('[data-testid="test-microphone-button"]')).toBeVisible()
   })
 
   test('5. Reminders settings toggles and duration persistence', async ({ calbyPage }) => {

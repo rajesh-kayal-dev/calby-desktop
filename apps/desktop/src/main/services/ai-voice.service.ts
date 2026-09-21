@@ -2,7 +2,13 @@ import { BrowserWindow } from 'electron'
 import { GoogleGenAI, type LiveServerMessage } from '@google/genai'
 import { CredentialService } from './credential.service'
 import { ActionExecutor } from './action-executor'
-import { ConfigService } from './config.service'
+import { ConfigService, DEFAULT_CALBY_INSTRUCTION } from './config.service'
+import {
+  GEMINI_LIVE_MODEL,
+  createGeminiSpeechConfig,
+  isSupportedGeminiVoice,
+  DEFAULT_GEMINI_VOICE
+} from './gemini.config'
 
 export type VoiceState =
   | 'idle'
@@ -31,6 +37,17 @@ export interface VoiceErrorPayload {
 const IDLE_TIMEOUT_MS = 60 * 1000 // 60 seconds of inactivity before tearing down live session
 const CONNECT_TIMEOUT_MS = 10 * 1000 // 10s timeout for WebSocket connection setup
 
+const PREVIEW_PHRASES = [
+  "What's on your mind?",
+  'How can I help you today?',
+  'What would you like to get done?',
+  'Need a hand with something?',
+  'What can I help you with?',
+  'What are you thinking about?',
+  'Ready when you are.',
+  'Tell me what you need.'
+] as const
+
 export class AiVoiceService {
   private static instance: AiVoiceService | null = null
   private credentialService: CredentialService
@@ -44,11 +61,25 @@ export class AiVoiceService {
   private resumptionHandle: string | null = null
   private idleTimer: ReturnType<typeof setTimeout> | null = null
   private connectTimer: ReturnType<typeof setTimeout> | null = null
+  private lastPreviewPhraseIndex: number = -1
 
   private constructor() {
     this.credentialService = CredentialService.getInstance()
     this.actionExecutor = ActionExecutor.getInstance()
     this.configService = ConfigService.getInstance()
+  }
+
+  private getNextPreviewPhrase(): string {
+    let nextIndex: number
+    if (PREVIEW_PHRASES.length <= 1) {
+      nextIndex = 0
+    } else {
+      do {
+        nextIndex = Math.floor(Math.random() * PREVIEW_PHRASES.length)
+      } while (nextIndex === this.lastPreviewPhraseIndex)
+    }
+    this.lastPreviewPhraseIndex = nextIndex
+    return PREVIEW_PHRASES[nextIndex]
   }
 
   public static getInstance(): AiVoiceService {
@@ -145,35 +176,38 @@ export class AiVoiceService {
       const voiceSettings = this.configService.getVoiceSettings()
       const personalize = this.configService.getPersonalize()
 
-      let personalizationPrompt = ''
-      if (personalize.userName) {
-        personalizationPrompt += `\nUser's name: ${personalize.userName}.`
+      const baseBehavior =
+        personalize.userInstructions && personalize.userInstructions.trim().length > 0
+          ? personalize.userInstructions.trim()
+          : DEFAULT_CALBY_INSTRUCTION
+
+      const personalizationItems: string[] = []
+      if (personalize.userName && personalize.userName.trim()) {
+        personalizationItems.push(`- Preferred user name: ${personalize.userName.trim()}`)
       }
-      if (personalize.userTone) {
-        personalizationPrompt += `\nPreferred conversation tone/style: ${personalize.userTone}.`
+      if (personalize.userTone && personalize.userTone.trim()) {
+        personalizationItems.push(`- Preferred conversation tone/style: ${personalize.userTone.trim()}`)
       }
-      if (personalize.userAbout) {
-        personalizationPrompt += `\nAbout the user: ${personalize.userAbout}.`
+      if (personalize.userAbout && personalize.userAbout.trim()) {
+        personalizationItems.push(`- About the user: ${personalize.userAbout.trim()}`)
       }
-      if (personalize.userInstructions) {
-        personalizationPrompt += `\nAdditional instructions from user: ${personalize.userInstructions}.`
-      }
+
+      const userContextSection =
+        personalizationItems.length > 0
+          ? `\n\nUser Personalization:\n${personalizationItems.join('\n')}`
+          : ''
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const liveConfig: any = {
         responseModalities: ['AUDIO'],
-        speechConfig: {
-          voiceConfig: {
-            prebuiltVoiceConfig: {
-              voiceName: voiceSettings.voiceName || 'Aoede'
-            }
-          }
-        },
+        speechConfig: createGeminiSpeechConfig(voiceSettings.voiceName),
         tools,
         systemInstruction: {
           parts: [
             {
-              text: `You are Calby, a calm, focused, personal desktop voice assistant. Keep answers concise, clear, and direct. Help the user remember, understand, and act across reminders, personal memory, and Google Calendar. Never output markdown asterisks or bullet formatting in spoken speech.${personalizationPrompt}
+              text: `${baseBehavior}${userContextSection}
+
+Never output markdown asterisks or bullet formatting in spoken speech.
 
 Current reference time: ${nowIso} (User timezone: ${userTimeZone}).
 
@@ -200,7 +234,7 @@ Never invent data or perform background actions without tool execution. If requi
       }
 
       const session = await ai.live.connect({
-        model: 'gemini-3.8-live',
+        model: GEMINI_LIVE_MODEL,
         config: liveConfig,
         callbacks: {
           onopen: () => {
@@ -485,6 +519,206 @@ Never invent data or perform background actions without tool execution. If requi
     this.broadcast('voice:interrupted')
     this.setState('listening')
     this.resetIdleTimer()
+  }
+
+  public async previewVoice(
+    voiceName: string
+  ): Promise<{ audioBase64: string; mimeType: string }> {
+    const validVoice = isSupportedGeminiVoice(voiceName) ? voiceName : DEFAULT_GEMINI_VOICE
+
+    console.log(`[AiVoiceService] previewVoice started: voice = ${validVoice}, model = ${GEMINI_LIVE_MODEL}`)
+
+    const apiKey = await this.credentialService.getApiKey()
+    if (!apiKey) {
+      const err = new Error('Gemini API key is not configured.')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ;(err as any).code = 'NO_API_KEY'
+      throw err
+    }
+
+    const ai = new GoogleGenAI({ apiKey })
+
+    const speechConfig = createGeminiSpeechConfig(validVoice)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const liveConfig: any = {
+      responseModalities: ['AUDIO'],
+      speechConfig
+    }
+
+    return new Promise<{ audioBase64: string; mimeType: string }>((resolve, reject) => {
+      let isSettled = false
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let previewSession: any = null
+      const audioChunks: string[] = []
+      let receivedAudioThisSession = false
+      let timeoutTimer: ReturnType<typeof setTimeout> | null = null
+
+      const cleanup = () => {
+        if (timeoutTimer) {
+          clearTimeout(timeoutTimer)
+          timeoutTimer = null
+        }
+        if (previewSession) {
+          try {
+            previewSession.close()
+          } catch {
+            // session might already be closed
+          }
+          previewSession = null
+        }
+      }
+
+      timeoutTimer = setTimeout(() => {
+        if (!isSettled) {
+          isSettled = true
+          cleanup()
+          console.error('[AiVoiceService] previewVoice timed out for voice:', validVoice)
+          const err = new Error("Couldn't connect to Gemini. Check your internet connection.")
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ;(err as any).code = 'CONNECTION_TIMEOUT'
+          reject(err)
+        }
+      }, 10000)
+
+      ai.live
+        .connect({
+          model: GEMINI_LIVE_MODEL,
+          config: liveConfig,
+          callbacks: {
+            onopen: () => {
+              console.log('[AiVoiceService] previewVoice socket opened')
+            },
+            onmessage: (msg: LiveServerMessage) => {
+              if (msg.serverContent?.modelTurn?.parts) {
+                for (const part of msg.serverContent.modelTurn.parts) {
+                  if (part.inlineData?.data) {
+                    audioChunks.push(part.inlineData.data)
+                    if (!receivedAudioThisSession) {
+                      receivedAudioThisSession = true
+                      console.log('[AiVoiceService] previewVoice received audio')
+                    }
+                  }
+                }
+              }
+
+              if (msg.serverContent?.turnComplete) {
+                console.log('[AiVoiceService] previewVoice turn complete')
+                if (!isSettled) {
+                  isSettled = true
+                  cleanup()
+                  if (audioChunks.length > 0) {
+                    const buffers = audioChunks.map((c) => Buffer.from(c, 'base64'))
+                    const combined = Buffer.concat(buffers)
+                    resolve({
+                      audioBase64: combined.toString('base64'),
+                      mimeType: 'audio/pcm;rate=24000'
+                    })
+                  } else {
+                    const err = new Error('Gemini returned no audio for this preview.')
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    ;(err as any).code = 'NO_AUDIO'
+                    reject(err)
+                  }
+                }
+              }
+            },
+            onerror: (err: unknown) => {
+              if (!isSettled) {
+                isSettled = true
+                cleanup()
+                const errMsg = err instanceof Error ? err.message : String(err)
+                console.error('[AiVoiceService] previewVoice onerror:', errMsg)
+                const lower = errMsg.toLowerCase()
+                const isAuth =
+                  lower.includes('auth') ||
+                  lower.includes('401') ||
+                  lower.includes('403') ||
+                  lower.includes('api key')
+                const isModel =
+                  lower.includes('404') ||
+                  lower.includes('not_found') ||
+                  lower.includes('model not found')
+
+                const error = new Error(
+                  isAuth
+                    ? 'Your Gemini API key could not be authenticated.'
+                    : isModel
+                    ? "Calby's voice service is temporarily unavailable."
+                    : "Couldn't connect to Gemini. Check your internet connection."
+                )
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                ;(error as any).code = isAuth ? 'AUTH_FAILED' : isModel ? 'MODEL_NOT_FOUND' : 'LIVE_ERROR'
+                reject(error)
+              }
+            },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onclose: (e: any) => {
+              console.log(
+                `[AiVoiceService] previewVoice session closed (code=${e?.code}, reason=${e?.reason || 'normal'})`
+              )
+              if (!isSettled) {
+                isSettled = true
+                cleanup()
+                if (audioChunks.length > 0) {
+                  const buffers = audioChunks.map((c) => Buffer.from(c, 'base64'))
+                  const combined = Buffer.concat(buffers)
+                  resolve({
+                    audioBase64: combined.toString('base64'),
+                    mimeType: 'audio/pcm;rate=24000'
+                  })
+                } else {
+                  const err = new Error('Gemini returned no audio for this preview.')
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  ;(err as any).code = 'NO_AUDIO'
+                  reject(err)
+                }
+              }
+            }
+          }
+        })
+        .then((session) => {
+          previewSession = session
+          console.log('[AiVoiceService] previewVoice session connected')
+          try {
+            const phrase = this.getNextPreviewPhrase()
+            session.sendRealtimeInput({
+              text: phrase
+            })
+            console.log(`[AiVoiceService] previewVoice sent text: "${phrase}"`)
+          } catch (err) {
+            console.error('[AiVoiceService] Error sending preview realtime input:', err)
+          }
+        })
+        .catch((err) => {
+          if (!isSettled) {
+            isSettled = true
+            cleanup()
+            const errMsg = err instanceof Error ? err.message : String(err)
+            console.error('[AiVoiceService] previewVoice connect failed:', errMsg)
+            const lower = errMsg.toLowerCase()
+            const isAuth =
+              lower.includes('auth') ||
+              lower.includes('401') ||
+              lower.includes('403') ||
+              lower.includes('api key')
+            const isModel =
+              lower.includes('404') ||
+              lower.includes('not_found') ||
+              lower.includes('model not found')
+
+            const error = new Error(
+              isAuth
+                ? 'Your Gemini API key could not be authenticated.'
+                : isModel
+                ? "Calby's voice service is temporarily unavailable."
+                : "Couldn't connect to Gemini. Check your internet connection."
+            )
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ;(error as any).code = isAuth ? 'AUTH_FAILED' : isModel ? 'MODEL_NOT_FOUND' : 'CONNECTION_FAILED'
+            reject(error)
+          }
+        })
+    })
   }
 
   public async stopSession(): Promise<void> {

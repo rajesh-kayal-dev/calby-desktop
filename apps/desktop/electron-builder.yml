@@ -7,6 +7,11 @@ directories:
 files:
   - '!**/*'
   - 'out/**/*'
+extraResources:
+  - from: '../../assets/sounds'
+    to: 'assets/sounds'
+  - from: '../../assets/icon.png'
+    to: 'assets/icon.png'
 win:
   target:
     - target: dir

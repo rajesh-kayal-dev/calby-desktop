@@ -96,6 +96,28 @@ const LogOutIcon = () => (
   </svg>
 )
 
+const XIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+)
+
+const CheckCircleIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+    <polyline points="22 4 12 14.01 9 11.01" />
+  </svg>
+)
+
+const AlertCircleIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <line x1="12" y1="8" x2="12" y2="12" />
+    <line x1="12" y1="16" x2="12.01" y2="16" />
+  </svg>
+)
+
 // ── Sidebar items ──────────────────────────────────────────────────────────
 
 interface SidebarItem {
@@ -150,6 +172,7 @@ export const SettingsPage: FC<SettingsPageProps> = ({
     actionError,
     actionSuccess,
     setActionSuccess,
+    setActionError,
     updateGeneralSettings,
     openNotificationSettings,
     updatePersonalize,
@@ -406,25 +429,57 @@ export const SettingsPage: FC<SettingsPageProps> = ({
           </p>
         </div>
 
-        {/* Action feedback banners */}
+        {/* Action feedback toast alerts */}
         {(actionError || actionSuccess) && (
           <div className="px-8 pt-4 space-y-2 shrink-0">
             {actionError && (
               <div
                 data-testid="settings-error-alert"
-                className="px-4 py-3 rounded-xl text-sm"
-                style={{ backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444' }}
+                className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-sm transition-all"
+                style={{
+                  backgroundColor: 'rgba(239,68,68,0.12)',
+                  border: '1px solid rgba(239,68,68,0.25)',
+                  color: '#EF4444'
+                }}
               >
-                {actionError}
+                <div className="flex items-center gap-2.5">
+                  <AlertCircleIcon />
+                  <span>{actionError}</span>
+                </div>
+                <button
+                  type="button"
+                  data-testid="close-error-alert-button"
+                  onClick={() => setActionError?.(null)}
+                  className="p-1 rounded-md text-red-400 hover:text-white hover:bg-red-500/20 transition-colors cursor-pointer"
+                  title="Dismiss alert"
+                >
+                  <XIcon />
+                </button>
               </div>
             )}
             {actionSuccess && (
               <div
                 data-testid="settings-success-alert"
-                className="px-4 py-3 rounded-xl text-sm"
-                style={{ backgroundColor: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', color: '#10B981' }}
+                className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl text-sm transition-all"
+                style={{
+                  backgroundColor: 'rgba(16,185,129,0.12)',
+                  border: '1px solid rgba(16,185,129,0.25)',
+                  color: '#10B981'
+                }}
               >
-                {actionSuccess}
+                <div className="flex items-center gap-2.5">
+                  <CheckCircleIcon />
+                  <span>{actionSuccess}</span>
+                </div>
+                <button
+                  type="button"
+                  data-testid="close-success-alert-button"
+                  onClick={() => setActionSuccess(null)}
+                  className="p-1 rounded-md text-emerald-400 hover:text-white hover:bg-emerald-500/20 transition-colors cursor-pointer"
+                  title="Dismiss alert"
+                >
+                  <XIcon />
+                </button>
               </div>
             )}
           </div>
