@@ -116,7 +116,7 @@ export class SettingsService {
 
     // 5. Reset Onboarding / Config state
     try {
-      this.configService.setOnboarded(false)
+      this.configService.resetConfig()
       configReset = true
     } catch (err) {
       const msg = 'Failed to reset onboarding config: ' + (err instanceof Error ? err.message : String(err))

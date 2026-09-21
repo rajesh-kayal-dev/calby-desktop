@@ -1,7 +1,8 @@
-﻿import { BrowserWindow } from 'electron'
+import { BrowserWindow } from 'electron'
 import { GoogleGenAI, type LiveServerMessage } from '@google/genai'
 import { CredentialService } from './credential.service'
 import { ActionExecutor } from './action-executor'
+import { ConfigService } from './config.service'
 
 export type VoiceState =
   | 'idle'
@@ -34,6 +35,7 @@ export class AiVoiceService {
   private static instance: AiVoiceService | null = null
   private credentialService: CredentialService
   private actionExecutor: ActionExecutor
+  private configService: ConfigService
   private state: VoiceState = 'idle'
   private stateMetadata?: Record<string, unknown>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -46,6 +48,7 @@ export class AiVoiceService {
   private constructor() {
     this.credentialService = CredentialService.getInstance()
     this.actionExecutor = ActionExecutor.getInstance()
+    this.configService = ConfigService.getInstance()
   }
 
   public static getInstance(): AiVoiceService {
@@ -100,29 +103,23 @@ export class AiVoiceService {
   }
 
   public async startSession(): Promise<void> {
-    if (this.activeSession) {
-      // Already active, switch to listening
-      this.setState('listening')
-      this.resetIdleTimer()
+    if (this.activeSession || this.isConnecting) {
+      console.log('[AiVoiceService] Session already active or connecting.')
       return
     }
 
-    if (this.isConnecting) {
-      return
+    const apiKey = await this.credentialService.getApiKey()
+    if (!apiKey) {
+      const msg = 'Gemini API key is not configured.'
+      this.setState('error', { code: 'NO_API_KEY', message: msg })
+      this.broadcast('voice:error', { code: 'NO_API_KEY', message: msg })
+      throw new Error(msg)
     }
 
     this.isConnecting = true
+    this.setState('idle', { statusText: 'Connecting to Gemini...' })
 
     try {
-      const apiKey = await this.credentialService.getApiKey()
-      if (!apiKey) {
-        this.isConnecting = false
-        const msg = "Can't connect to Gemini. Check your API key."
-        this.setState('error', { code: 'NO_API_KEY', message: msg })
-        this.broadcast('voice:error', { code: 'NO_API_KEY', message: msg })
-        return
-      }
-
       const ai = new GoogleGenAI({ apiKey })
 
       // Setup connection timeout
@@ -145,6 +142,22 @@ export class AiVoiceService {
 
       const userTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone
       const nowIso = new Date().toISOString()
+      const voiceSettings = this.configService.getVoiceSettings()
+      const personalize = this.configService.getPersonalize()
+
+      let personalizationPrompt = ''
+      if (personalize.userName) {
+        personalizationPrompt += `\nUser's name: ${personalize.userName}.`
+      }
+      if (personalize.userTone) {
+        personalizationPrompt += `\nPreferred conversation tone/style: ${personalize.userTone}.`
+      }
+      if (personalize.userAbout) {
+        personalizationPrompt += `\nAbout the user: ${personalize.userAbout}.`
+      }
+      if (personalize.userInstructions) {
+        personalizationPrompt += `\nAdditional instructions from user: ${personalize.userInstructions}.`
+      }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const liveConfig: any = {
@@ -152,7 +165,7 @@ export class AiVoiceService {
         speechConfig: {
           voiceConfig: {
             prebuiltVoiceConfig: {
-              voiceName: 'Aoede'
+              voiceName: voiceSettings.voiceName || 'Aoede'
             }
           }
         },
@@ -160,7 +173,7 @@ export class AiVoiceService {
         systemInstruction: {
           parts: [
             {
-              text: `You are Calby, a calm, focused, personal desktop voice assistant. Keep answers concise, clear, and direct. Help the user remember, understand, and act across reminders, personal memory, and Google Calendar. Never output markdown asterisks or bullet formatting in spoken speech.
+              text: `You are Calby, a calm, focused, personal desktop voice assistant. Keep answers concise, clear, and direct. Help the user remember, understand, and act across reminders, personal memory, and Google Calendar. Never output markdown asterisks or bullet formatting in spoken speech.${personalizationPrompt}
 
 Current reference time: ${nowIso} (User timezone: ${userTimeZone}).
 

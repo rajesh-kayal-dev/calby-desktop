@@ -224,14 +224,59 @@ export interface CalbyMemoryAPI {
   onChanged: (callback: (payload: MemoryChangedPayload) => void) => () => void
 }
 
+export interface GeneralSettings {
+  startWithComputer: boolean
+  keepRunningInBackground: boolean
+  closeToTray: boolean
+  allowDesktopNotifications: boolean
+}
+
+export interface PersonalizeSettings {
+  userName?: string
+  userTone?: string
+  userAbout?: string
+  userInstructions?: string
+}
+
+export interface VoiceSettings {
+  voiceName?: string
+  voiceSpeed?: string
+  selectedMicDeviceId?: string
+}
+
+export interface ReminderSettings {
+  desktopNotificationsEnabled: boolean
+  notificationSoundEnabled: boolean
+  alarmEnabled: boolean
+  alarmDuration: string
+  notificationSound?: string
+  alarmSound?: string
+}
+
+export interface AppConfig {
+  isOnboarded: boolean
+  configuredAt?: string
+  general?: GeneralSettings
+  personalize?: PersonalizeSettings
+  voice?: VoiceSettings
+  reminders?: ReminderSettings
+}
+
 export interface CalbySettingsAPI {
   clearMemories: () => Promise<IpcResult<ClearMemoriesResult>>
   clearAllData: () => Promise<IpcResult<ClearDataResult>>
   openMicrophoneSettings: () => Promise<IpcResult<void>>
+  openNotificationSettings: () => Promise<IpcResult<void>>
+  getConfig: () => Promise<IpcResult<AppConfig>>
+  updateGeneralSettings: (input: Partial<GeneralSettings>) => Promise<IpcResult<GeneralSettings>>
+  updatePersonalize: (input: Partial<PersonalizeSettings>) => Promise<IpcResult<PersonalizeSettings>>
+  updateVoiceSettings: (input: Partial<VoiceSettings>) => Promise<IpcResult<VoiceSettings>>
+  updateReminderSettings: (input: Partial<ReminderSettings>) => Promise<IpcResult<ReminderSettings>>
 }
 
 export interface CalbySystemAPI {
   getInfo: () => Promise<IpcResult<SystemInfo>>
+  openExternal: (url: string) => Promise<IpcResult<void>>
   onNavigate: (callback: (payload: NavigationPayload) => void) => () => void
 }
 

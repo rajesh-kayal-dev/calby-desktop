@@ -1,5 +1,5 @@
-﻿import { useState, useEffect, type FC } from 'react'
-import { TitleBar } from '../components/ui/TitleBar'
+import { useState, useEffect, type FC } from 'react'
+import { TitleBar, type ConnectionStatus } from '../components/ui/TitleBar'
 import { OnboardingFlow } from '../features/onboarding/OnboardingFlow'
 import { OnboardingStep } from '../features/onboarding/types'
 import { VoiceAssistantHome } from '../features/voice/VoiceAssistantHome'
@@ -63,14 +63,23 @@ export const App: FC = () => {
     }
   }, [])
 
+  // Derive connection status from authStatus — NOT from voice session state.
+  // Connected = Gemini API key is configured and valid.
+  const connectionStatus: ConnectionStatus = (() => {
+    if (isLoading) return 'checking'
+    if (!authStatus) return 'disconnected'
+    if (authStatus.isConfigured) return 'connected'
+    return 'disconnected'
+  })()
+
   // 1. Loading State
   if (isLoading) {
     return (
-      <main className="w-full h-screen bg-[#070A11] flex flex-col justify-between select-none">
+      <main className="w-full h-screen flex flex-col select-none" style={{ backgroundColor: 'var(--ds-canvas-base)' }}>
         <TitleBar />
-        <div className="flex-1 flex flex-col items-center justify-center">
-          <div className="w-8 h-8 rounded-full border-2 border-sky-400 border-t-transparent animate-spin mb-4" />
-          <p className="text-xs text-slate-400 font-mono">Initializing Calby...</p>
+        <div className="flex-1 flex flex-col items-center justify-center gap-3">
+          <div className="w-7 h-7 rounded-full border-2 border-[#38BDF8] border-t-transparent animate-spin" />
+          <p className="text-xs font-mono" style={{ color: 'var(--ds-text-muted)' }}>Initializing Calby...</p>
         </div>
       </main>
     )
@@ -79,21 +88,27 @@ export const App: FC = () => {
   // 2. Fatal Initialization Error
   if (error) {
     return (
-      <main className="w-full h-screen bg-[#070A11] flex flex-col justify-between select-none">
+      <main className="w-full h-screen flex flex-col select-none" style={{ backgroundColor: 'var(--ds-canvas-base)' }}>
         <TitleBar />
-        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
-          <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-400 mb-4">
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center gap-4">
+          <div
+            className="w-12 h-12 rounded-xl flex items-center justify-center"
+            style={{ backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444' }}
+          >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="10" strokeWidth="2" />
-              <line x1="12" y1="8" x2="12" y2="8" strokeWidth="2" />
-              <line x1="12" y1="16" x2="12.01" y2="16" strokeWidth="2" />
+              <line x1="12" y1="8" x2="12" y2="12" strokeWidth="2" strokeLinecap="round" />
+              <line x1="12" y1="16" x2="12.01" y2="16" strokeWidth="2" strokeLinecap="round" />
             </svg>
           </div>
-          <h2 className="text-base font-semibold text-white mb-1">Initialization Error</h2>
-          <p className="text-xs text-slate-400 max-w-sm mb-4">{error}</p>
+          <div>
+            <h2 className="text-base font-semibold mb-1" style={{ color: 'var(--ds-text-primary)' }}>Initialization Error</h2>
+            <p className="text-sm max-w-sm" style={{ color: 'var(--ds-text-secondary)' }}>{error}</p>
+          </div>
           <button
             onClick={() => void checkStatus()}
-            className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded-lg transition-colors cursor-pointer"
+            className="px-4 py-2 rounded-lg text-sm font-medium transition-colors cursor-pointer"
+            style={{ backgroundColor: 'var(--ds-surface-card)', border: '1px solid var(--ds-border-subtle)', color: 'var(--ds-text-secondary)' }}
             type="button"
           >
             Retry
@@ -103,75 +118,60 @@ export const App: FC = () => {
     )
   }
 
-  // 3. Fully Configured and Onboarded -> Home View, Reminders, Calendar, Memory, or Settings
+  // Helper: navigate with optional reminderId reset
+  const navigate = (view: ActiveView): void => {
+    if (view !== 'reminders') setHighlightedReminderId(null)
+    setActiveView(view)
+  }
+
+  // 3. Fully Configured and Onboarded → main app shell with NavBar
   if (authStatus?.isConfigured && authStatus.isOnboarded) {
     return (
-      <main className="w-full h-screen bg-[#070A11] flex flex-col select-none">
-        <TitleBar />
-        {activeView === 'home' && (
-          <VoiceAssistantHome
-            onResetSetup={() => void checkStatus()}
-            onNavigateToReminders={() => {
-              setHighlightedReminderId(null)
-              setActiveView('reminders')
-            }}
-            onNavigateToCalendar={() => setActiveView('calendar')}
-            onNavigateToMemory={() => setActiveView('memory')}
-            onNavigateToSettings={() => setActiveView('settings')}
-          />
-        )}
-        {activeView === 'reminders' && (
-          <RemindersPage
-            highlightedReminderId={highlightedReminderId}
-            onNavigateHome={() => setActiveView('home')}
-            onNavigateCalendar={() => setActiveView('calendar')}
-            onNavigateMemory={() => setActiveView('memory')}
-            onNavigateSettings={() => setActiveView('settings')}
-          />
-        )}
-        {activeView === 'calendar' && (
-          <CalendarPage
-            onNavigateHome={() => setActiveView('home')}
-            onNavigateReminders={() => {
-              setHighlightedReminderId(null)
-              setActiveView('reminders')
-            }}
-            onNavigateMemory={() => setActiveView('memory')}
-            onNavigateSettings={() => setActiveView('settings')}
-          />
-        )}
-        {activeView === 'memory' && (
-          <MemoryPage
-            onNavigateHome={() => setActiveView('home')}
-            onNavigateReminders={() => {
-              setHighlightedReminderId(null)
-              setActiveView('reminders')
-            }}
-            onNavigateCalendar={() => setActiveView('calendar')}
-            onNavigateSettings={() => setActiveView('settings')}
-          />
-        )}
-        {activeView === 'settings' && (
-          <SettingsPage
-            onNavigateHome={() => setActiveView('home')}
-            onNavigateReminders={() => {
-              setHighlightedReminderId(null)
-              setActiveView('reminders')
-            }}
-            onNavigateCalendar={() => setActiveView('calendar')}
-            onNavigateMemory={() => setActiveView('memory')}
-            onResetSetup={() => void checkStatus()}
-          />
-        )}
+      <main className="w-full h-screen flex flex-col select-none" style={{ backgroundColor: 'var(--ds-canvas-base)' }}>
+        {/* Single unified header: brand + nav tabs + connection status dot + settings gear */}
+        <TitleBar
+          activeView={activeView}
+          onNavigate={navigate}
+          connectionStatus={connectionStatus}
+        />
+
+        {/* Content area — each view preserves its phase-specific layout */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {activeView === 'home' && (
+            <VoiceAssistantHome
+              onResetSetup={() => void checkStatus()}
+            />
+          )}
+          {activeView === 'reminders' && (
+            <RemindersPage
+              highlightedReminderId={highlightedReminderId}
+            />
+          )}
+          {activeView === 'calendar' && (
+            <CalendarPage />
+          )}
+          {activeView === 'memory' && (
+            <MemoryPage />
+          )}
+          {activeView === 'settings' && (
+            <SettingsPage
+              onResetSetup={() => void checkStatus()}
+              onNavigateHome={() => navigate('home')}
+              onNavigateMemory={() => navigate('memory')}
+              onNavigateCalendar={() => navigate('calendar')}
+              onNavigateReminders={() => navigate('reminders')}
+            />
+          )}
+        </div>
       </main>
     )
   }
 
-  // 4. Configured but not yet onboarded -> Resume at Step 5 (Microphone Setup)
+  // 4. Configured but not yet onboarded → Resume at Step 5 (Microphone Setup)
   if (authStatus?.isConfigured && !authStatus.isOnboarded) {
     return (
-      <main className="w-full h-screen bg-[#070A11] flex flex-col select-none">
-        <TitleBar />
+      <main className="w-full h-screen flex flex-col select-none" style={{ backgroundColor: 'var(--ds-canvas-base)' }}>
+        <TitleBar stepInfo={{ step: 5, totalSteps: 5, label: 'Microphone' }} />
         <OnboardingFlow
           initialStep={OnboardingStep.MICROPHONE}
           onFinish={() => void checkStatus()}
@@ -180,9 +180,9 @@ export const App: FC = () => {
     )
   }
 
-  // 5. Not Configured -> Start from Step 1 (Welcome)
+  // 5. Not Configured → Start from Step 1 (Welcome)
   return (
-    <main className="w-full h-screen bg-[#070A11] flex flex-col select-none">
+    <main className="w-full h-screen flex flex-col select-none" style={{ backgroundColor: 'var(--ds-canvas-base)' }}>
       <TitleBar />
       <OnboardingFlow
         initialStep={OnboardingStep.WELCOME}

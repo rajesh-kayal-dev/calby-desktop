@@ -1,7 +1,7 @@
 import { type FC } from 'react'
 import type { CalendarStatus } from '../types'
 
-interface CalendarSettingsProps {
+interface ConnectSettingsProps {
   status: CalendarStatus | null
   onConnect: () => void
   onDisconnect: () => void
@@ -38,7 +38,7 @@ const ExternalLinkIcon = () => (
   </svg>
 )
 
-export const CalendarSettings: FC<CalendarSettingsProps> = ({
+export const ConnectSettingsComponent: FC<ConnectSettingsProps> = ({
   status,
   onConnect,
   onDisconnect
@@ -56,87 +56,96 @@ export const CalendarSettings: FC<CalendarSettingsProps> = ({
   }
 
   return (
-    <div data-testid="calendar-settings" className="space-y-6">
-      {/* Google Calendar Card */}
-      <div className="p-5 rounded-xl bg-white/5 border border-white/10 space-y-4">
-        <div className="flex items-start justify-between">
-          <div className="flex items-start gap-3.5">
-            <div className="p-2 rounded-xl bg-white/5 border border-white/10 shrink-0 mt-0.5">
-              <GoogleCalendarIcon />
-            </div>
-            <div>
-              <div className="flex items-center gap-2.5">
-                <h3 className="text-sm font-semibold" style={{ color: 'var(--ds-text-primary)' }}>
-                  Google Calendar
-                </h3>
-                <span
-                  data-testid="calendar-status-badge"
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                    isConnected
-                      ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
-                      : isReauth
-                      ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                      : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
-                  }`}
-                >
-                  <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'}`} />
-                  {isConnected ? 'Connected' : isReauth ? 'Re-auth required' : 'Disconnected'}
-                </span>
+    <div data-testid="connect-settings" className="space-y-6">
+      <div data-testid="calendar-settings" className="space-y-6">
+
+      {/* Connected services section */}
+      <div className="space-y-3">
+        <h4 className="text-xs font-semibold tracking-wider uppercase" style={{ color: 'var(--ds-text-muted)' }}>
+          Connected services
+        </h4>
+
+        {/* Google Calendar Card */}
+        <div className="p-5 rounded-xl bg-white/5 border border-white/10 space-y-4">
+          <div className="flex items-start justify-between">
+            <div className="flex items-start gap-3.5">
+              <div className="p-2 rounded-xl bg-white/5 border border-white/10 shrink-0 mt-0.5">
+                <GoogleCalendarIcon />
               </div>
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <h3 className="text-sm font-semibold" style={{ color: 'var(--ds-text-primary)' }}>
+                    Google Calendar
+                  </h3>
+                  <span
+                    data-testid="calendar-status-badge"
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                      isConnected
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        : isReauth
+                        ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                        : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                    }`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-400'}`} />
+                    {isConnected ? 'Connected' : isReauth ? 'Re-auth required' : 'Disconnected'}
+                  </span>
+                </div>
 
-              {isConnected && (
-                <p data-testid="calendar-email-text" className="text-xs mt-1" style={{ color: 'var(--ds-text-secondary)' }}>
-                  Account: <span className="font-medium text-white">{status?.connectedEmail || 'Google Account'}</span> {isLegacyReadOnly ? '(Read-only)' : '(Read & Create)'}
+                {isConnected && (
+                  <p data-testid="calendar-email-text" className="text-xs mt-1" style={{ color: 'var(--ds-text-secondary)' }}>
+                    Account: <span className="font-medium text-white">{status?.connectedEmail || 'Google Account'}</span> {isLegacyReadOnly ? '(Read-only)' : '(Read & Create)'}
+                  </p>
+                )}
+
+                <p className="text-xs mt-1" style={{ color: 'var(--ds-text-muted)' }}>
+                  Calby can read and create events in your Google Calendar.
                 </p>
-              )}
-
-              <p className="text-xs mt-1" style={{ color: 'var(--ds-text-muted)' }}>
-                Calby can read and create events in your Google Calendar.
-              </p>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-3 pt-2 border-t border-white/10">
-          {isLegacyReadOnly && (
-            <button
-              onClick={onConnect}
-              type="button"
-              data-testid="reconnect-calendar-button"
-              className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
-            >
-              Reconnect Calendar
-            </button>
-          )}
-          {isConnected ? (
-            <>
+          <div className="flex items-center gap-3 pt-2 border-t border-white/10">
+            {isLegacyReadOnly && (
               <button
+                onClick={onConnect}
                 type="button"
-                data-testid="open-google-calendar-web"
-                onClick={handleOpenGoogleCalendarWeb}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium bg-[#2563EB] hover:bg-[#1D4ED8] text-white transition-colors cursor-pointer"
+                data-testid="reconnect-calendar-button"
+                className="px-3.5 py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-semibold rounded-lg transition-colors cursor-pointer"
               >
-                Open Google Calendar <ExternalLinkIcon />
+                Reconnect Calendar
               </button>
+            )}
+            {isConnected ? (
+              <>
+                <button
+                  type="button"
+                  data-testid="open-google-calendar-web"
+                  onClick={handleOpenGoogleCalendarWeb}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium bg-[#2563EB] hover:bg-[#1D4ED8] text-white transition-colors cursor-pointer"
+                >
+                  Open Google Calendar <ExternalLinkIcon />
+                </button>
+                <button
+                  onClick={onDisconnect}
+                  type="button"
+                  data-testid="disconnect-calendar-button"
+                  className="px-3.5 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-medium rounded-lg transition-colors cursor-pointer"
+                >
+                  Disconnect
+                </button>
+              </>
+            ) : (
               <button
-                onClick={onDisconnect}
+                onClick={onConnect}
                 type="button"
-                data-testid="disconnect-calendar-button"
-                className="px-3.5 py-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 text-xs font-medium rounded-lg transition-colors cursor-pointer"
+                data-testid="connect-calendar-button"
+                className="px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-medium rounded-lg transition-colors cursor-pointer"
               >
-                Disconnect
+                {isReauth ? 'Reconnect Google Calendar' : 'Connect Google Calendar'}
               </button>
-            </>
-          ) : (
-            <button
-              onClick={onConnect}
-              type="button"
-              data-testid="connect-calendar-button"
-              className="px-4 py-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-medium rounded-lg transition-colors cursor-pointer"
-            >
-              {isReauth ? 'Reconnect Google Calendar' : 'Connect Google Calendar'}
-            </button>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
@@ -171,7 +180,10 @@ export const CalendarSettings: FC<CalendarSettingsProps> = ({
             </span>
           </div>
         </div>
+        </div>
       </div>
     </div>
   )
 }
+
+export const CalendarSettings = ConnectSettingsComponent

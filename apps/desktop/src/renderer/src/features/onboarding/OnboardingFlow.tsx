@@ -4,6 +4,7 @@ import { WelcomeScreen } from './screens/WelcomeScreen'
 import { ConnectGeminiScreen } from './screens/ConnectGeminiScreen'
 import { ValidationScreen } from './screens/ValidationScreen'
 import { SuccessScreen } from './screens/SuccessScreen'
+import { UserNameScreen } from './screens/UserNameScreen'
 import { MicrophoneScreen } from './screens/MicrophoneScreen'
 
 interface OnboardingFlowProps {
@@ -75,6 +76,13 @@ export const OnboardingFlow: FC<OnboardingFlowProps> = ({
       {currentStep === OnboardingStep.SUCCESS && (
         <SuccessScreen
           onBack={() => setCurrentStep(OnboardingStep.CONNECT_GEMINI)}
+          onNext={() => setCurrentStep(OnboardingStep.USER_NAME)}
+        />
+      )}
+
+      {currentStep === OnboardingStep.USER_NAME && (
+        <UserNameScreen
+          onBack={() => setCurrentStep(OnboardingStep.SUCCESS)}
           onNext={() => setCurrentStep(OnboardingStep.MICROPHONE)}
         />
       )}

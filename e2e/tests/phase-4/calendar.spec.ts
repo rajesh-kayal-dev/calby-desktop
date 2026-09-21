@@ -706,6 +706,7 @@ test.describe('Phase 4 - Google Calendar Integration Feature Tests', () => {
 
     // Navigate to Settings
     await calbyPage.locator('button[aria-label="Settings"]').click()
+    await calbyPage.click('[data-testid="settings-nav-connect"]')
 
     // 1. Verify Calendar Settings indicates Read-only status
     const calendarSettings = calbyPage.locator('[data-testid="calendar-settings"]')

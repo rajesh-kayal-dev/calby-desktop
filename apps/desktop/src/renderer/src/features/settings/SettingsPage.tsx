@@ -1,40 +1,160 @@
-﻿import { useState, type FC } from 'react'
+import { useState, type FC, type ReactNode } from 'react'
 import { useSettings } from './hooks/useSettings'
-import { SettingsSection } from './components/SettingsSection'
+import { GeneralSettingsComponent } from './components/GeneralSettings'
+import { PersonalizeSettingsComponent } from './components/PersonalizeSettings'
 import { GeminiSettings } from './components/GeminiSettings'
-import { CalendarSettings } from './components/CalendarSettings'
-import { MemorySettings } from './components/MemorySettings'
-import { MicrophoneSettings } from './components/MicrophoneSettings'
+import { VoiceMicrophoneSettings } from './components/VoiceMicrophoneSettings'
+import { RemindersSettingsComponent } from './components/RemindersSettings'
+import { ConnectSettingsComponent } from './components/ConnectSettings'
 import { PrivacySettings } from './components/PrivacySettings'
 import { AboutSettings } from './components/AboutSettings'
+import { SignOutResetSection } from './components/SignOutResetSection'
 import { ConfirmDangerModal } from './components/ConfirmDangerModal'
 
+type SettingsSectionId = 'general' | 'ai' | 'personalize' | 'voice' | 'reminders' | 'connect' | 'privacy' | 'about'
+
 interface SettingsPageProps {
-  onNavigateHome: () => void
-  onNavigateReminders?: () => void
-  onNavigateCalendar?: () => void
-  onNavigateMemory?: () => void
   onResetSetup?: () => void
+  onNavigateHome?: () => void
+  onNavigateMemory?: () => void
+  onNavigateCalendar?: () => void
+  onNavigateReminders?: () => void
 }
 
-export const SettingsPage: FC<SettingsPageProps> = ({
-  onNavigateHome,
-  onNavigateReminders,
-  onNavigateCalendar,
-  onNavigateMemory,
-  onResetSetup
-}) => {
-  const {
+// ── Stroke icons ───────────────────────────────────────────────────────────
 
+const SlidersIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="4" y1="21" x2="4" y2="14" />
+    <line x1="4" y1="10" x2="4" y2="3" />
+    <line x1="12" y1="21" x2="12" y2="12" />
+    <line x1="12" y1="8" x2="12" y2="3" />
+    <line x1="20" y1="21" x2="20" y2="16" />
+    <line x1="20" y1="12" x2="20" y2="3" />
+    <line x1="1" y1="14" x2="7" y2="14" />
+    <line x1="9" y1="8" x2="15" y2="8" />
+    <line x1="17" y1="16" x2="23" y2="16" />
+  </svg>
+)
+
+const AiIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" />
+    <path d="M19 2L20.25 5.75L24 7L20.25 8.25L19 12L17.75 8.25L14 7L17.75 5.75L19 2Z" />
+  </svg>
+)
+
+const UserIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+    <circle cx="12" cy="7" r="4" />
+  </svg>
+)
+
+const VoiceIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" />
+    <path d="M19 10v2a7 7 0 01-14 0v-2" />
+    <line x1="12" y1="19" x2="12" y2="23" />
+    <line x1="8" y1="23" x2="16" y2="23" />
+  </svg>
+)
+
+const BellIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+    <path d="M13.73 21a2 2 0 01-3.46 0" />
+  </svg>
+)
+
+const ConnectIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
+    <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
+  </svg>
+)
+
+const ShieldIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+  </svg>
+)
+
+const InfoIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" />
+    <line x1="12" y1="16" x2="12" y2="12" />
+    <line x1="12" y1="8" x2="12.01" y2="8" />
+  </svg>
+)
+
+const LogOutIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+    <polyline points="16 17 21 12 16 7" />
+    <line x1="21" y1="12" x2="9" y2="12" />
+  </svg>
+)
+
+// ── Sidebar items ──────────────────────────────────────────────────────────
+
+interface SidebarItem {
+  id: SettingsSectionId
+  label: string
+  icon: () => ReactNode
+  legacyTestId?: string
+}
+
+const SIDEBAR_ITEMS: SidebarItem[] = [
+  { id: 'general', label: 'General', icon: SlidersIcon },
+  { id: 'ai', label: 'AI', icon: AiIcon },
+  { id: 'personalize', label: 'Personalize', icon: UserIcon },
+  { id: 'voice', label: 'Voice & Microphone', icon: VoiceIcon },
+  { id: 'reminders', label: 'Reminders', icon: BellIcon, legacyTestId: 'settings-nav-reminders-button' },
+  { id: 'connect', label: 'Connect', icon: ConnectIcon, legacyTestId: 'settings-nav-calendar-button' },
+  { id: 'privacy', label: 'Privacy', icon: ShieldIcon, legacyTestId: 'settings-nav-memory-button' },
+  { id: 'about', label: 'About', icon: InfoIcon }
+]
+
+// ── Section card wrapper ───────────────────────────────────────────────────
+
+const SectionCard = ({ children }: { children: ReactNode }) => (
+  <div
+    className="rounded-xl overflow-hidden p-6"
+    style={{ backgroundColor: 'var(--ds-surface-card)', border: '1px solid var(--ds-border-subtle)' }}
+  >
+    {children}
+  </div>
+)
+
+export const SettingsPage: FC<SettingsPageProps> = ({
+  onResetSetup,
+  onNavigateHome,
+  onNavigateMemory,
+  onNavigateCalendar,
+  onNavigateReminders
+}) => {
+  const [activeSection, setActiveSection] = useState<SettingsSectionId>('general')
+  const [isClearMemoriesModalOpen, setIsClearMemoriesModalOpen] = useState(false)
+  const [isClearAllDataModalOpen, setIsClearAllDataModalOpen] = useState(false)
+  const [isProcessing, setIsProcessing] = useState(false)
+
+  const {
     authStatus,
     calendarStatus,
     micState,
     memoryCount,
     systemInfo,
+    config,
     isLoading,
     actionError,
     actionSuccess,
     setActionSuccess,
+    updateGeneralSettings,
+    openNotificationSettings,
+    updatePersonalize,
+    updateVoiceSettings,
+    updateReminderSettings,
     connectCalendar,
     disconnectCalendar,
     clearMemories,
@@ -42,10 +162,6 @@ export const SettingsPage: FC<SettingsPageProps> = ({
     openMicSettings,
     refresh
   } = useSettings(onResetSetup)
-
-  const [isClearMemoriesModalOpen, setIsClearMemoriesModalOpen] = useState(false)
-  const [isClearAllDataModalOpen, setIsClearAllDataModalOpen] = useState(false)
-  const [isProcessing, setIsProcessing] = useState(false)
 
   const handleConfirmClearMemories = async (): Promise<void> => {
     try {
@@ -67,168 +183,262 @@ export const SettingsPage: FC<SettingsPageProps> = ({
     }
   }
 
-  return (
-    <div
-      data-testid="settings-page"
-      className="flex-1 flex flex-col h-full overflow-hidden bg-[#070A11] text-slate-100 p-6 space-y-6 select-none"
-    >
-      {/* Top Navigation & Breadcrumb */}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={onNavigateHome}
-          type="button"
-          data-testid="back-to-home-button"
-          className="inline-flex items-center gap-2 text-xs text-slate-400 hover:text-sky-400 transition-colors font-medium cursor-pointer"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-            <path d="M10 19l-7-7m0 0l7-7m-7 7h18" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-          <span>Back to Voice Assistant</span>
-        </button>
+  const sectionMeta: Record<SettingsSectionId, { title: string; subtitle: string }> = {
+    general: { title: 'General', subtitle: 'Simple app-level preferences and notification controls.' },
+    ai: { title: 'AI', subtitle: 'Gemini powers Calby\'s understanding and voice assistant.' },
+    personalize: { title: 'Personalize', subtitle: 'Make Calby feel more like your assistant.' },
+    voice: { title: 'Voice & Microphone', subtitle: 'Choose how Calby sounds and which microphone it listens to.' },
+    reminders: { title: 'Reminders', subtitle: 'Choose how Calby reminds you.' },
+    connect: { title: 'Connect', subtitle: 'Connect your Google Calendar and external integrations.' },
+    privacy: { title: 'Privacy', subtitle: 'Understand what Calby stores and what stays on your device.' },
+    about: { title: 'About', subtitle: 'Your personal desktop voice assistant.' }
+  }
 
-        <div className="flex items-center gap-3">
-          {onNavigateCalendar && (
-            <button
-              onClick={onNavigateCalendar}
-              type="button"
-              data-testid="settings-nav-calendar-button"
-              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-[#38BDF8] transition-colors font-medium cursor-pointer"
-            >
-              <svg className="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span>Calendar</span>
-            </button>
-          )}
-          {onNavigateReminders && (
-            <button
-              onClick={onNavigateReminders}
-              type="button"
-              data-testid="settings-nav-reminders-button"
-              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-[#38BDF8] transition-colors font-medium cursor-pointer"
-            >
-              <svg className="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span>Reminders</span>
-            </button>
-          )}
-          {onNavigateMemory && (
-            <button
-              onClick={onNavigateMemory}
-              type="button"
-              data-testid="settings-nav-memory-button"
-              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-[#38BDF8] transition-colors font-medium cursor-pointer"
-            >
-              <svg className="w-3.5 h-3.5 text-sky-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span>Memory</span>
-            </button>
-          )}
+  const { title, subtitle } = sectionMeta[activeSection]
+
+  const renderActiveSection = () => {
+    if (isLoading) {
+      return (
+        <div className="flex flex-col items-center justify-center py-16 gap-3">
+          <div className="w-5 h-5 border-2 border-[#38BDF8] border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs font-mono" style={{ color: 'var(--ds-text-muted)' }}>Loading settings...</p>
         </div>
-      </div>
+      )
+    }
 
-      {/* Header Row: Title & Subtitle */}
-      <div className="pb-2 border-b border-slate-800/80">
-        <h1 className="text-xl font-bold text-white tracking-tight">Settings & Privacy</h1>
-        <p className="text-xs text-slate-400 mt-0.5">
-          Manage AI credentials, external integrations, hardware permissions, and local data
-        </p>
-      </div>
+    switch (activeSection) {
+      case 'general':
+        return (
+          <SectionCard>
+            <GeneralSettingsComponent
+              generalSettings={config?.general}
+              onUpdate={updateGeneralSettings}
+              onOpenNotificationSettings={openNotificationSettings}
+            />
+          </SectionCard>
+        )
 
-      {/* Notification banner */}
-      {actionError && (
-        <div data-testid="settings-error-alert" className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-xs text-red-400">
-          {actionError}
-        </div>
-      )}
-      {actionSuccess && (
-        <div data-testid="settings-success-alert" className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400">
-          {actionSuccess}
-        </div>
-      )}
+      case 'personalize':
+        return (
+          <SectionCard>
+            <PersonalizeSettingsComponent
+              personalize={config?.personalize}
+              onSave={updatePersonalize}
+            />
+          </SectionCard>
+        )
 
-      {/* Main Settings List */}
-      <div className="flex-1 overflow-y-auto pr-1 pb-6 space-y-4 scrollbar-thin">
-        {isLoading ? (
-          <div className="flex flex-col items-center justify-center p-12 text-center">
-            <div className="w-6 h-6 rounded-full border-2 border-sky-400 border-t-transparent animate-spin mb-3" />
-            <p className="text-xs text-slate-400 font-mono">Loading settings...</p>
-          </div>
-        ) : (
-          <>
-            {/* 1. AI Connection */}
-            <SettingsSection
-              title="AI Connection"
-              description="Gemini Live voice pipeline authorization"
-            >
-              <GeminiSettings
-                authStatus={authStatus}
-                onKeyUpdated={() => {
-                  void refresh()
-                  setActionSuccess('Gemini API key updated successfully.')
-                }}
-              />
-            </SettingsSection>
+      case 'ai':
+        return (
+          <SectionCard>
+            <GeminiSettings
+              authStatus={authStatus}
+              onKeyUpdated={() => {
+                void refresh()
+                setActionSuccess('Gemini API key updated successfully.')
+              }}
+            />
+          </SectionCard>
+        )
 
-            {/* 2. External Connections */}
-            <SettingsSection
-              title="External Connections"
-              description="Third-party service integrations"
-            >
-              <CalendarSettings
-                status={calendarStatus}
-                onConnect={connectCalendar}
-                onDisconnect={disconnectCalendar}
-              />
-            </SettingsSection>
+      case 'voice':
+        return (
+          <SectionCard>
+            <VoiceMicrophoneSettings
+              voiceSettings={config?.voice}
+              micState={micState}
+              onUpdateVoice={updateVoiceSettings}
+              onOpenMicSettings={openMicSettings}
+            />
+          </SectionCard>
+        )
 
-            {/* 3. Personal Memory */}
-            <SettingsSection
-              title="Personal Memory"
-              description="Locally stored facts and voice notes"
-            >
-              <MemorySettings
+      case 'reminders':
+        return (
+          <SectionCard>
+            <RemindersSettingsComponent
+              remindersSettings={config?.reminders}
+              onUpdate={updateReminderSettings}
+            />
+          </SectionCard>
+        )
+
+      case 'connect':
+        return (
+          <SectionCard>
+            <ConnectSettingsComponent
+              status={calendarStatus}
+              onConnect={connectCalendar}
+              onDisconnect={disconnectCalendar}
+            />
+          </SectionCard>
+        )
+
+      case 'privacy':
+        return (
+          <div className="space-y-6">
+            <SectionCard>
+              <PrivacySettings
                 memoryCount={memoryCount}
                 onNavigateMemory={onNavigateMemory}
                 onRequestClearMemories={() => setIsClearMemoriesModalOpen(true)}
-              />
-            </SettingsSection>
-
-            {/* 4. Hardware & Permissions */}
-            <SettingsSection
-              title="Hardware & Permissions"
-              description="Audio input devices for speech recognition"
-            >
-              <MicrophoneSettings
-                state={micState}
-                onOpenSettings={openMicSettings}
-              />
-            </SettingsSection>
-
-            {/* 5. Privacy & Data Controls */}
-            <SettingsSection
-              title="Privacy & Data Transparency"
-              description="Understand how your data is handled on this device"
-            >
-              <PrivacySettings
                 onRequestClearAllData={() => setIsClearAllDataModalOpen(true)}
               />
-            </SettingsSection>
+            </SectionCard>
 
-            {/* 6. About */}
-            <SettingsSection
-              title="About Calby"
-              description="Application and build information"
+            <SignOutResetSection onTriggerReset={() => setIsClearAllDataModalOpen(true)} />
+          </div>
+        )
+
+      case 'about':
+        return (
+          <SectionCard>
+            <AboutSettings systemInfo={systemInfo} />
+          </SectionCard>
+        )
+
+      default:
+        return null
+    }
+  }
+
+  return (
+    <div
+      data-testid="settings-page"
+      className="flex-1 flex overflow-hidden select-none"
+      style={{ backgroundColor: 'var(--ds-canvas-base)', color: 'var(--ds-text-primary)' }}
+    >
+
+      {/* ── Left Sidebar ── */}
+      <aside
+        className="w-60 shrink-0 flex flex-col border-r overflow-y-auto"
+        style={{ backgroundColor: 'var(--ds-canvas-base)', borderRightColor: 'var(--ds-border-subtle)' }}
+      >
+        <div className="px-5 pt-6 pb-4 flex items-center justify-between">
+          <div>
+            <h1 className="text-base font-semibold tracking-tight" style={{ color: 'var(--ds-text-primary)' }}>
+              Settings
+            </h1>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--ds-text-muted)' }}>
+              Preferences
+            </p>
+          </div>
+          {onNavigateHome && (
+            <button
+              type="button"
+              data-testid="back-to-home-button"
+              onClick={onNavigateHome}
+              aria-label="Back to Home"
+              className="p-1.5 rounded-lg text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-white/5 transition-colors cursor-pointer"
             >
-              <AboutSettings systemInfo={systemInfo} />
-            </SettingsSection>
-          </>
-        )}
-      </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <line x1="19" y1="12" x2="5" y2="12" />
+                <polyline points="12 19 5 12 12 5" />
+              </svg>
+            </button>
+          )}
+        </div>
 
-      {/* Confirmation Modals */}
+        <nav className="flex-1 px-3 space-y-1" aria-label="Settings sections">
+          {SIDEBAR_ITEMS.map(({ id, label, icon: Icon, legacyTestId }) => {
+            const isActive = activeSection === id
+
+            return (
+              <button
+                key={id}
+                type="button"
+                data-testid={`settings-nav-${id}`}
+                aria-current={isActive ? 'page' : undefined}
+                onClick={() => {
+                  if (id === 'privacy' && onNavigateMemory) {
+                    setActiveSection('privacy')
+                  } else if (id === 'connect' && onNavigateCalendar && legacyTestId === 'settings-nav-calendar-button') {
+                    setActiveSection('connect')
+                  } else if (id === 'reminders' && onNavigateReminders && legacyTestId === 'settings-nav-reminders-button') {
+                    setActiveSection('reminders')
+                  } else {
+                    setActiveSection(id)
+                  }
+                }}
+                className={[
+                  'w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-left transition-all duration-150 cursor-pointer',
+                  isActive
+                    ? 'bg-[#2563EB] text-white font-medium shadow-sm'
+                    : 'hover:bg-white/5 text-[#94A3B8] hover:text-[#F8FAFC]',
+                ].join(' ')}
+              >
+                <span className={isActive ? 'text-white' : 'text-[#64748B]'}>
+                  <Icon />
+                </span>
+                <span className="text-sm leading-tight truncate">{label}</span>
+              </button>
+            )
+          })}
+        </nav>
+
+        <div className="px-3 pb-4 mt-4">
+          <button
+            type="button"
+            data-testid="sign-out-reset-button"
+            onClick={() => setIsClearAllDataModalOpen(true)}
+            className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg text-left transition-all duration-150 cursor-pointer hover:bg-red-500/10 text-[#94A3B8] hover:text-red-400 group"
+          >
+            <span className="text-[#64748B] group-hover:text-red-400 transition-colors">
+              <LogOutIcon />
+            </span>
+            <span className="text-sm leading-tight truncate">Sign out & reset</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* ── Right Main Content Panel ── */}
+      <main className="flex-1 flex flex-col overflow-hidden">
+        {/* Content header */}
+        <div className="px-8 pt-6 pb-4 shrink-0 border-b border-white/5">
+          <h2
+            className="font-semibold tracking-tight"
+            style={{ fontSize: 'var(--ds-text-headline-lg)', lineHeight: '32px', color: 'var(--ds-text-primary)' }}
+          >
+            {title}
+          </h2>
+          <p className="mt-0.5" style={{ fontSize: 'var(--ds-text-body-md)', color: 'var(--ds-text-secondary)' }}>
+            {subtitle}
+          </p>
+        </div>
+
+        {/* Action feedback banners */}
+        {(actionError || actionSuccess) && (
+          <div className="px-8 pt-4 space-y-2 shrink-0">
+            {actionError && (
+              <div
+                data-testid="settings-error-alert"
+                className="px-4 py-3 rounded-xl text-sm"
+                style={{ backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444' }}
+              >
+                {actionError}
+              </div>
+            )}
+            {actionSuccess && (
+              <div
+                data-testid="settings-success-alert"
+                className="px-4 py-3 rounded-xl text-sm"
+                style={{ backgroundColor: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.2)', color: '#10B981' }}
+              >
+                {actionSuccess}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Active section content */}
+        <div className="flex-1 overflow-y-auto px-8 py-6">
+          <div className="max-w-3xl">
+            {renderActiveSection()}
+          </div>
+        </div>
+      </main>
+
+      {/* Confirmation modals */}
       <ConfirmDangerModal
         isOpen={isClearMemoriesModalOpen}
         title="Clear All Saved Memories?"

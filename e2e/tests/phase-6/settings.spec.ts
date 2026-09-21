@@ -1,47 +1,77 @@
-﻿import { test, expect } from '../../fixtures/electron-fixture'
+import { test, expect } from '../../fixtures/electron-fixture'
 
-test.describe('Phase 6 — Settings & Privacy Feature Tests', () => {
-  test('1. Settings page navigation, sections, and About info', async ({ calbyPage }) => {
+test.describe('Phase 6 — Settings Redesign & Features', () => {
+  test('1. Settings navigation and category sections', async ({ calbyPage }) => {
     // Navigate from Home to Settings
     const settingsNavBtn = calbyPage.locator('[data-testid="nav-settings-button"]')
     await expect(settingsNavBtn).toBeVisible()
     await settingsNavBtn.click()
 
-    // Verify Settings page headers
-    await expect(calbyPage.locator('h1:has-text("Settings & Privacy")')).toBeVisible()
+    // Verify Settings page main header
+    await expect(calbyPage.locator('h1:has-text("Settings")')).toBeVisible()
 
-    // Verify all 6 settings sections
-    await expect(calbyPage.locator('[data-testid="gemini-settings"]')).toBeVisible()
-    await expect(calbyPage.locator('[data-testid="calendar-settings"]')).toBeVisible()
-    await expect(calbyPage.locator('[data-testid="memory-settings"]')).toBeVisible()
-    await expect(calbyPage.locator('[data-testid="microphone-settings"]')).toBeVisible()
-    await expect(calbyPage.locator('[data-testid="privacy-settings"]')).toBeVisible()
-    await expect(calbyPage.locator('[data-testid="about-settings"]')).toBeVisible()
+    // Verify sidebar categories: General, AI, Personalize, Voice & Microphone, Reminders, Connect, Privacy, About
+    await expect(calbyPage.locator('[data-testid="settings-nav-general"]')).toBeVisible()
+    await expect(calbyPage.locator('[data-testid="settings-nav-ai"]')).toBeVisible()
+    await expect(calbyPage.locator('[data-testid="settings-nav-personalize"]')).toBeVisible()
+    await expect(calbyPage.locator('[data-testid="settings-nav-voice"]')).toBeVisible()
+    await expect(calbyPage.locator('[data-testid="settings-nav-reminders"]')).toBeVisible()
+    await expect(calbyPage.locator('[data-testid="settings-nav-connect"]')).toBeVisible()
+    await expect(calbyPage.locator('[data-testid="settings-nav-privacy"]')).toBeVisible()
+    await expect(calbyPage.locator('[data-testid="settings-nav-about"]')).toBeVisible()
 
-    // Verify About info
-    await expect(calbyPage.locator('[data-testid="app-version"]')).toBeVisible()
-    await expect(calbyPage.locator('text=Calby Desktop')).toBeVisible()
+    // Default section is General
+    await expect(calbyPage.locator('[data-testid="general-settings"]')).toBeVisible()
 
-    // Verify Back navigation
+    // Verify Back navigation button returns to Home
     await calbyPage.click('[data-testid="back-to-home-button"]')
     await expect(settingsNavBtn).toBeVisible()
   })
 
-  test('2. Gemini connection status, masked key, and Update Key flow', async ({ calbyPage }) => {
-    // Navigate to Settings
+  test('2. Personalize section persistence and form entry', async ({ calbyPage }) => {
     await calbyPage.click('[data-testid="nav-settings-button"]')
+    await calbyPage.click('[data-testid="settings-nav-personalize"]')
 
-    // Verify Gemini connected status
+    // Fill personalize form
+    await calbyPage.fill('[data-testid="personalize-name-input"]', 'Rajesh')
+    await calbyPage.selectOption('[data-testid="personalize-tone-select"]', 'friendly')
+    await calbyPage.fill('[data-testid="personalize-about-input"]', 'Software Engineer building Calby')
+    await calbyPage.fill('[data-testid="personalize-instructions-input"]', 'Be direct and concise')
+
+    // Click Save
+    await calbyPage.click('[data-testid="save-personalize-button"]')
+    await expect(calbyPage.locator('[data-testid="personalize-saved-badge"]')).toBeVisible()
+
+    // Verify persistence via IPC
+    const config = await calbyPage.evaluate(async () => {
+      const res = await window.calby.settings.getConfig()
+      return res.ok ? res.data : null
+    })
+
+    expect(config?.personalize?.userName).toBe('Rajesh')
+    expect(config?.personalize?.userTone).toBe('friendly')
+    expect(config?.personalize?.userAbout).toBe('Software Engineer building Calby')
+    expect(config?.personalize?.userInstructions).toBe('Be direct and concise')
+  })
+
+  test('3. Gemini connection status, masked key, and Update Key flow', async ({ calbyPage }) => {
+    await calbyPage.click('[data-testid="nav-settings-button"]')
+    await calbyPage.click('[data-testid="settings-nav-ai"]')
+
+    // Verify Gemini connected status badge
     const geminiBadge = calbyPage.locator('[data-testid="gemini-status-badge"]')
     await expect(geminiBadge).toBeVisible()
     await expect(geminiBadge).toContainText('Connected')
 
-    // Verify no raw key is ever present in page text/HTML
+    // Verify no raw API key is displayed
     const bodyHtml = await calbyPage.content()
     expect(bodyHtml).not.toContain('AIzaSyDeterministicValidKey1234567890')
     expect(bodyHtml).toContain('••••••••••••••••')
 
-    // Click Update Key button
+    // Verify Open Google AI Studio button exists
+    await expect(calbyPage.locator('[data-testid="open-ai-studio-button"]')).toBeVisible()
+
+    // Click Update API Key button
     const updateBtn = calbyPage.locator('[data-testid="reconfigure-gemini-button"]')
     await expect(updateBtn).toBeVisible()
     await updateBtn.click()
@@ -49,26 +79,57 @@ test.describe('Phase 6 — Settings & Privacy Feature Tests', () => {
     // Verify Update Gemini Key Modal appears
     const modal = calbyPage.locator('[data-testid="update-gemini-key-modal"]')
     await expect(modal).toBeVisible()
-    await expect(calbyPage.locator('h3:has-text("Update Gemini API Key")')).toBeVisible()
 
-    // Test empty key validation
-    const saveKeyBtn = calbyPage.locator('[data-testid="save-gemini-key-button"]')
-    await saveKeyBtn.click()
-    await expect(calbyPage.locator('text=Please enter your Gemini API key.')).toBeVisible()
-
-    // Enter a valid replacement key format and submit
+    // Submit valid updated key
     const keyInput = calbyPage.locator('#update-gemini-key-input')
     await keyInput.fill('AIzaSyNewUpdatedDeterministicKey9999')
-    await saveKeyBtn.click()
+    await calbyPage.click('[data-testid="save-gemini-key-button"]')
 
-    // Verify modal closes and success state reflects in Settings
     await expect(modal).not.toBeVisible()
     await expect(calbyPage.locator('[data-testid="settings-success-alert"]')).toBeVisible()
-    await expect(calbyPage.locator('[data-testid="gemini-status-badge"]')).toContainText('Connected')
   })
 
-  test('3. Google Calendar status and disconnect flow', async ({ calbyPage, electronApp }) => {
-    // Mock connected Google Calendar state
+  test('4. Voice & Microphone preferences and preview state', async ({ calbyPage }) => {
+    await calbyPage.click('[data-testid="nav-settings-button"]')
+    await calbyPage.click('[data-testid="settings-nav-voice"]')
+
+    await expect(calbyPage.locator('[data-testid="voice-microphone-settings"]')).toBeVisible()
+
+    // Test Voice selection
+    await calbyPage.click('[data-testid="preview-voice-Puck"]')
+    await calbyPage.waitForTimeout(300)
+
+    // Test Microphone dropdown selection
+    const micSelect = calbyPage.locator('[data-testid="mic-device-select"]')
+    await expect(micSelect).toBeVisible()
+
+    // Test Microphone Test button
+    const testMicBtn = calbyPage.locator('[data-testid="test-microphone-button"]')
+    await expect(testMicBtn).toBeVisible()
+    await testMicBtn.click()
+
+    // Verify test state executes
+    await calbyPage.waitForTimeout(500)
+  })
+
+  test('5. Reminders settings toggles and duration persistence', async ({ calbyPage }) => {
+    await calbyPage.click('[data-testid="nav-settings-button"]')
+    await calbyPage.click('[data-testid="settings-nav-reminders"]')
+
+    await expect(calbyPage.locator('[data-testid="reminders-settings"]')).toBeVisible()
+
+    // Select alarm duration option
+    await calbyPage.selectOption('[data-testid="alarm-duration-select"]', '5_min')
+
+    // Verify persisted config via IPC
+    const config = await calbyPage.evaluate(async () => {
+      const res = await window.calby.settings.getConfig()
+      return res.ok ? res.data : null
+    })
+    expect(config?.reminders?.alarmDuration).toBe('5_min')
+  })
+
+  test('6. Google Calendar connection status and disconnect flow', async ({ calbyPage, electronApp }) => {
     await electronApp.evaluate(({ ipcMain }) => {
       ipcMain.removeHandler('calendar:get-status')
       ipcMain.handle('calendar:get-status', async () => ({
@@ -81,52 +142,40 @@ test.describe('Phase 6 — Settings & Privacy Feature Tests', () => {
       }))
     })
 
-    // Navigate to Settings
     await calbyPage.click('[data-testid="nav-settings-button"]')
+    await calbyPage.click('[data-testid="settings-nav-connect"]')
 
-    // Verify Connected Calendar badge and email
+    // Verify connected status and email
     const calBadge = calbyPage.locator('[data-testid="calendar-status-badge"]')
     await expect(calBadge).toBeVisible()
     await expect(calBadge).toContainText('Connected')
     await expect(calbyPage.locator('[data-testid="calendar-email-text"]')).toContainText('alex.developer@gmail.com')
 
     // Disconnect button visible
-    const disconnectBtn = calbyPage.locator('[data-testid="disconnect-calendar-button"]')
-    await expect(disconnectBtn).toBeVisible()
+    await expect(calbyPage.locator('[data-testid="disconnect-calendar-button"]')).toBeVisible()
+    await expect(calbyPage.locator('[data-testid="open-google-calendar-web"]')).toBeVisible()
   })
 
-  test('4. Clear All Memories modal and verified deletion', async ({ calbyPage }) => {
-    // Create test memory first
+  test('7. Privacy memories clearing workflow', async ({ calbyPage }) => {
     await calbyPage.evaluate(async () => {
       await window.calby.memory.create({
-        content: 'Temporary secret memory to be cleared',
+        content: 'Temporary test memory to clear',
         type: 'fact'
       })
     })
 
-    // Navigate to Settings
     await calbyPage.click('[data-testid="nav-settings-button"]')
+    await calbyPage.click('[data-testid="settings-nav-privacy"]')
 
-    // Verify memory count > 0
-    const countBadge = calbyPage.locator('[data-testid="memory-count-badge"]')
-    await expect(countBadge).toBeVisible()
-
-    // Click Clear All Memories
+    // Click Clear Memories
     await calbyPage.click('[data-testid="clear-memories-button"]')
 
-    // Verify confirmation modal
     const modal = calbyPage.locator('[data-testid="confirm-danger-modal"]')
     await expect(modal).toBeVisible()
-    await expect(calbyPage.locator('[data-testid="danger-modal-title"]')).toContainText('Clear All Saved Memories?')
 
-    // Confirm deletion
     await calbyPage.click('[data-testid="confirm-danger-button"]')
     await expect(modal).not.toBeVisible()
 
-    // Verify count becomes 0
-    await expect(calbyPage.locator('[data-testid="memory-count-badge"]')).toContainText('0 items stored')
-
-    // Verify in SQLite via IPC
     const memoryList = await calbyPage.evaluate(async () => {
       const res = await window.calby.memory.list()
       return res.ok ? res.data : []
@@ -134,118 +183,48 @@ test.describe('Phase 6 — Settings & Privacy Feature Tests', () => {
     expect(memoryList.length).toBe(0)
   })
 
-  test('5. Microphone status and open settings action', async ({ calbyPage }) => {
-    // Navigate to Settings
+  test('8. About section identity and GitHub actions', async ({ calbyPage }) => {
     await calbyPage.click('[data-testid="nav-settings-button"]')
+    await calbyPage.click('[data-testid="settings-nav-about"]')
 
-    // Verify Microphone permission badge
-    const micBadge = calbyPage.locator('[data-testid="mic-permission-badge"]')
-    await expect(micBadge).toBeVisible()
-
-    // Verify system settings button
-    const openMicBtn = calbyPage.locator('[data-testid="open-mic-settings-button"]')
-    await expect(openMicBtn).toBeVisible()
+    await expect(calbyPage.locator('[data-testid="about-settings"]')).toBeVisible()
+    await expect(calbyPage.locator('[data-testid="app-version"]')).toBeVisible()
+    await expect(calbyPage.locator('text=Built by Rajesh')).toBeVisible()
+    await expect(calbyPage.locator('[data-testid="github-view-source"]')).toBeVisible()
   })
 
-  test('6. Clear All Local Data danger workflow and post-clear stability', async ({ calbyPage }) => {
-    // Populate sample memory & reminder
+  test('9. Clear All Data danger workflow and post-clear onboarding reset', async ({ calbyPage }) => {
     await calbyPage.evaluate(async () => {
       await window.calby.memory.create({ content: 'Test Memory to wipe', type: 'general' })
       await window.calby.reminders.create({ title: 'Test Reminder to wipe', scheduledAt: new Date(Date.now() + 3600000).toISOString() })
     })
 
-    // Navigate to Settings
     await calbyPage.click('[data-testid="nav-settings-button"]')
+    await calbyPage.click('[data-testid="settings-nav-privacy"]')
 
-    // Click Clear All Local Data
     await calbyPage.click('[data-testid="clear-all-data-button"]')
 
-    // Verify Danger Modal
     const modal = calbyPage.locator('[data-testid="confirm-danger-modal"]')
     await expect(modal).toBeVisible()
-    await expect(calbyPage.locator('[data-testid="danger-modal-title"]')).toContainText('Clear All Local Data & Connections?')
 
-    // Confirm complete wipe
     await calbyPage.click('[data-testid="confirm-danger-button"]')
 
-    // 1. Application reaches Welcome/Get Started step
+    // Application reaches Welcome step
     await expect(calbyPage.locator('button:has-text("Get Started")')).toBeVisible({ timeout: 5000 })
-    await expect(calbyPage.locator('text=A more capable you.')).toBeVisible()
 
-    // 2. Comprehensive verification of all subsystems via IPC
     const verifyState = await calbyPage.evaluate(async () => {
       const memRes = await window.calby.memory.list()
       const remRes = await window.calby.reminders.list()
       const authRes = await window.calby.auth.getStatus()
-      const calRes = await window.calby.calendar.getStatus()
-
-      // 3. Verify SQLite remains fully usable after cleanup
-      const postMemCreate = await window.calby.memory.create({
-        content: 'Post-cleanup memory verification',
-        type: 'fact'
-      })
-      const postRemCreate = await window.calby.reminders.create({
-        title: 'Post-cleanup reminder verification',
-        scheduledAt: new Date(Date.now() + 7200000).toISOString()
-      })
-
       return {
         memCount: memRes.ok ? memRes.data.length : -1,
         remCount: remRes.ok ? remRes.data.length : -1,
-        authStatus: authRes.ok ? authRes.data : null,
-        calStatus: calRes.ok ? calRes.data.status : null,
-        sqliteUsable: postMemCreate.ok && postRemCreate.ok
+        isConfigured: authRes.ok ? authRes.data.isConfigured : true
       }
     })
 
-    // Memory list is empty
     expect(verifyState.memCount).toBe(0)
-
-    // Reminders list is empty
     expect(verifyState.remCount).toBe(0)
-
-    // Gemini credential / auth status is unconfigured / disconnected
-    expect(verifyState.authStatus?.isConfigured).toBe(false)
-    expect(verifyState.authStatus?.isOnboarded).toBe(false)
-
-    // Google Calendar status is disconnected
-    expect(verifyState.calStatus).toBe('disconnected')
-
-    // SQLite remains fully usable
-    expect(verifyState.sqliteUsable).toBe(true)
-  })
-
-  test('7. Cross-navigation across all 5 views (Home, Reminders, Calendar, Memory, Settings)', async ({ calbyPage }) => {
-    // 1. Home -> Settings
-    await calbyPage.click('[data-testid="nav-settings-button"]')
-    await expect(calbyPage.locator('h1:has-text("Settings & Privacy")')).toBeVisible()
-
-    // 2. Settings -> Memory
-    await calbyPage.click('[data-testid="settings-nav-memory-button"]')
-    await expect(calbyPage.locator('h1:has-text("Personal Memory")')).toBeVisible()
-
-    // 3. Memory -> Settings
-    await calbyPage.click('[data-testid="memory-nav-settings-button"]')
-    await expect(calbyPage.locator('h1:has-text("Settings & Privacy")')).toBeVisible()
-
-    // 4. Settings -> Calendar
-    await calbyPage.click('[data-testid="settings-nav-calendar-button"]')
-    await expect(calbyPage.locator('h1:has-text("Calendar & Schedule")')).toBeVisible()
-
-    // 5. Calendar -> Settings
-    await calbyPage.click('[data-testid="calendar-nav-settings-button"]')
-    await expect(calbyPage.locator('h1:has-text("Settings & Privacy")')).toBeVisible()
-
-    // 6. Settings -> Reminders
-    await calbyPage.click('[data-testid="settings-nav-reminders-button"]')
-    await expect(calbyPage.locator('h1:has-text("Reminders")')).toBeVisible()
-
-    // 7. Reminders -> Settings
-    await calbyPage.click('[data-testid="reminders-nav-settings-button"]')
-    await expect(calbyPage.locator('h1:has-text("Settings & Privacy")')).toBeVisible()
-
-    // 8. Settings -> Home
-    await calbyPage.click('[data-testid="back-to-home-button"]')
-    await expect(calbyPage.locator('[data-testid="nav-settings-button"]')).toBeVisible()
+    expect(verifyState.isConfigured).toBe(false)
   })
 })

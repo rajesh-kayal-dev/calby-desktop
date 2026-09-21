@@ -154,6 +154,26 @@ test.describe('Phase 5 ? Personal Memory Feature Tests', () => {
     let appCtx = await launchCalbyApp()
     let page = appCtx.page
 
+    // Helper to bypass onboarding on fresh app launch
+    const ensureOnboarded = async (p: any) => {
+      await p.waitForLoadState('domcontentloaded')
+      const welcomeBtn = p.locator('button:has-text("Get Started")')
+      if (await welcomeBtn.isVisible()) {
+        await p.evaluate(async () => {
+          if (window.calby?.auth?.validateAndSaveKey) {
+            await window.calby.auth.validateAndSaveKey('AIzaSyDeterministicValidKey1234567890')
+          }
+          if (window.calby?.onboarding?.complete) {
+            await window.calby.onboarding.complete()
+          }
+        })
+        await p.reload()
+        await p.waitForLoadState('domcontentloaded')
+      }
+    }
+
+    await ensureOnboarded(page)
+
     // Clean existing
     await page.evaluate(async () => {
       if (window.calby?.memory) {
@@ -174,12 +194,14 @@ test.describe('Phase 5 ? Personal Memory Feature Tests', () => {
     await page.click('[data-testid="save-memory-button"]')
     await page.waitForTimeout(400)
 
-    // Close application
+    // Close application and preserve userDataDir
+    const userDataDir = await appCtx.app.evaluate(({ app }) => app.getPath('userData'))
     await appCtx.app.close()
 
-    // Relaunch application
-    appCtx = await launchCalbyApp()
+    // Relaunch application with same userDataDir
+    appCtx = await launchCalbyApp({ userDataDir })
     page = appCtx.page
+    await ensureOnboarded(page)
 
     try {
       // Navigate to Memory

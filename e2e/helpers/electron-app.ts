@@ -1,6 +1,10 @@
 import { _electron as electron, type ElectronApplication, type Page } from '@playwright/test'
 import { fileURLToPath } from 'node:url'
 
+import os from 'node:os'
+import fs from 'node:fs'
+import path from 'node:path'
+
 export interface LaunchCalbyOptions {
   fakeAudioFile?: string
   userDataDir?: string
@@ -23,9 +27,8 @@ export async function launchCalbyApp(options?: LaunchCalbyOptions): Promise<Calb
   const unhandledErrors: Error[] = []
 
   const args = ['.']
-  if (options?.userDataDir) {
-    args.push(`--user-data-dir=${options.userDataDir}`)
-  }
+  const userDataDir = options?.userDataDir || fs.mkdtempSync(path.join(os.tmpdir(), 'calby-test-'))
+  args.push(`--user-data-dir=${userDataDir}`)
   if (options?.fakeAudioFile) {
     args.push('--use-fake-device-for-media-stream')
     args.push(`--use-file-for-fake-audio-capture=${options.fakeAudioFile}%noloop`)

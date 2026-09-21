@@ -1,9 +1,10 @@
-﻿import { ipcRenderer } from 'electron'
+import { ipcRenderer } from 'electron'
 import type { SystemInfo, IpcResult, NavigationPayload } from '../index.d'
 
 export const SYSTEM_CHANNELS = {
   GET_INFO: 'system:get-info',
-  NAVIGATE: 'system:navigate'
+  NAVIGATE: 'system:navigate',
+  OPEN_EXTERNAL: 'system:open-external'
 } as const
 
 export const systemApi = {
@@ -17,6 +18,19 @@ export const systemApi = {
         error: {
           code: 'IPC_ERROR',
           message: error instanceof Error ? error.message : 'Unknown IPC error'
+        }
+      }
+    }
+  },
+  openExternal: async (url: string): Promise<IpcResult<void>> => {
+    try {
+      return await ipcRenderer.invoke(SYSTEM_CHANNELS.OPEN_EXTERNAL, url)
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: 'OPEN_EXTERNAL_ERROR',
+          message: error instanceof Error ? error.message : 'Failed to open external link'
         }
       }
     }
