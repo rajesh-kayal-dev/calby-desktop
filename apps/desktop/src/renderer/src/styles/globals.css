@@ -101,7 +101,36 @@
     width: 0 !important;
     height: 0 !important;
   }
+
+  /* ── Design System Tokens (--ds-*) ──────────────────────────────────────── */
+  :root {
+    /* Surfaces */
+    --ds-canvas-base: #0A0D14;
+    --ds-canvas-subtle: #0F1420;
+    --ds-surface-card: #151C2C;
+    --ds-surface-overlay: #1E273D;
+
+    /* Borders */
+    --ds-border-subtle: #1E293B;
+    --ds-border-default: #334155;
+
+    /* Text */
+    --ds-text-primary: #F8FAFC;
+    --ds-text-secondary: #94A3B8;
+    --ds-text-muted: #64748B;
+
+    /* Typography scale */
+    --ds-text-headline-lg: 20px;
+    --ds-text-body-md: 14px;
+    --ds-text-body-sm: 12px;
+
+    /* Status */
+    --ds-status-success: #10B981;
+    --ds-status-warning: #F59E0B;
+    --ds-status-error: #EF4444;
+  }
 }
+
 
 /* Scrollbar utility classes */
 .no-scrollbar,

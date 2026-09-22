@@ -19,18 +19,27 @@ export const MemoryPage: FC = () => {
     setSearchQuery,
     create,
     update,
-    remove
+    remove,
+    refresh
   } = useMemory()
 
   const [isCreateOpen, setIsCreateOpen] = useState<boolean>(false)
   const [editingMemory, setEditingMemory] = useState<Memory | null>(null)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg)
+    setTimeout(() => {
+      setToastMessage((curr) => (curr === msg ? null : curr))
+    }, 3000)
+  }
 
   const hasFilterOrSearch = Boolean(searchQuery.trim() || filterType !== 'all')
 
   return (
     <div
       data-testid="memory-page"
-      className="flex-1 flex flex-col overflow-hidden select-none"
+      className="flex-1 flex flex-col overflow-hidden select-none relative"
       style={{ backgroundColor: 'var(--ds-canvas-base)', color: 'var(--ds-text-primary)' }}
     >
       {/* Page content — Phase 5 layout preserved */}
@@ -43,10 +52,10 @@ export const MemoryPage: FC = () => {
               className="font-semibold tracking-tight"
               style={{ fontSize: 'var(--ds-text-headline-lg)', lineHeight: '32px', letterSpacing: '-0.015em', color: 'var(--ds-text-primary)' }}
             >
-              Personal Memory
+              Memory
             </h1>
             <p className="mt-0.5" style={{ fontSize: 'var(--ds-text-body-md)', color: 'var(--ds-text-secondary)' }}>
-              What Calby remembers about you.
+              Things Calby remembers because you asked it to.
             </p>
           </div>
 
@@ -71,13 +80,20 @@ export const MemoryPage: FC = () => {
           onFilterChange={setFilterType}
         />
 
-        {/* Error alert */}
+        {/* Error alert with retry */}
         {error && (
           <div
-            className="px-4 py-3 rounded-xl text-sm"
+            className="px-4 py-3 rounded-xl text-sm flex items-center justify-between"
             style={{ backgroundColor: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', color: '#EF4444' }}
           >
-            {error}
+            <span>{error}</span>
+            <button
+              onClick={() => void refresh()}
+              type="button"
+              className="px-2.5 py-1 text-xs font-semibold rounded bg-red-500/20 hover:bg-red-500/30 text-red-300 transition-colors cursor-pointer"
+            >
+              Retry
+            </button>
           </div>
         )}
 
@@ -100,7 +116,10 @@ export const MemoryPage: FC = () => {
                   key={mem.id}
                   memory={mem}
                   onEdit={(m) => setEditingMemory(m)}
-                  onDelete={(id) => void remove(id)}
+                  onDelete={async (id) => {
+                    await remove(id)
+                    showToast('Memory deleted')
+                  }}
                 />
               ))}
             </div>
@@ -114,6 +133,7 @@ export const MemoryPage: FC = () => {
         onClose={() => setIsCreateOpen(false)}
         onSubmit={async (input) => {
           await create(input)
+          showToast('Memory saved')
         }}
       />
 
@@ -123,8 +143,22 @@ export const MemoryPage: FC = () => {
         onClose={() => setEditingMemory(null)}
         onSubmit={async (input) => {
           await update(input)
+          showToast('Memory updated')
         }}
       />
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div
+          data-testid="memory-toast"
+          className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-4 py-3 bg-[#121826] border border-sky-500/30 rounded-xl shadow-xl text-xs font-medium text-sky-300 animate-in fade-in slide-in-from-bottom-2"
+        >
+          <svg className="w-4 h-4 text-sky-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          <span>{toastMessage}</span>
+        </div>
+      )}
     </div>
   )
 }

@@ -70,7 +70,7 @@ export const CreateMemoryModal: FC<CreateMemoryModalProps> = ({
               </svg>
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-white">Remember Something</h3>
+              <h3 className="text-sm font-semibold text-white">Add memory</h3>
               <p className="text-[11px] text-slate-400">Save personal facts, notes, or preferences</p>
             </div>
           </div>

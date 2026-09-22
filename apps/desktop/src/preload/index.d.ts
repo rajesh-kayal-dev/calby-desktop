@@ -128,12 +128,13 @@ export interface CalendarEvent {
 export interface CreateCalendarEventInput {
   title: string
   startDateTime: string
-  endDateTime: string
+  endDateTime?: string
   timeZone?: string
   attendeeEmails?: string[]
   location?: string
   description?: string
   createMeet?: boolean
+  meetUrl?: string
 }
 
 export type MemoryType = 'fact' | 'preference' | 'person' | 'work' | 'general'

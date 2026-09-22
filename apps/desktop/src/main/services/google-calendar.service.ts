@@ -46,12 +46,13 @@ export interface CalendarEvent {
 export interface CreateCalendarEventInput {
   title: string
   startDateTime: string
-  endDateTime: string
+  endDateTime?: string
   timeZone?: string
   attendeeEmails?: string[]
   location?: string
   description?: string
   createMeet?: boolean
+  meetUrl?: string
 }
 
 // Calby uses unified calendar.events scope from initial connection for read & create access
@@ -243,13 +244,41 @@ export class GoogleCalendarService {
     if (!input || !input.title || !input.title.trim()) {
       throw new Error('INVALID_INPUT: Title is required.')
     }
-    if (!input.startDateTime || !input.endDateTime) {
-      throw new Error('INVALID_INPUT: Start time and end time are required.')
+    if (!input.startDateTime) {
+      throw new Error('INVALID_INPUT: Start time is required.')
     }
     const startMs = new Date(input.startDateTime).getTime()
-    const endMs = new Date(input.endDateTime).getTime()
-    if (isNaN(startMs) || isNaN(endMs) || endMs <= startMs) {
-      throw new Error('INVALID_INPUT: End time must be after start time.')
+    if (isNaN(startMs)) {
+      throw new Error('INVALID_INPUT: Invalid start time.')
+    }
+
+    // Automatically determine endDateTime (default 30 min duration)
+    let endDateTime = input.endDateTime
+    if (!endDateTime) {
+      const startObj = new Date(startMs)
+      const endObj = new Date(startObj.getTime() + 30 * 60 * 1000)
+      if (input.startDateTime.includes('T')) {
+        const y = endObj.getFullYear()
+        const m = String(endObj.getMonth() + 1).padStart(2, '0')
+        const d = String(endObj.getDate()).padStart(2, '0')
+        const h = String(endObj.getHours()).padStart(2, '0')
+        const min = String(endObj.getMinutes()).padStart(2, '0')
+        endDateTime = `${y}-${m}-${d}T${h}:${min}:00`
+      } else {
+        endDateTime = endObj.toISOString()
+      }
+    } else {
+      const endMs = new Date(endDateTime).getTime()
+      if (isNaN(endMs) || endMs <= startMs) {
+        const startObj = new Date(startMs)
+        const endObj = new Date(startObj.getTime() + 30 * 60 * 1000)
+        const y = endObj.getFullYear()
+        const m = String(endObj.getMonth() + 1).padStart(2, '0')
+        const d = String(endObj.getDate()).padStart(2, '0')
+        const h = String(endObj.getHours()).padStart(2, '0')
+        const min = String(endObj.getMinutes()).padStart(2, '0')
+        endDateTime = `${y}-${m}-${d}T${h}:${min}:00`
+      }
     }
 
     if (input.attendeeEmails && input.attendeeEmails.length > 0) {
@@ -281,7 +310,7 @@ export class GoogleCalendarService {
         timeZone: input.timeZone || undefined
       },
       end: {
-        dateTime: input.endDateTime,
+        dateTime: endDateTime,
         timeZone: input.timeZone || undefined
       }
     }
@@ -291,6 +320,8 @@ export class GoogleCalendarService {
     }
     if (input.location && input.location.trim()) {
       eventPayload.location = input.location.trim()
+    } else if (input.meetUrl && input.meetUrl.trim()) {
+      eventPayload.location = input.meetUrl.trim()
     }
     if (input.attendeeEmails && input.attendeeEmails.length > 0) {
       eventPayload.attendees = input.attendeeEmails.map((email) => ({ email: email.trim() }))
@@ -334,7 +365,11 @@ export class GoogleCalendarService {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const createdData: any = await response.json()
-    return this.mapGoogleEvent(createdData, null, input.timeZone || null)
+    const mapped = this.mapGoogleEvent(createdData, null, input.timeZone || null)
+    if (!mapped.meetingUrl && input.meetUrl) {
+      mapped.meetingUrl = input.meetUrl.trim()
+    }
+    return mapped
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -349,6 +384,9 @@ export class GoogleCalendarService {
     }
     if (!meetingUrl && item.hangoutLink) {
       meetingUrl = item.hangoutLink
+    }
+    if (!meetingUrl && item.location && (item.location.startsWith('https://') || item.location.startsWith('http://'))) {
+      meetingUrl = item.location
     }
 
     const isAllDay = Boolean(item.start?.date && !item.start?.dateTime)

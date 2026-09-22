@@ -25,7 +25,7 @@ export const MemoryEmptyState: FC<MemoryEmptyStateProps> = ({
       <p className="text-xs text-slate-400 max-w-sm mb-5 leading-relaxed">
         {hasFilterOrSearch
           ? 'Try adjusting your search query or category filter.'
-          : 'Ask Calby by voice ("Remember that...") or click the button below to add personal notes and preferences.'}
+          : 'Calby remembers things when you tell it to. Ask Calby by voice or click the button below to add personal notes and preferences.'}
       </p>
       {!hasFilterOrSearch && (
         <button
