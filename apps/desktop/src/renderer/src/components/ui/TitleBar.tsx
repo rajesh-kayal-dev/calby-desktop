@@ -14,15 +14,8 @@ interface TitleBarProps {
   }
 }
 
-// Sound-wave waveform icon matching Calby brand identity
 const CalbyWordmarkIcon = () => (
-  <svg width="18" height="14" viewBox="0 0 24 20" fill="currentColor" aria-hidden="true">
-    <rect x="0" y="6" width="3" height="8" rx="1.5" />
-    <rect x="5" y="2" width="3" height="16" rx="1.5" />
-    <rect x="10" y="0" width="3" height="20" rx="1.5" />
-    <rect x="15" y="4" width="3" height="12" rx="1.5" />
-    <rect x="20" y="7" width="3" height="6" rx="1.5" />
-  </svg>
+  <img src="/logo.png" alt="Calby Logo" className="h-[22px] object-contain" />
 )
 
 // Subtle stroke icons for navigation tabs
@@ -146,14 +139,8 @@ export const TitleBar: FC<TitleBarProps> = ({
       <div className="flex items-center gap-7 no-drag">
         {/* Brand */}
         <div className="flex items-center gap-2">
-          <span className="text-[#38BDF8]" aria-hidden="true">
+          <span className="flex items-center" aria-hidden="true">
             <CalbyWordmarkIcon />
-          </span>
-          <span
-            className="font-semibold text-[14px] tracking-wide"
-            style={{ color: 'var(--ds-text-primary)' }}
-          >
-            Calby
           </span>
         </div>
 

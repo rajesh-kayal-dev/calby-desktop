@@ -30,19 +30,13 @@ export const WelcomeScreen: FC<WelcomeScreenProps> = ({ onNext }) => {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12 items-center my-auto">
         {/* Left Hero Column: Brand, Soundwave & Main Headings */}
         <div className="md:col-span-6 flex flex-col items-center md:items-start text-center md:text-left">
-          {/* Calby Soundwave Brand Icon */}
-          <div className="mb-5 text-[#38BDF8] soundwave-glow">
-            <svg className="w-16 h-16" fill="none" stroke="currentColor" strokeLinecap="round" viewBox="0 0 48 48">
-              <circle cx="8" cy="24" fill="currentColor" r="1.5" stroke="none" />
-              <line strokeWidth="3.2" x1="16" x2="16" y1="17" y2="31" />
-              <line strokeWidth="3.6" x1="24" x2="24" y1="9" y2="39" />
-              <line strokeWidth="3.2" x1="32" x2="32" y1="17" y2="31" />
-              <circle cx="40" cy="24" fill="currentColor" r="1.5" stroke="none" />
-            </svg>
+          {/* Calby Brand Logo */}
+          <div className="mb-6">
+            <img src="/logo.png" alt="Calby" className="h-16 object-contain" />
           </div>
 
           {/* Typography Heading */}
-          <h1 className="text-4xl lg:text-5xl font-semibold text-white tracking-tight mb-2">Calby</h1>
+          <h1 className="sr-only">Calby</h1>
           <p className="text-lg text-slate-400 font-normal max-w-sm">A more capable you.</p>
 
           <div className="mt-8 hidden md:flex items-center gap-2 text-xs text-slate-500 font-medium">

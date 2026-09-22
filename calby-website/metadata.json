@@ -1,0 +1,6 @@
+{
+  "name": "Calby — Your Personal Desktop Assistant",
+  "description": "Talk to Calby. Remember what matters, stay on schedule, and get things done.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

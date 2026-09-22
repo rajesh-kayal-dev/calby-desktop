@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { is } from '@electron-toolkit/utils'
 import { setupSecurityHandlers } from '../security'
+import { resolveAssetPath } from '../services/sound-resolver'
 
 const WINDOW_CONFIG = {
   WIDTH: 1024,
@@ -42,6 +43,7 @@ export const createMainWindow = (): BrowserWindow => {
     autoHideMenuBar: true,
     backgroundColor: WINDOW_CONFIG.BG_COLOR,
     title: app.getName() || 'Calby',
+    icon: resolveAssetPath('icon.png') || undefined,
     webPreferences: {
       preload: getPreloadPath(),
       contextIsolation: true,
