@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs'
 import { is } from '@electron-toolkit/utils'
 import type { Reminder } from '../storage/reminder.repository'
 import { setupSecurityHandlers } from '../security'
+import { resolveAssetPath } from '../services/sound-resolver'
 
 const getPreloadPath = (): string => {
   const cjsPath = join(__dirname, '../preload/index.cjs')
@@ -66,6 +67,7 @@ export class ReminderAlarmWindowManager {
       skipTaskbar: false,
       backgroundColor: '#101725',
       title: `${isMissed ? 'Missed Reminder' : 'Reminder'} - ${reminder.title}`,
+      icon: resolveAssetPath('icon.png') || undefined,
       webPreferences: {
         preload: getPreloadPath(),
         contextIsolation: true,

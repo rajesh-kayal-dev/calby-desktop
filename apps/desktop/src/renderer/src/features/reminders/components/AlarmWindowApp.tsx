@@ -3,15 +3,8 @@ import type { Reminder } from '../types'
 import { CalbySoundPlayer } from '../../../services/sound-player.service'
 import { findAlarmSound } from '../../settings/sound-catalog'
 
-// Sound-wave waveform icon matching Calby brand identity
 const CalbyWordmarkIcon = () => (
-  <svg width="22" height="18" viewBox="0 0 24 20" fill="currentColor" aria-hidden="true">
-    <rect x="0" y="6" width="3" height="8" rx="1.5" />
-    <rect x="5" y="2" width="3" height="16" rx="1.5" />
-    <rect x="10" y="0" width="3" height="20" rx="1.5" />
-    <rect x="15" y="4" width="3" height="12" rx="1.5" />
-    <rect x="20" y="7" width="3" height="6" rx="1.5" />
-  </svg>
+  <img src="/favicon.png" alt="Calby Logo" className="h-[18px] object-contain" />
 )
 
 export const AlarmWindowApp: FC = () => {

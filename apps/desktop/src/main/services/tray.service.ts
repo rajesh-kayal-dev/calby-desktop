@@ -1,5 +1,6 @@
-﻿import { Tray, Menu, nativeImage, BrowserWindow, app } from 'electron'
+import { Tray, Menu, nativeImage, BrowserWindow, app } from 'electron'
 import { setQuitting } from '../windows/main.window'
+import { resolveAssetPath } from './sound-resolver'
 
 // 16x16 RGBA PNG data URL representing the Calby cyan orb icon
 const TRAY_ICON_DATA_URL =
@@ -23,7 +24,13 @@ export class TrayService {
     this.mainWindow = mainWindow
 
     try {
-      const icon = nativeImage.createFromDataURL(TRAY_ICON_DATA_URL)
+      const iconPath = resolveAssetPath('icon.png')
+      let icon = nativeImage.createEmpty()
+      if (iconPath) {
+        icon = nativeImage.createFromPath(iconPath)
+      } else {
+        icon = nativeImage.createFromDataURL(TRAY_ICON_DATA_URL)
+      }
       this.tray = new Tray(icon)
       this.tray.setToolTip('Calby')
 

@@ -29,13 +29,7 @@ const ShieldCheckIcon = () => (
 const REPO_URL = 'https://github.com/rajesh-kayal-dev/calby-desktop.git'
 
 const CalbyLogoIcon = () => (
-  <svg width="24" height="20" viewBox="0 0 24 20" fill="#38BDF8" aria-hidden="true">
-    <rect x="0" y="6" width="3" height="8" rx="1.5" />
-    <rect x="5" y="2" width="3" height="16" rx="1.5" />
-    <rect x="10" y="0" width="3" height="20" rx="1.5" />
-    <rect x="15" y="4" width="3" height="12" rx="1.5" />
-    <rect x="20" y="7" width="3" height="6" rx="1.5" />
-  </svg>
+  <img src="/logo.png" alt="Calby Logo" className="h-5 object-contain" />
 )
 
 // Workflow Diagram SVG Icons matching the reference image
@@ -152,15 +146,10 @@ export const AboutSettings: FC<AboutSettingsProps> = ({ systemInfo }) => {
     <div data-testid="about-settings" className="space-y-6">
       {/* App Identity Card */}
       <div className="p-5 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-[#38BDF8]/10 border border-[#38BDF8]/30 flex items-center justify-center">
-            <CalbyLogoIcon />
-          </div>
+        <div className="flex items-center gap-5">
+          <img src="/logo.png" alt="Calby Logo" className="h-11 object-contain" />
           <div>
             <div className="flex items-center gap-2">
-              <h3 className="text-base font-semibold" style={{ color: 'var(--ds-text-primary)' }}>
-                Calby
-              </h3>
               <span data-testid="app-version" className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-slate-300 font-mono">
                 v{appVersion}
               </span>
