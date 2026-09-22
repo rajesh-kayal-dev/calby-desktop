@@ -64,7 +64,7 @@ export const RemindersPage: FC<RemindersPageProps> = ({ highlightedReminderId })
               Reminders
             </h1>
             <p className="mt-0.5" style={{ fontSize: 'var(--ds-text-body-md)', color: 'var(--ds-text-secondary)' }}>
-              Stay on track with what matters.
+              Things Calby is keeping track of.
             </p>
           </div>
 

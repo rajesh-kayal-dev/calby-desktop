@@ -1,4 +1,4 @@
-﻿import { ReminderService } from './reminder.service'
+import { ReminderService } from './reminder.service'
 import { MemoryService } from './memory.service'
 import { GoogleCalendarService, type CalendarEvent } from './google-calendar.service'
 import type { Reminder } from '../storage/reminder.repository'
@@ -47,7 +47,7 @@ export class ActionExecutor {
       {
         name: 'create_reminder',
         description:
-          'Create a new scheduled reminder with an alarm. Schedule time must be an ISO 8601 UTC date string.',
+          'Create a new scheduled reminder. Schedule time must be an ISO 8601 UTC date string.',
         parameters: {
           type: 'OBJECT',
           properties: {
@@ -58,6 +58,10 @@ export class ActionExecutor {
             scheduledAt: {
               type: 'STRING',
               description: 'ISO 8601 UTC timestamp string when the reminder should trigger.'
+            },
+            alertType: {
+              type: 'STRING',
+              description: 'Optional alert type: "notification" (default) or "alarm"'
             }
           },
           required: ['title', 'scheduledAt']
@@ -332,15 +336,19 @@ export class ActionExecutor {
             }
           }
 
+          const isAlarm = args.alertType === 'alarm' || args.alarmEnabled === true
+          const alertType = isAlarm ? 'alarm' : 'notification'
+
           const reminder = await this.reminderService.create({
             title,
             scheduledAt: parsedDate.toISOString(),
-            alarmEnabled: true
+            alertType,
+            alarmEnabled: isAlarm
           })
 
           return {
             success: true,
-            message: `Reminder set for "${reminder.title}" at ${new Date(reminder.scheduledAt).toLocaleTimeString()}.`,
+            message: `Reminder set for "${reminder.title}" at ${new Date(reminder.scheduledAt).toLocaleTimeString()}${isAlarm ? ' (with alarm)' : ''}.`,
             data: reminder
           }
         }

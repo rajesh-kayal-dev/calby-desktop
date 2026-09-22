@@ -1,4 +1,4 @@
-import { type FC } from 'react'
+import { useState, useCallback, type FC } from 'react'
 import type { Memory, MemoryType } from '../types'
 
 interface MemoryCardProps {
@@ -7,93 +7,174 @@ interface MemoryCardProps {
   onDelete: (id: string) => void
 }
 
-const TYPE_CONFIG: Record<
-  MemoryType,
-  { label: string; badgeClass: string; dotClass: string }
-> = {
-  fact: {
-    label: 'Fact',
-    badgeClass: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-    dotClass: 'bg-emerald-400'
-  },
-  preference: {
-    label: 'Preference',
-    badgeClass: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-    dotClass: 'bg-purple-400'
-  },
-  person: {
-    label: 'Person',
-    badgeClass: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-    dotClass: 'bg-amber-400'
-  },
-  work: {
-    label: 'Work',
-    badgeClass: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
-    dotClass: 'bg-sky-400'
-  },
-  general: {
-    label: 'General',
-    badgeClass: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
-    dotClass: 'bg-slate-400'
-  }
+const TYPE_LABELS: Record<MemoryType, string> = {
+  fact: 'Fact',
+  preference: 'Preference',
+  person: 'Person',
+  work: 'Work',
+  general: 'General'
 }
 
-export const MemoryCard: FC<MemoryCardProps> = ({ memory, onEdit, onDelete }) => {
-  const config = TYPE_CONFIG[memory.type] || TYPE_CONFIG.general
+const TYPE_COLORS: Record<MemoryType, string> = {
+  fact: '#10B981',
+  preference: '#A855F7',
+  person: '#F59E0B',
+  work: '#38BDF8',
+  general: '#64748B'
+}
 
-  const formattedDate = new Date(memory.updatedAt).toLocaleDateString([], {
-    month: 'short',
-    day: 'numeric'
-  })
+function getRelativeDate(iso: string): string {
+  const now = new Date()
+  const date = new Date(iso)
+  const diffMs = now.getTime() - date.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
-  return (
+  if (diffDays === 0) return 'Today'
+  if (diffDays === 1) return 'Yesterday'
+  if (diffDays < 7) return `${diffDays} days ago`
+  return date.toLocaleDateString([], { month: 'short', day: 'numeric' })
+}
+
+// ── Confirm Delete Modal ──────────────────────────────────────────────────
+
+interface ConfirmDeleteProps {
+  content: string
+  onCancel: () => void
+  onConfirm: () => void
+  isDeleting: boolean
+}
+
+const ConfirmDeleteModal: FC<ConfirmDeleteProps> = ({ content, onCancel, onConfirm, isDeleting }) => (
+  <div
+    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm"
+    onClick={onCancel}
+    role="dialog"
+    aria-modal="true"
+    aria-label="Delete memory confirmation"
+  >
     <div
-      data-testid="memory-card"
-      className="p-4 rounded-xl bg-[#0C101A] border border-slate-800/80 hover:border-slate-700/80 transition-all flex flex-col justify-between group shadow-sm hover:shadow-md"
+      className="w-full max-w-sm bg-[#0C101A] border border-slate-800 rounded-2xl shadow-2xl p-6 text-left"
+      onClick={(e) => e.stopPropagation()}
     >
-      <div className="space-y-3">
-        {/* Top meta row: Category badge & updated time */}
-        <div className="flex items-center justify-between">
-          <span
-            data-testid="memory-type-badge"
-            className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium border ${config.badgeClass}`}
-          >
-            <span className={`w-1.5 h-1.5 rounded-full ${config.dotClass}`} />
-            {config.label}
-          </span>
-          <span className="text-[11px] text-slate-500 font-mono">
-            {formattedDate}
-          </span>
-        </div>
+      <h3 className="text-sm font-semibold text-white mb-1">Delete memory?</h3>
+      <p className="text-xs text-slate-400 leading-relaxed mb-4 line-clamp-3">
+        &ldquo;{content}&rdquo;
+      </p>
+      <p className="text-xs text-slate-500 mb-5">This cannot be undone.</p>
 
-        {/* Memory content */}
-        <p
-          data-testid="memory-content"
-          className="text-sm text-slate-200 leading-relaxed break-words font-normal"
-        >
-          {memory.content}
-        </p>
-      </div>
-
-      {/* Bottom action row */}
-      <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800/50 mt-3 opacity-90 group-hover:opacity-100 transition-opacity">
+      <div className="flex items-center justify-end gap-3">
         <button
-          onClick={() => onEdit(memory)}
           type="button"
-          data-testid="edit-memory-button"
-          className="px-2.5 py-1 text-xs text-slate-400 hover:text-sky-400 hover:bg-sky-500/10 rounded transition-colors font-medium cursor-pointer"
+          onClick={onCancel}
+          disabled={isDeleting}
+          className="px-4 py-1.5 text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
         >
-          Edit
+          Cancel
         </button>
         <button
-          onClick={() => onDelete(memory.id)}
           type="button"
-          data-testid="delete-memory-button"
-          className="px-2.5 py-1 text-xs text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors font-medium cursor-pointer"
+          onClick={onConfirm}
+          disabled={isDeleting}
+          data-testid="confirm-delete-memory-button"
+          className="px-4 py-1.5 text-xs font-semibold text-white bg-red-600 hover:bg-red-500 rounded-lg transition-colors cursor-pointer disabled:opacity-50"
         >
-          Delete
+          {isDeleting ? 'Deleting...' : 'Delete'}
         </button>
       </div>
     </div>
+  </div>
+)
+
+// ── Memory Card ───────────────────────────────────────────────────────────
+
+export const MemoryCard: FC<MemoryCardProps> = ({ memory, onEdit, onDelete }) => {
+  const [showConfirm, setShowConfirm] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const typeLabel = TYPE_LABELS[memory.type] || 'General'
+  const typeColor = TYPE_COLORS[memory.type] || TYPE_COLORS.general
+  const relDate = getRelativeDate(memory.createdAt)
+
+  const handleDeleteConfirm = useCallback(async () => {
+    setIsDeleting(true)
+    try {
+      onDelete(memory.id)
+    } finally {
+      setIsDeleting(false)
+      setShowConfirm(false)
+    }
+  }, [memory.id, onDelete])
+
+  return (
+    <>
+      <div
+        data-testid="memory-card"
+        className="group px-4 py-3.5 rounded-xl transition-all hover:bg-white/[0.02]"
+        style={{
+          backgroundColor: '#0C101A',
+          border: '1px solid #1E293B'
+        }}
+      >
+        {/* Content — primary, dominant */}
+        <p
+          data-testid="memory-content"
+          className="text-sm leading-relaxed break-words font-normal"
+          style={{ color: '#F8FAFC' }}
+        >
+          {memory.content}
+        </p>
+
+        {/* Bottom row: type + date (left) | actions (right) */}
+        <div className="flex items-center justify-between mt-2.5 pt-2.5 border-t border-slate-800/50">
+          <div className="flex items-center gap-2">
+            <span
+              data-testid="memory-type-badge"
+              className="text-[11px] font-medium"
+              style={{ color: typeColor }}
+            >
+              {typeLabel}
+            </span>
+            <span className="text-[11px]" style={{ color: '#475569' }}>·</span>
+            <span className="text-[11px]" style={{ color: '#475569' }}>
+              Added {relDate}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={() => onEdit(memory)}
+              type="button"
+              data-testid="edit-memory-button"
+              className="px-2.5 py-1 text-xs font-medium rounded transition-colors cursor-pointer"
+              style={{ color: '#64748B' }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#38BDF8')}
+              onMouseLeave={e => (e.currentTarget.style.color = '#64748B')}
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => setShowConfirm(true)}
+              type="button"
+              data-testid="delete-memory-button"
+              className="px-2.5 py-1 text-xs font-medium rounded transition-colors cursor-pointer"
+              style={{ color: '#64748B' }}
+              onMouseEnter={e => (e.currentTarget.style.color = '#EF4444')}
+              onMouseLeave={e => (e.currentTarget.style.color = '#64748B')}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {showConfirm && (
+        <ConfirmDeleteModal
+          content={memory.content}
+          onCancel={() => setShowConfirm(false)}
+          onConfirm={() => void handleDeleteConfirm()}
+          isDeleting={isDeleting}
+        />
+      )}
+    </>
   )
 }

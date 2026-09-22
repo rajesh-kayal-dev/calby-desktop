@@ -35,6 +35,7 @@ type ContextItem =
 
 export const HomeContextCard: FC<HomeContextCardProps> = ({ onNavigate }) => {
   const [contextItem, setContextItem] = useState<ContextItem | null>(null)
+  const [dismissed, setDismissed] = useState<boolean>(false)
 
   useEffect(() => {
     let isMounted = true
@@ -212,7 +213,7 @@ export const HomeContextCard: FC<HomeContextCardProps> = ({ onNavigate }) => {
     }
   }, [])
 
-  if (!contextItem) {
+  if (!contextItem || dismissed) {
     return null
   }
 
@@ -237,20 +238,35 @@ export const HomeContextCard: FC<HomeContextCardProps> = ({ onNavigate }) => {
           : 'bg-[#0B1320]/80 border-[#1E293B] hover:border-sky-500/40 shadow-black/30'
       ].join(' ')}
     >
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-start justify-between gap-2">
         <span
           className={[
-            'text-[11px] font-medium tracking-wide',
+            'text-[11px] font-medium tracking-wide mt-0.5',
             contextItem.type === 'missed_reminder' ? 'text-amber-400' : 'text-sky-400'
           ].join(' ')}
         >
           {contextItem.badge}
         </span>
-        {contextItem.type === 'missed_reminder' && (
-          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 group-hover:bg-amber-500/30">
-            View
-          </span>
-        )}
+        <div className="flex items-center gap-1.5 -mt-1 -mr-1">
+          {contextItem.type === 'missed_reminder' && (
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 group-hover:bg-amber-500/30">
+              View
+            </span>
+          )}
+          <button
+            type="button"
+            className="p-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-colors"
+            onClick={(e) => {
+              e.stopPropagation()
+              setDismissed(true)
+            }}
+            aria-label="Dismiss"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
       </div>
 
       <p className="mt-1 text-xs font-semibold text-slate-100 truncate leading-snug">

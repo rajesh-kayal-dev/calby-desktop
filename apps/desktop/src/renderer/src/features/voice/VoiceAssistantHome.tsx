@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, type FC } from 'react'
+import { useState, useEffect, useMemo, useRef, type FC, type PointerEvent, type MouseEvent } from 'react'
 import { VoiceOrb } from './VoiceOrb'
 import { LiveTranscript } from './LiveTranscript'
 import { ActionResultCard } from './ActionResultCard'
@@ -35,6 +35,47 @@ export const VoiceAssistantHome: FC<VoiceAssistantHomeProps> = ({ onNavigate }) 
   const [greetingIndex] = useState<number>(() => Math.floor(Math.random() * 5))
   const [promptIndex] = useState<number>(() => Math.floor(Math.random() * CALBY_DYNAMIC_PROMPTS.length))
   const [currentPeriod, setCurrentPeriod] = useState<TimePeriod>(() => getTimePeriod())
+
+  // Drag state for context card
+  const [cardOffset, setCardOffset] = useState({ x: 0, y: 0 })
+  const isDraggingCard = useRef(false)
+  const dragStartPos = useRef({ x: 0, y: 0 })
+  const hasDragged = useRef(false)
+
+  const handlePointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    if ((e.target as HTMLElement).closest('button')) {
+      return
+    }
+    isDraggingCard.current = true
+    hasDragged.current = false
+    dragStartPos.current = {
+      x: e.clientX - cardOffset.x,
+      y: e.clientY - cardOffset.y
+    }
+    e.currentTarget.setPointerCapture(e.pointerId)
+  }
+
+  const handlePointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    if (!isDraggingCard.current) return
+    const newX = e.clientX - dragStartPos.current.x
+    const newY = e.clientY - dragStartPos.current.y
+    if (Math.abs(newX - cardOffset.x) > 3 || Math.abs(newY - cardOffset.y) > 3) {
+      hasDragged.current = true
+    }
+    setCardOffset({ x: newX, y: newY })
+  }
+
+  const handlePointerUp = (e: PointerEvent<HTMLDivElement>) => {
+    isDraggingCard.current = false
+    e.currentTarget.releasePointerCapture(e.pointerId)
+  }
+
+  const handleClickCapture = (e: MouseEvent) => {
+    if (hasDragged.current) {
+      e.stopPropagation()
+      e.preventDefault()
+    }
+  }
 
   // Period watcher (in case day period crosses boundary while open)
   useEffect(() => {
@@ -103,7 +144,15 @@ export const VoiceAssistantHome: FC<VoiceAssistantHomeProps> = ({ onNavigate }) 
       style={{ backgroundColor: 'var(--ds-canvas-base)', color: 'var(--ds-text-primary)' }}
     >
       {/* Top-Right Contextual Information Card */}
-      <div className="absolute top-6 right-6 z-20 pointer-events-auto">
+      <div 
+        className="absolute top-6 right-6 z-20 pointer-events-auto"
+        style={{ transform: `translate(${cardOffset.x}px, ${cardOffset.y}px)`, cursor: 'grab' }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onClickCapture={handleClickCapture}
+      >
         <HomeContextCard onNavigate={onNavigate} />
       </div>
 
