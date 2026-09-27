@@ -22,9 +22,9 @@ export const VoiceAssistantHome: FC<VoiceAssistantHomeProps> = ({ onNavigate }) 
   const {
     state,
     stateMetadata,
+    error,
     userTranscript,
     assistantTranscript,
-    error,
     audioLevels,
     toggleListening,
     interrupt,
@@ -35,6 +35,14 @@ export const VoiceAssistantHome: FC<VoiceAssistantHomeProps> = ({ onNavigate }) 
   const [greetingIndex] = useState<number>(() => Math.floor(Math.random() * 5))
   const [promptIndex] = useState<number>(() => Math.floor(Math.random() * CALBY_DYNAMIC_PROMPTS.length))
   const [currentPeriod, setCurrentPeriod] = useState<TimePeriod>(() => getTimePeriod())
+  const [isErrorDismissed, setIsErrorDismissed] = useState<boolean>(false)
+
+  // Reset error dismissal when voice state clears error
+  useEffect(() => {
+    if (state !== 'error') {
+      setIsErrorDismissed(false)
+    }
+  }, [state])
 
   // Drag state for context card
   const [cardOffset, setCardOffset] = useState({ x: 0, y: 0 })
@@ -138,14 +146,20 @@ export const VoiceAssistantHome: FC<VoiceAssistantHomeProps> = ({ onNavigate }) 
     return null
   })()
 
+  const offlineError = error?.code === 'OFFLINE' || error?.code === 'CONNECTION_LOST'
+  const errorTitle = offlineError ? (error?.code === 'CONNECTION_LOST' ? 'Connection lost' : "You're offline") : 'Calby AI is temporarily unavailable'
+  const errorMessage = offlineError
+    ? 'Please check your internet connection and try again.'
+    : "Calby's AI service has reached its current usage limit. Please try again later."
+
   return (
     <div
       className="relative w-full flex-1 flex flex-col overflow-hidden select-none"
       style={{ backgroundColor: 'var(--ds-canvas-base)', color: 'var(--ds-text-primary)' }}
     >
-      {/* Top-Right Contextual Information Card */}
+      {/* Top-Right Contextual Information & Status Alert Cards */}
       <div 
-        className="absolute top-6 right-6 z-20 pointer-events-auto"
+        className="absolute top-6 right-6 z-20 pointer-events-auto flex flex-col gap-2.5 items-end max-w-[260px]"
         style={{ transform: `translate(${cardOffset.x}px, ${cardOffset.y}px)`, cursor: 'grab' }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -153,6 +167,50 @@ export const VoiceAssistantHome: FC<VoiceAssistantHomeProps> = ({ onNavigate }) 
         onPointerCancel={handlePointerUp}
         onClickCapture={handleClickCapture}
       >
+        {state === 'error' && !isErrorDismissed && (
+          <aside
+            aria-label="AI Service Status"
+            className="group transition-all duration-200 px-3.5 py-2.5 rounded-xl border backdrop-blur-md w-full text-left shadow-lg bg-[#1C1318]/90 border-amber-500/30 hover:border-amber-500/50 shadow-amber-950/20 text-slate-100"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <span className="text-[11px] font-medium tracking-wide text-amber-400 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                {errorTitle}
+              </span>
+              <button
+                type="button"
+                className="p-1 -mt-1 -mr-1 rounded-md text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 transition-colors cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setIsErrorDismissed(true)
+                }}
+                aria-label="Dismiss error notice"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <p className="mt-1 text-xs text-slate-300 leading-snug">
+              {errorMessage}
+            </p>
+
+            <div className="mt-2 pt-1.5 border-t border-amber-500/20 flex items-center justify-between">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  void retry()
+                }}
+                className="text-[11px] font-medium text-amber-300 hover:text-white transition-colors cursor-pointer"
+              >
+                Try Again
+              </button>
+            </div>
+          </aside>
+        )}
+
         <HomeContextCard onNavigate={onNavigate} />
       </div>
 
@@ -206,6 +264,7 @@ export const VoiceAssistantHome: FC<VoiceAssistantHomeProps> = ({ onNavigate }) 
             <LiveTranscript
               userTranscript={userTranscript}
               assistantTranscript={assistantTranscript}
+              isListening={state === 'listening'}
             />
           )}
 
@@ -218,7 +277,8 @@ export const VoiceAssistantHome: FC<VoiceAssistantHomeProps> = ({ onNavigate }) 
 
           {state === 'error' && (
             <ErrorView
-              message={error?.message || 'Please check your internet connection and try again.'}
+              title={errorTitle}
+              message={errorMessage}
               onRetry={() => void retry()}
             />
           )}

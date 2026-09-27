@@ -1,12 +1,15 @@
 import { app } from 'electron'
 import { join } from 'node:path'
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { DEFAULT_QUICK_VOICE_SHORTCUT } from '../../shared/quick-voice'
 
 export interface GeneralSettings {
   startWithComputer: boolean
   keepRunningInBackground: boolean
   closeToTray: boolean
   allowDesktopNotifications: boolean
+  /** Global accelerator that opens the floating Quick Voice window. */
+  quickVoiceShortcut?: string
 }
 
 export interface PersonalizeSettings {
@@ -85,7 +88,8 @@ const DEFAULT_CONFIG: AppConfig = {
     startWithComputer: true,
     keepRunningInBackground: true,
     closeToTray: true,
-    allowDesktopNotifications: true
+    allowDesktopNotifications: true,
+    quickVoiceShortcut: DEFAULT_QUICK_VOICE_SHORTCUT
   },
   personalize: {
     userName: '',

@@ -4,6 +4,9 @@ import type {
   VoiceStateInfo,
   VoiceTranscriptPayload,
   VoiceErrorPayload,
+  VoiceTraceEntry,
+  VoiceOwnerPayload,
+  VoiceActionProgressPayload,
   IpcResult
 } from '../index.d'
 
@@ -14,12 +17,17 @@ export const VOICE_CHANNELS = {
   INTERRUPT: 'voice:interrupt',
   GET_STATE: 'voice:get-state',
   PREVIEW_VOICE: 'voice:preview-voice',
+  GET_OWNER: 'voice:get-owner',
+  GET_TRACE: 'voice:get-trace',
+  TRACE_EVENT: 'voice:trace-event',
   STATE_CHANGED: 'voice:state-changed',
   AUDIO_CHUNK: 'voice:audio-chunk',
   TRANSCRIPT: 'voice:transcript',
   INTERRUPTED: 'voice:interrupted',
   TURN_COMPLETE: 'voice:turn-complete',
-  ERROR: 'voice:error'
+  ERROR: 'voice:error',
+  OWNER_CHANGED: 'voice:owner-changed',
+  ACTION_PROGRESS: 'voice:action-progress'
 } as const
 
 export const voiceApi: CalbyVoiceAPI = {
@@ -121,11 +129,53 @@ export const voiceApi: CalbyVoiceAPI = {
     }
   },
 
+  getOwner: async (): Promise<IpcResult<VoiceOwnerPayload>> => {
+    try {
+      return await ipcRenderer.invoke(VOICE_CHANNELS.GET_OWNER)
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: 'IPC_ERROR',
+          message: error instanceof Error ? error.message : 'Unknown IPC error'
+        }
+      }
+    }
+  },
+
   previewVoice: async (
     voiceName: string
   ): Promise<IpcResult<{ audioBase64: string; mimeType: string }>> => {
     try {
       return await ipcRenderer.invoke(VOICE_CHANNELS.PREVIEW_VOICE, voiceName)
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: 'IPC_ERROR',
+          message: error instanceof Error ? error.message : 'Unknown IPC error'
+        }
+      }
+    }
+  },
+
+  getTrace: async (): Promise<IpcResult<VoiceTraceEntry[]>> => {
+    try {
+      return await ipcRenderer.invoke(VOICE_CHANNELS.GET_TRACE)
+    } catch (error) {
+      return {
+        ok: false,
+        error: {
+          code: 'IPC_ERROR',
+          message: error instanceof Error ? error.message : 'Unknown IPC error'
+        }
+      }
+    }
+  },
+
+  traceEvent: async (stage: string, detail?: unknown): Promise<IpcResult<void>> => {
+    try {
+      return await ipcRenderer.invoke(VOICE_CHANNELS.TRACE_EVENT, stage, detail ?? null)
     } catch (error) {
       return {
         ok: false,
@@ -194,6 +244,26 @@ export const voiceApi: CalbyVoiceAPI = {
     ipcRenderer.on(VOICE_CHANNELS.ERROR, handler)
     return () => {
       ipcRenderer.removeListener(VOICE_CHANNELS.ERROR, handler)
+    }
+  },
+
+  onOwnerChanged: (callback: (payload: VoiceOwnerPayload) => void): (() => void) => {
+    const handler = (_event: IpcRendererEvent, payload: VoiceOwnerPayload): void => {
+      callback(payload)
+    }
+    ipcRenderer.on(VOICE_CHANNELS.OWNER_CHANGED, handler)
+    return () => {
+      ipcRenderer.removeListener(VOICE_CHANNELS.OWNER_CHANGED, handler)
+    }
+  },
+
+  onActionProgress: (callback: (payload: VoiceActionProgressPayload) => void): (() => void) => {
+    const handler = (_event: IpcRendererEvent, payload: VoiceActionProgressPayload): void => {
+      callback(payload)
+    }
+    ipcRenderer.on(VOICE_CHANNELS.ACTION_PROGRESS, handler)
+    return () => {
+      ipcRenderer.removeListener(VOICE_CHANNELS.ACTION_PROGRESS, handler)
     }
   }
 }

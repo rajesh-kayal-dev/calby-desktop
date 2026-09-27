@@ -1,7 +1,8 @@
-import { BrowserWindow } from 'electron'
 import { GoogleGenAI, type LiveServerMessage } from '@google/genai'
 import { CredentialService } from './credential.service'
 import { ActionExecutor } from './action-executor'
+import { getVoiceTrace } from './voice-trace'
+import { sendVoiceEvent } from './voice-owner'
 import { ConfigService, DEFAULT_CALBY_INSTRUCTION } from './config.service'
 import {
   GEMINI_LIVE_MODEL,
@@ -37,6 +38,28 @@ export interface VoiceErrorPayload {
 const IDLE_TIMEOUT_MS = 60 * 1000 // 60 seconds of inactivity before tearing down live session
 const CONNECT_TIMEOUT_MS = 10 * 1000 // 10s timeout for WebSocket connection setup
 
+const DEFAULT_LIVE_ERROR_MESSAGE =
+  "Calby's AI service has reached its current usage limit. Please try again later."
+const CONNECT_TIMEOUT_MESSAGE =
+  "Can't reach Gemini right now. Check your internet connection."
+
+/** Redacts anything that could leak credentials (API key / WebSocket ?key=...). */
+function sanitizeForLog(value: unknown): unknown {
+  const redact = (input: string): string =>
+    input
+      .replace(/([?&](?:key|api_key|apikey|access_token)=)[^&\s"']+/gi, '$1[REDACTED]')
+      .replace(/AIza[0-9A-Za-z_-]{10,}/g, '[REDACTED]')
+
+  if (value instanceof Error) {
+    const copy = new Error(redact(value.message))
+    copy.name = value.name
+    copy.stack = value.stack ? redact(value.stack) : value.stack
+    return copy
+  }
+  if (typeof value === 'string') return redact(value)
+  return value
+}
+
 const PREVIEW_PHRASES = [
   "What's on your mind?",
   'How can I help you today?',
@@ -57,11 +80,27 @@ export class AiVoiceService {
   private stateMetadata?: Record<string, unknown>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private activeSession: any = null
-  private isConnecting: boolean = false
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private previewSession: any = null
+  /** Single-flight guard: at most one connection attempt / Live session at a time. */
+  private connectPromise: Promise<void> | null = null
+  /** Settles an in-flight connection attempt as soon as it is torn down. */
+  private pendingConnectReject: ((reason: Error) => void) | null = null
+  /** Invalidates callbacks belonging to sessions that were already cleaned up. */
+  private sessionEpoch: number = 0
   private resumptionHandle: string | null = null
   private idleTimer: ReturnType<typeof setTimeout> | null = null
   private connectTimer: ReturnType<typeof setTimeout> | null = null
   private lastPreviewPhraseIndex: number = -1
+  /** Aggregate-only diagnostics for the active microphone turn; never stores audio samples. */
+  private inputAudioDiagnostics = {
+    chunks: 0,
+    samples: 0,
+    bytes: 0,
+    sumSquares: 0,
+    min: 32767,
+    max: -32768
+  }
 
   private constructor() {
     this.credentialService = CredentialService.getInstance()
@@ -125,20 +164,47 @@ export class AiVoiceService {
   }
 
   private broadcast(channel: string, ...args: unknown[]): void {
-    const windows = BrowserWindow.getAllWindows()
-    for (const win of windows) {
-      if (!win.isDestroyed()) {
-        win.webContents.send(channel, ...args)
+    // Voice events only reach the window that owns the session, so two
+    // renderers can never both drive (or play back) the same Live session.
+    sendVoiceEvent(channel, ...args)
+  }
+
+  /** Reports tool execution progress (start / clarify / done) to the owner window. */
+  private broadcastActionProgress(phase: 'start' | 'clarify' | 'complete' | 'failed', tool: string): void {
+    sendVoiceEvent('voice:action-progress', { phase, tool })
+    getVoiceTrace().record('execution', { tool, phase })
+  }
+
+  /**
+   * Starts the Gemini Live session.
+   *
+   * Only one connection attempt (and therefore one Live session) may exist at a
+   * time: concurrent callers join the in-flight attempt instead of opening a
+   * second WebSocket, which lets the high frequency audio path call this safely.
+   */
+  public async startSession(): Promise<void> {
+    if (this.connectPromise) {
+      await this.connectPromise
+      return
+    }
+
+    if (this.activeSession) {
+      console.log('[AiVoiceService] Live session already active.')
+      return
+    }
+
+    const attempt = this.openSession()
+    this.connectPromise = attempt
+    try {
+      await attempt
+    } finally {
+      if (this.connectPromise === attempt) {
+        this.connectPromise = null
       }
     }
   }
 
-  public async startSession(): Promise<void> {
-    if (this.activeSession || this.isConnecting) {
-      console.log('[AiVoiceService] Session already active or connecting.')
-      return
-    }
-
+  private async openSession(): Promise<void> {
     const apiKey = await this.credentialService.getApiKey()
     if (!apiKey) {
       const msg = 'Gemini API key is not configured.'
@@ -147,8 +213,26 @@ export class AiVoiceService {
       throw new Error(msg)
     }
 
-    this.isConnecting = true
+    console.log('[AiVoiceService] Gemini API key loaded.')
+
+    // New connection generation: callbacks belonging to older sessions no-op.
+    const epoch = ++this.sessionEpoch
     this.setState('idle', { statusText: 'Connecting to Gemini...' })
+
+    // Keep exactly one Live socket open: drop a running voice preview first.
+    this.closePreviewSession()
+
+    // The SDK only settles `connect()` once setupComplete arrives, so a rejected
+    // setup (bad model, auth failure, dropped socket) would otherwise hang the
+    // attempt forever. This deferred lets the connect timeout and
+    // cleanupSession() settle the attempt so callers are never left waiting.
+    let rejectSetup: (reason: Error) => void = () => {}
+    const setupFailed = new Promise<never>((_resolve, reject) => {
+      rejectSetup = reject
+    })
+    // Keep a handler attached even if the race below is never reached.
+    setupFailed.catch(() => undefined)
+    this.pendingConnectReject = rejectSetup
 
     try {
       const ai = new GoogleGenAI({ apiKey })
@@ -156,13 +240,8 @@ export class AiVoiceService {
       // Setup connection timeout
       if (this.connectTimer) clearTimeout(this.connectTimer)
       this.connectTimer = setTimeout(() => {
-        if (this.isConnecting && !this.activeSession) {
-          console.error('[AiVoiceService] Connection setup timed out')
-          this.cleanupSession()
-          const msg = "Can't reach Gemini right now. Check your internet connection."
-          this.setState('error', { code: 'CONNECTION_TIMEOUT', message: msg })
-          this.broadcast('voice:error', { code: 'CONNECTION_TIMEOUT', message: msg })
-        }
+        console.error('[AiVoiceService] Connection setup timed out')
+        rejectSetup(new Error('CONNECTION_TIMEOUT'))
       }, CONNECT_TIMEOUT_MS)
 
       const tools = [
@@ -211,13 +290,23 @@ Never output markdown asterisks or bullet formatting in spoken speech.
 
 Current reference time: ${nowIso} (User timezone: ${userTimeZone}).
 
+Time reporting rules:
+- Every calendar event returned by tools already includes startHumanReadable / endHumanReadable and an explicit timeZone. Read those strings back to the user VERBATIM — never convert them, never compute a timezone offset yourself, and never report a UTC value as local time.
+- Never treat reminder information (reminders, lead times, minutes before) as the event's start time. The event start is only ever startHumanReadable / startDateTime.
+- If a tool response includes needsClarification or ambiguous with a list of candidates, ask the user which one they mean. Never guess between multiple matches.
+
 Capabilities and available tools:
 1. Google Calendar:
 - Use "get_upcoming_events" with the "range" argument ("today", "tomorrow", "this_week", or "next_7_days") when the user asks about their schedule, meetings, agenda, or events (e.g., "What meetings do I have tomorrow?" -> range: "tomorrow", "What is on my calendar today?" -> range: "today", "What do I have this week?" -> range: "this_week").
 - If Google Calendar is not connected, the tool returns a notice; inform the user to connect Google Calendar in Settings.
+- If the tool reports it cannot reach Google Calendar, tell the user to check their internet connection — do NOT say the calendar is disconnected.
+- Use "create_calendar_event" to add an event, "update_calendar_event" to change one, and "delete_calendar_event" to remove one. Prefer passing eventId (from get_upcoming_events); a title works too, but if several events match you must ask which one.
+- Never claim an event was created, changed, or deleted unless the tool result has success: true. Relay any failure honestly.
 2. Reminders:
 - When the user asks to set, create, or schedule a reminder (e.g. "Remind me tomorrow at 10 AM", "Remind me one hour before my 10 AM meeting"), resolve relative times against the reference time into a precise ISO 8601 UTC date string and call "create_reminder".
-- You can also list, cancel, or snooze reminders using "list_reminders", "cancel_reminder", and "snooze_reminder".
+- When the reminder is about a calendar event, pass eventId and leadMinutes (e.g. 5 for "5 minutes before") — the idempotency system uses them to avoid duplicates. Creating the same reminder twice simply returns the existing one; tell the user it was already set.
+- You can also list, cancel, snooze, or edit reminders using "list_reminders", "delete_reminder" (alias: "cancel_reminder"), "snooze_reminder", and "update_reminder".
+- Never claim a reminder was created, changed, or deleted unless the tool result has success: true. Relay any failure honestly.
 3. Personal Memory:
 - When the user explicitly asks you to remember or store a note, fact, person, or preference (e.g. "Remember that Rahul is handling the payment module", "Save note: my favorite coffee is flat white"), call "create_memory". Do NOT automatically create memories from casual conversation unless explicitly instructed.
 - When the user asks what you remember or asks about their saved context/people/preferences (e.g. "What should I remember about Rahul?"), call "search_memory" or "list_memories".
@@ -233,30 +322,53 @@ Never invent data or perform background actions without tool execution. If requi
         sessionResumption: this.resumptionHandle ? { handle: this.resumptionHandle } : {}
       }
 
-      const session = await ai.live.connect({
+      const pendingConnect = ai.live.connect({
         model: GEMINI_LIVE_MODEL,
         config: liveConfig,
         callbacks: {
           onopen: () => {
-            if (this.connectTimer) clearTimeout(this.connectTimer)
-            console.log('[DIAG] Live session connected')
-            this.setState('listening')
-            this.resetIdleTimer()
+            if (epoch !== this.sessionEpoch) return
+            console.log('[DIAG] Live session socket opened')
+            getVoiceTrace().record('session', { event: 'opened', model: GEMINI_LIVE_MODEL })
           },
           onmessage: (msg: LiveServerMessage) => {
+            if (epoch !== this.sessionEpoch) return
             void this.handleServerMessage(msg)
           },
           onerror: (err: unknown) => {
-            if (this.connectTimer) clearTimeout(this.connectTimer)
-            console.error('[AiVoiceService] Gemini Live session error:', err)
-            const message = "Can't reach Gemini right now. Check your internet connection."
-            this.setState('error', { code: 'LIVE_API_ERROR', message })
-            this.broadcast('voice:error', { code: 'LIVE_API_ERROR', message })
-            this.cleanupSession()
+            if (epoch !== this.sessionEpoch) return
+            console.error('[AiVoiceService] Gemini Live session error:', sanitizeForLog(err))
+            this.failSession('LIVE_API_ERROR')
           },
-          onclose: (e: unknown) => {
-            if (this.connectTimer) clearTimeout(this.connectTimer)
-            console.log('[AiVoiceService] Gemini Live session closed:', e)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          onclose: (e: any) => {
+            if (epoch !== this.sessionEpoch) return
+            console.log(`[AiVoiceService] Gemini Live session closed (code=${e?.code})`)
+
+            const closeCode = typeof e?.code === 'number' ? e.code : null
+            const closeReason = typeof e?.reason === 'string' ? e.reason.trim() : ''
+            const isErrorClose = Boolean(
+              (closeCode && closeCode !== 1000 && closeCode !== 1005) ||
+              closeReason.length > 0
+            )
+
+            if (isErrorClose) {
+              console.error(
+                `[AiVoiceService] Gemini Live closed with error: code=${closeCode}, reason="${sanitizeForLog(closeReason)}"`
+              )
+              this.failSession('LIVE_API_ERROR')
+              return
+            }
+
+            if (!this.activeSession) {
+              // Closed before setup completed -> the attempt itself failed.
+              console.error('[AiVoiceService] Live connection closed before setup completed')
+              this.failSession('CONNECTION_FAILED')
+              return
+            }
+
+            // Clean close of an established session: tear everything down but
+            // keep the resumption handle so context survives the next start.
             this.cleanupSession()
             if (this.state !== 'error') {
               this.setState('idle')
@@ -265,19 +377,59 @@ Never invent data or perform background actions without tool execution. If requi
         }
       })
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let session: any
+      try {
+        session = await Promise.race([pendingConnect, setupFailed])
+      } catch (err) {
+        // Setup failed/timed out: if it completes later, drop that socket so a
+        // stale connection can never outlive this attempt.
+        void pendingConnect
+          .then((lateSession) => {
+            try {
+              lateSession.close()
+            } catch {
+              // socket already closed
+            }
+          })
+          .catch(() => undefined)
+        throw err
+      }
+
+      if (epoch !== this.sessionEpoch) {
+        // Session was stopped or failed while it was still connecting.
+        console.log('[AiVoiceService] Discarding stale Gemini Live connection.')
+        try {
+          session.close()
+        } catch {
+          // socket already closed
+        }
+        return
+      }
+
       this.activeSession = session
-      this.isConnecting = false
+      this.resetInputAudioDiagnostics()
       if (this.connectTimer) clearTimeout(this.connectTimer)
       this.setState('listening')
       this.resetIdleTimer()
     } catch (err) {
-      if (this.connectTimer) clearTimeout(this.connectTimer)
-      this.isConnecting = false
-      this.cleanupSession()
-      console.error('[AiVoiceService] Failed to establish Live session:', err)
-      const message = "Can't reach Gemini right now. Check your internet connection."
-      this.setState('error', { code: 'CONNECTION_FAILED', message })
-      this.broadcast('voice:error', { code: 'CONNECTION_FAILED', message })
+      // onclose/onerror/stopSession may already have cleaned up and reported.
+      if (epoch !== this.sessionEpoch) return
+
+      console.error('[AiVoiceService] Failed to establish Live session:', sanitizeForLog(err))
+      const isTimeout = err instanceof Error && err.message === 'CONNECTION_TIMEOUT'
+      this.failSession(
+        isTimeout ? 'CONNECTION_TIMEOUT' : 'CONNECTION_FAILED',
+        isTimeout ? CONNECT_TIMEOUT_MESSAGE : DEFAULT_LIVE_ERROR_MESSAGE
+      )
+    } finally {
+      if (this.connectTimer) {
+        clearTimeout(this.connectTimer)
+        this.connectTimer = null
+      }
+      if (this.pendingConnectReject === rejectSetup) {
+        this.pendingConnectReject = null
+      }
     }
   }
 
@@ -299,10 +451,27 @@ Never invent data or perform background actions without tool execution. If requi
   public finishTurn(): void {
     if (this.activeSession) {
       try {
-        console.log('[VOICE][GEMINI] turnComplete client signal sent')
-        this.activeSession.sendClientContent({ turnComplete: true })
+        const diagnostics = this.inputAudioDiagnostics
+        const rms = diagnostics.samples > 0 ? Math.sqrt(diagnostics.sumSquares / diagnostics.samples) : 0
+        console.log('[VOICE][AUDIO]', {
+          inputSampleRate: 16000,
+          outputSampleRate: 16000,
+          channelCount: 1,
+          pcmChunks: diagnostics.chunks,
+          pcmSamples: diagnostics.samples,
+          totalPcmBytes: diagnostics.bytes,
+          rms: Number(rms.toFixed(6)),
+          min: diagnostics.samples > 0 ? diagnostics.min : 0,
+          max: diagnostics.samples > 0 ? diagnostics.max : 0
+        })
+        // sendRealtimeInput audio is a realtime stream, not client content.
+        // Closing it with audioStreamEnd lets Gemini finalize exactly the PCM
+        // that was sent, and preserves input-transcription events.
+        this.activeSession.sendRealtimeInput({ audioStreamEnd: true })
+        console.log('[VOICE][GEMINI] audio stream end sent')
+        this.resetInputAudioDiagnostics()
       } catch (err) {
-        console.error('[VOICE][GEMINI] Failed to send turnComplete:', err)
+        console.error('[VOICE][GEMINI] Failed to end audio stream:', sanitizeForLog(err))
       }
     }
   }
@@ -327,10 +496,15 @@ Never invent data or perform background actions without tool execution. If requi
 
         for (const fc of toolCall.functionCalls) {
           const toolName = fc.name || ''
+          console.log('[VOICE][GEMINI] tool=', toolName, 'args=', fc.args || {})
+          getVoiceTrace().record('tool_selected', { name: toolName })
+          getVoiceTrace().record('tool_args', { name: toolName, args: fc.args || {} })
+          this.broadcastActionProgress('start', toolName)
           const result = await this.actionExecutor.executeTool(
             toolName,
             (fc.args || {}) as Record<string, unknown>
           )
+          getVoiceTrace().record('result', { name: toolName, success: result.success })
 
           responses.push({
             id: fc.id,
@@ -344,16 +518,47 @@ Never invent data or perform background actions without tool execution. If requi
             if (toolName === 'create_reminder') {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const reminderData = result.data as any
+              const alreadyExisted = reminderData?.alreadyExisted === true
               this.setState('action_result', {
-                title: 'Reminder scheduled',
-                subtitle: `"${reminderData?.title || 'Reminder'}" set successfully.`
+                title: alreadyExisted ? 'Reminder already set' : 'Reminder scheduled',
+                subtitle: alreadyExisted
+                  ? `"${reminderData?.title || 'Reminder'}" already exists.`
+                  : `"${reminderData?.title || 'Reminder'}" set successfully.`
               })
-            } else if (toolName === 'cancel_reminder') {
+            } else if (toolName === 'cancel_reminder' || toolName === 'delete_reminder') {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const reminderData = result.data as any
               this.setState('action_result', {
                 title: 'Reminder cancelled',
                 subtitle: `"${reminderData?.title || 'Reminder'}" removed.`
+              })
+            } else if (toolName === 'update_reminder') {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const reminderData = result.data as any
+              this.setState('action_result', {
+                title: 'Reminder updated',
+                subtitle: `"${reminderData?.title || 'Reminder'}" updated.`
+              })
+            } else if (toolName === 'create_calendar_event') {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const evt = result.data as any
+              this.setState('action_result', {
+                title: 'Event created',
+                subtitle: `"${evt?.title || 'Event'}" added to your calendar.`
+              })
+            } else if (toolName === 'update_calendar_event') {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const evt = result.data as any
+              this.setState('action_result', {
+                title: 'Event updated',
+                subtitle: `"${evt?.title || 'Event'}" updated.`
+              })
+            } else if (toolName === 'delete_calendar_event') {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const evt = result.data as any
+              this.setState('action_result', {
+                title: 'Event deleted',
+                subtitle: `"${evt?.title || 'Event'}" removed from your calendar.`
               })
             } else if (toolName === 'snooze_reminder') {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -389,6 +594,10 @@ Never invent data or perform background actions without tool execution. If requi
               }
             }
           }
+          this.broadcastActionProgress(
+            result.needsClarification ? 'clarify' : result.success ? 'complete' : 'failed',
+            toolName
+          )
         }
 
         if (this.activeSession && responses.length > 0) {
@@ -398,7 +607,7 @@ Never invent data or perform background actions without tool execution. If requi
               functionResponses: responses
             })
           } catch (err) {
-            console.error('[AiVoiceService] Failed to send tool response:', err)
+            console.error('[AiVoiceService] Failed to send tool response:', sanitizeForLog(err))
           }
         }
       }
@@ -429,7 +638,8 @@ Never invent data or perform background actions without tool execution. If requi
 
       // Final User Input Transcription
       if (content.inputTranscription?.text) {
-        console.log(`[VOICE][GEMINI] inputTranscript="${content.inputTranscription.text}"`)
+        console.log(`[VOICE][USER] "${content.inputTranscription.text}"`)
+        getVoiceTrace().record('heard', { text: content.inputTranscription.text })
         this.broadcast('voice:transcript', {
           role: 'user',
           text: content.inputTranscription.text,
@@ -463,6 +673,9 @@ Never invent data or perform background actions without tool execution. If requi
       // Model Output Transcription
       if (content.outputTranscription?.text) {
         console.log(`[VOICE][GEMINI] outputTranscript="${content.outputTranscription.text}"`)
+        if (content.outputTranscription.finished) {
+          getVoiceTrace().record('final_response', { text: content.outputTranscription.text })
+        }
         this.broadcast('voice:transcript', {
           role: 'assistant',
           text: content.outputTranscription.text,
@@ -476,6 +689,7 @@ Never invent data or perform background actions without tool execution. If requi
       // Turn Complete
       if (content.turnComplete) {
         console.log('[VOICE][GEMINI] turnComplete server signal received')
+        getVoiceTrace().record('final_response', { signal: 'turnComplete' })
         this.broadcast('voice:turn-complete')
       }
     }
@@ -484,33 +698,60 @@ Never invent data or perform background actions without tool execution. If requi
   private lastAudioSentLogTime: number = 0
 
   public async sendAudioChunk(chunkBase64: string): Promise<void> {
-    this.resetIdleTimer()
-
     if (!this.activeSession) {
+      // Never kick off a reconnect from the high frequency audio path: a failed
+      // session has to be retried explicitly ("Try Again"), and while an attempt
+      // is in flight there is nothing to send to yet.
+      if (this.connectPromise || this.state === 'error') return
       await this.startSession()
     }
 
     if (this.activeSession) {
+      this.resetIdleTimer()
       try {
+        const pcm = Buffer.from(chunkBase64, 'base64')
+        // The renderer produces Int16Array-backed bytes. Node runs on the
+        // same little-endian desktop platforms supported by Electron, so
+        // readInt16LE verifies aggregate values without retaining raw audio.
+        for (let offset = 0; offset + 1 < pcm.length; offset += 2) {
+          const sample = pcm.readInt16LE(offset)
+          this.inputAudioDiagnostics.samples += 1
+          this.inputAudioDiagnostics.sumSquares += sample * sample
+          this.inputAudioDiagnostics.min = Math.min(this.inputAudioDiagnostics.min, sample)
+          this.inputAudioDiagnostics.max = Math.max(this.inputAudioDiagnostics.max, sample)
+        }
+        this.inputAudioDiagnostics.chunks += 1
+        this.inputAudioDiagnostics.bytes += pcm.length
         const now = Date.now()
         if (now - this.lastAudioSentLogTime > 1000) {
           this.lastAudioSentLogTime = now
           console.log('[VOICE][GEMINI] inputAudioSent')
         }
         this.activeSession.sendRealtimeInput({
-          media: [
-            {
-              mimeType: 'audio/pcm;rate=16000',
-              data: chunkBase64
-            }
-          ]
+          audio: {
+            mimeType: 'audio/pcm;rate=16000',
+            data: chunkBase64
+          }
         })
         if (this.state === 'idle' || this.state === 'action_result') {
           this.setState('listening')
         }
       } catch (err) {
-        console.error('[VOICE][GEMINI] Failed to send audio chunk:', err)
+        console.error('[VOICE][GEMINI] Failed to send audio chunk:', sanitizeForLog(err))
+        // Full teardown so the next explicit start creates a fresh session.
+        this.failSession('AUDIO_CHUNK_SEND_FAILED')
       }
+    }
+  }
+
+  private resetInputAudioDiagnostics(): void {
+    this.inputAudioDiagnostics = {
+      chunks: 0,
+      samples: 0,
+      bytes: 0,
+      sumSquares: 0,
+      min: 32767,
+      max: -32768
     }
   }
 
@@ -536,6 +777,15 @@ Never invent data or perform background actions without tool execution. If requi
       throw err
     }
 
+    console.log('[AiVoiceService] Gemini API key loaded.')
+
+    // One Live session at a time: stop the conversation session (its resumption
+    // handle is kept, so context survives) and any earlier preview first.
+    if (this.activeSession || this.connectPromise) {
+      await this.stopSession()
+    }
+    this.closePreviewSession()
+
     const ai = new GoogleGenAI({ apiKey })
 
     const speechConfig = createGeminiSpeechConfig(validVoice)
@@ -559,12 +809,16 @@ Never invent data or perform background actions without tool execution. If requi
           timeoutTimer = null
         }
         if (previewSession) {
+          const closing = previewSession
+          previewSession = null
+          if (this.previewSession === closing) {
+            this.previewSession = null
+          }
           try {
-            previewSession.close()
+            closing.close()
           } catch {
             // session might already be closed
           }
-          previewSession = null
         }
       }
 
@@ -627,7 +881,7 @@ Never invent data or perform background actions without tool execution. If requi
                 isSettled = true
                 cleanup()
                 const errMsg = err instanceof Error ? err.message : String(err)
-                console.error('[AiVoiceService] previewVoice onerror:', errMsg)
+                console.error('[AiVoiceService] previewVoice onerror:', sanitizeForLog(errMsg))
                 const lower = errMsg.toLowerCase()
                 const isAuth =
                   lower.includes('auth') ||
@@ -654,7 +908,9 @@ Never invent data or perform background actions without tool execution. If requi
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             onclose: (e: any) => {
               console.log(
-                `[AiVoiceService] previewVoice session closed (code=${e?.code}, reason=${e?.reason || 'normal'})`
+                `[AiVoiceService] previewVoice session closed (code=${e?.code}, reason=${sanitizeForLog(
+                  e?.reason || 'normal'
+                )})`
               )
               if (!isSettled) {
                 isSettled = true
@@ -678,6 +934,7 @@ Never invent data or perform background actions without tool execution. If requi
         })
         .then((session) => {
           previewSession = session
+          this.previewSession = session
           console.log('[AiVoiceService] previewVoice session connected')
           try {
             const phrase = this.getNextPreviewPhrase()
@@ -686,7 +943,10 @@ Never invent data or perform background actions without tool execution. If requi
             })
             console.log(`[AiVoiceService] previewVoice sent text: "${phrase}"`)
           } catch (err) {
-            console.error('[AiVoiceService] Error sending preview realtime input:', err)
+            console.error(
+              '[AiVoiceService] Error sending preview realtime input:',
+              sanitizeForLog(err)
+            )
           }
         })
         .catch((err) => {
@@ -694,7 +954,7 @@ Never invent data or perform background actions without tool execution. If requi
             isSettled = true
             cleanup()
             const errMsg = err instanceof Error ? err.message : String(err)
-            console.error('[AiVoiceService] previewVoice connect failed:', errMsg)
+            console.error('[AiVoiceService] previewVoice connect failed:', sanitizeForLog(errMsg))
             const lower = errMsg.toLowerCase()
             const isAuth =
               lower.includes('auth') ||
@@ -722,24 +982,63 @@ Never invent data or perform background actions without tool execution. If requi
   }
 
   public async stopSession(): Promise<void> {
+    // cleanupSession() invalidates every callback of the session being closed,
+    // so its asynchronous onclose can no longer overwrite the idle state below.
     this.cleanupSession()
     this.setState('idle')
   }
 
-  private cleanupSession(): void {
+  /**
+   * Fully tears down the current session or connection attempt: timers, socket,
+   * single-flight guard and (on failure) the resumption handle, so the next
+   * explicit start always creates a brand new session.
+   */
+  private cleanupSession(options: { resetResumption?: boolean } = {}): void {
+    // Everything still belonging to the outgoing generation becomes a no-op.
+    this.sessionEpoch++
+
     if (this.connectTimer) {
       clearTimeout(this.connectTimer)
       this.connectTimer = null
     }
     this.clearIdleTimer()
+
     if (this.activeSession) {
       try {
         this.activeSession.close()
       } catch (err) {
-        console.error('[AiVoiceService] Error closing session:', err)
+        console.error('[AiVoiceService] Error closing session:', sanitizeForLog(err))
       }
       this.activeSession = null
     }
-    this.isConnecting = false
+
+    // Settle an in-flight connect() so startSession() callers are never stuck.
+    const rejectSetup = this.pendingConnectReject
+    if (rejectSetup) {
+      this.pendingConnectReject = null
+      rejectSetup(new Error('SESSION_CLEANED_UP'))
+    }
+
+    if (options.resetResumption) {
+      this.resumptionHandle = null
+    }
+  }
+
+  /** Reports a failure only after a full teardown, so "Try Again" starts fresh. */
+  private failSession(code: string, message: string = DEFAULT_LIVE_ERROR_MESSAGE): void {
+    this.cleanupSession({ resetResumption: true })
+    this.setState('error', { code, message })
+    this.broadcast('voice:error', { code, message })
+  }
+
+  private closePreviewSession(): void {
+    const session = this.previewSession
+    if (!session) return
+    this.previewSession = null
+    try {
+      session.close()
+    } catch (err) {
+      console.error('[AiVoiceService] Error closing preview session:', sanitizeForLog(err))
+    }
   }
 }

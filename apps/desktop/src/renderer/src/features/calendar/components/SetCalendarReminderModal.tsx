@@ -111,7 +111,10 @@ export const SetCalendarReminderModal: FC<SetCalendarReminderModalProps> = ({
           title: `Meeting: ${event.title}`,
           scheduledAt: scheduledIso,
           alertType,
-          alarmEnabled: isAlarm
+          alarmEnabled: isAlarm,
+          eventId: event.id,
+          leadMinutes: effectiveMinutes,
+          source: 'ui'
         })
 
         const leadDesc =

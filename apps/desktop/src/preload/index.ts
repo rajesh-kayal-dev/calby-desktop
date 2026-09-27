@@ -7,12 +7,14 @@ import { remindersApi } from './api/reminders.api'
 import { calendarApi } from './api/calendar.api'
 import { memoryApi } from './api/memory.api'
 import { settingsApi } from './api/settings.api'
+import { quickVoiceApi } from './api/quickvoice.api'
 
 const calbyApi = {
   system: systemApi,
   auth: authApi,
   onboarding: onboardingApi,
   voice: voiceApi,
+  quickVoice: quickVoiceApi,
   reminders: remindersApi,
   calendar: calendarApi,
   memory: memoryApi,

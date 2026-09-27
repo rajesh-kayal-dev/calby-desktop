@@ -50,6 +50,32 @@ export interface UseVoiceSessionResult {
   selectMicrophoneDevice: (deviceId: string) => Promise<void>
 }
 
+/**
+ * Reads which window currently owns the mic + Gemini Live session.
+ * Defaults to `true` so existing behaviour is preserved whenever the preload
+ * API is unavailable or the call fails.
+ */
+async function resolveVoiceOwnership(): Promise<boolean> {
+  try {
+    const res = await window.calby?.voice?.getOwner?.()
+    if (res && res.ok) return res.data.isOwner
+  } catch {
+    // Older preload or transient IPC failure: assume ownership.
+  }
+  return true
+}
+
+// PCM chunks are approximately 21 ms at the usual 48 kHz capture rate. A
+// short sound from speaker bleed is enough to cross an energy threshold, so a
+// barge-in must be both louder and sustained longer than normal turn start.
+// This deliberately leaves normal auto-VAD responsive while protecting model
+// playback from being treated as a new user utterance.
+const BARGE_IN_MIN_CONSECUTIVE_FRAMES = 12 // ~250 ms
+const USER_SPEECH_MIN_CONSECUTIVE_FRAMES = 5 // ~105 ms
+const BARGE_IN_MIN_RMS = 0.02
+const BARGE_IN_NOISE_MULTIPLIER = 2.8
+const BARGE_IN_COOLDOWN_MS = 1_200
+
 export function useVoiceSession(): UseVoiceSessionResult {
   const [state, setState] = useState<VoiceState>('idle')
   const [stateMetadata, setStateMetadata] = useState<Record<string, unknown> | undefined>(undefined)
@@ -96,14 +122,38 @@ export function useVoiceSession(): UseVoiceSessionResult {
   const isTextDiagnosticRef = useRef<boolean>(false)
   const hasReceivedUserTranscriptRef = useRef<boolean>(false)
   const noAudioTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const pcmChunksProducedRef = useRef<number>(0)
+  const selectedDeviceIdRef = useRef<string>('')
+  const activeMicDeviceIdRef = useRef<string>('')
+  /** Invalidates an asynchronous getUserMedia/worklet setup when it is stopped or restarted. */
+  const micCaptureEpochRef = useRef<number>(0)
+  /**
+   * Exactly one window may own the mic + Gemini Live session at a time
+   * (main window vs. the Quick Voice overlay). Defaults to `true` so behaviour
+   * is unchanged whenever ownership arbitration is unavailable.
+   */
+  const isVoiceOwnerRef = useRef<boolean>(true)
+  const ownershipPromiseRef = useRef<Promise<boolean> | null>(null)
+
+  /** Shared initial ownership read so every mount effect agrees on the answer. */
+  const getOwnership = useCallback((): Promise<boolean> => {
+    if (!ownershipPromiseRef.current) {
+      ownershipPromiseRef.current = resolveVoiceOwnership()
+    }
+    return ownershipPromiseRef.current
+  }, [])
 
   // VAD tracking refs
   const isSpeechActiveRef = useRef<boolean>(false)
   const consecutiveSpeechFramesRef = useRef<number>(0)
   const silenceFramesRef = useRef<number>(0)
   const manualPushToTalkRef = useRef<boolean>(false)
-  const noiseFloorRef = useRef<number>(0.01)
+  const noiseFloorRef = useRef<number>(0.003)
   const preRollBufferRef = useRef<string[]>([]) // last ~300ms chunks
+  const lastBargeInAtRef = useRef<number>(0)
+  const bargeInTriggeredRef = useRef<boolean>(false)
+  /** Prevents silence/noise-only captures from being finalized as Gemini turns. */
+  const hasUsableSpeechRef = useRef<boolean>(false)
 
   // Enumerate input microphones
   const refreshMicrophoneDevices = useCallback(async (): Promise<void> => {
@@ -111,6 +161,14 @@ export function useVoiceSession(): UseVoiceSessionResult {
       if (!navigator.mediaDevices?.enumerateDevices) return
       const devices = await navigator.mediaDevices.enumerateDevices()
       const audioInputs = devices.filter((d) => d.kind === 'audioinput')
+      console.log(
+        '[VOICE][MIC] Available audio inputs:',
+        audioInputs.map((device) => ({
+          deviceId: device.deviceId,
+          label: device.label,
+          groupId: device.groupId
+        }))
+      )
       setDiagnostics((prev) => ({ ...prev, availableDevices: audioInputs }))
     } catch (err) {
       console.error('[useVoiceSession] Device enumeration failed:', err)
@@ -123,9 +181,11 @@ export function useVoiceSession(): UseVoiceSessionResult {
       void window.calby.settings.getConfig().then((res) => {
         if (res.ok && res.data.voice?.selectedMicDeviceId) {
           const savedId = res.data.voice.selectedMicDeviceId
+          const finalId = savedId === 'default' ? '' : savedId
+          selectedDeviceIdRef.current = finalId
           setDiagnostics((prev) => ({
             ...prev,
-            selectedDeviceId: savedId === 'default' ? '' : savedId
+            selectedDeviceId: finalId
           }))
         }
       })
@@ -160,6 +220,9 @@ export function useVoiceSession(): UseVoiceSessionResult {
 
   // Teardown microphone stream
   const stopMicrophoneCapture = useCallback(() => {
+    // A pending getUserMedia() or AudioWorklet setup must not resurrect this
+    // capture pipeline after ownership changes or a restart.
+    micCaptureEpochRef.current += 1
     if (noAudioTimerRef.current) {
       clearTimeout(noAudioTimerRef.current)
       noAudioTimerRef.current = null
@@ -177,10 +240,12 @@ export function useVoiceSession(): UseVoiceSessionResult {
       }
       micStreamRef.current = null
     }
+    activeMicDeviceIdRef.current = ''
 
-    if (micAudioContextRef.current && micAudioContextRef.current.state !== 'closed') {
-      void micAudioContextRef.current.close()
-      micAudioContextRef.current = null
+    const micContext = micAudioContextRef.current
+    micAudioContextRef.current = null
+    if (micContext && micContext.state !== 'closed') {
+      void micContext.close()
     }
 
     micAnalyserRef.current = null
@@ -197,33 +262,70 @@ export function useVoiceSession(): UseVoiceSessionResult {
   // Start microphone capture and 16kHz resampling with local VAD
   const startMicrophoneCapture = useCallback(
     async (deviceId?: string): Promise<void> => {
+      const requestedDeviceId = deviceId && deviceId !== 'default' ? deviceId : ''
+      const currentStream = micStreamRef.current
+      const hasLiveTrack = currentStream?.getAudioTracks().some((track) => track.readyState === 'live')
+      if (hasLiveTrack && activeMicDeviceIdRef.current === requestedDeviceId) {
+        return
+      }
+
       stopMicrophoneCapture()
+      const captureEpoch = micCaptureEpochRef.current
+      pcmChunksProducedRef.current = 0
 
       try {
-        console.log('[VOICE][MIC] Requesting getUserMedia stream... deviceId:', deviceId || 'default')
+        const selectedDescription = requestedDeviceId
+          ? `explicit (${requestedDeviceId})`
+          : 'system default'
+        console.log('[VOICE][MIC] Selected device:', selectedDescription)
+        console.log('[VOICE][MIC] Requesting getUserMedia stream... deviceId:', requestedDeviceId || 'default')
 
-        const constraints = {
-          audio: deviceId
-            ? {
-                deviceId: { exact: deviceId },
-                channelCount: 1,
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true
-              }
-            : {
-                channelCount: 1,
-                echoCancellation: true,
-                noiseSuppression: true,
-                autoGainControl: true
-              }
+        const constraints: MediaStreamConstraints = {
+          audio:
+            deviceId && deviceId !== 'default'
+              ? {
+                  deviceId: { exact: deviceId },
+                  echoCancellation: true,
+                  noiseSuppression: true,
+                  autoGainControl: true
+                }
+              : {
+                  echoCancellation: true,
+                  noiseSuppression: true,
+                  autoGainControl: true
+                }
         }
 
+        // An explicit microphone must either be acquired exactly or fail
+        // visibly. Falling back to a loose constraint can silently select the
+        // laptop microphone and makes diagnostics misleading.
         const stream = await navigator.mediaDevices.getUserMedia(constraints)
+
+        // The owner can change while the browser is showing the permission
+        // prompt. Release that stale stream rather than creating a second
+        // capture/VAD pipeline behind the new owner.
+        if (captureEpoch !== micCaptureEpochRef.current || !isVoiceOwnerRef.current) {
+          for (const track of stream.getTracks()) track.stop()
+          return
+        }
+
         micStreamRef.current = stream
+        activeMicDeviceIdRef.current = requestedDeviceId
 
         const activeTrack = stream.getAudioTracks()[0]
         const deviceLabel = activeTrack?.label || 'Active Microphone'
+        const trackSettings = activeTrack?.getSettings()
+        console.log('[VOICE][MIC] Active track:', {
+          label: activeTrack?.label || '',
+          id: activeTrack?.id || '',
+          readyState: activeTrack?.readyState || '',
+          enabled: activeTrack?.enabled ?? false
+        })
+        console.log('[VOICE][MIC] Track settings:', {
+          deviceId: trackSettings?.deviceId || '',
+          sampleRate: trackSettings?.sampleRate,
+          channelCount: trackSettings?.channelCount
+        })
 
         setDiagnostics((prev) => ({
           ...prev,
@@ -232,7 +334,6 @@ export function useVoiceSession(): UseVoiceSessionResult {
           micDeviceLabel: deviceLabel,
           selectedDeviceId: deviceId || prev.selectedDeviceId
         }))
-
         // Refresh devices list so labels are populated after permission grant
         void refreshMicrophoneDevices()
 
@@ -241,6 +342,22 @@ export function useVoiceSession(): UseVoiceSessionResult {
           (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
         const micCtx = new AudioCtx()
         micAudioContextRef.current = micCtx
+        console.log('[VOICE][MIC] AudioContext:', { sampleRate: micCtx.sampleRate, state: micCtx.state })
+        console.log('[VOICE][MIC] PCM pipeline:', {
+          sourceSampleRate: micCtx.sampleRate,
+          targetSampleRate: 16000,
+          channels: trackSettings?.channelCount ?? 1,
+          geminiMimeType: 'audio/pcm;rate=16000'
+        })
+
+        if (captureEpoch !== micCaptureEpochRef.current || !isVoiceOwnerRef.current) {
+          for (const track of stream.getTracks()) track.stop()
+          if (micCtx.state !== 'closed') void micCtx.close()
+          if (micStreamRef.current === stream) micStreamRef.current = null
+          if (activeMicDeviceIdRef.current === requestedDeviceId) activeMicDeviceIdRef.current = ''
+          if (micAudioContextRef.current === micCtx) micAudioContextRef.current = null
+          return
+        }
 
         setDiagnostics((prev) => ({
           ...prev,
@@ -290,6 +407,15 @@ export function useVoiceSession(): UseVoiceSessionResult {
         await micCtx.audioWorklet.addModule(workletUrl)
         URL.revokeObjectURL(workletUrl)
 
+        if (captureEpoch !== micCaptureEpochRef.current || !isVoiceOwnerRef.current) {
+          for (const track of stream.getTracks()) track.stop()
+          if (micCtx.state !== 'closed') void micCtx.close()
+          if (micStreamRef.current === stream) micStreamRef.current = null
+          if (activeMicDeviceIdRef.current === requestedDeviceId) activeMicDeviceIdRef.current = ''
+          if (micAudioContextRef.current === micCtx) micAudioContextRef.current = null
+          return
+        }
+
         const workletNode = new AudioWorkletNode(micCtx, 'pcm-capture-processor')
         audioWorkletNodeRef.current = workletNode
 
@@ -311,7 +437,7 @@ export function useVoiceSession(): UseVoiceSessionResult {
 
         if (noAudioTimerRef.current) clearTimeout(noAudioTimerRef.current)
         noAudioTimerRef.current = setTimeout(() => {
-          if (micStreamRef.current && diagnostics.pcmChunksProduced === 0) {
+          if (micStreamRef.current && pcmChunksProducedRef.current === 0) {
             console.error('[VOICE][MIC] No microphone audio chunks produced after 5s')
             setError({
               code: 'NO_MIC_FRAMES',
@@ -321,6 +447,8 @@ export function useVoiceSession(): UseVoiceSessionResult {
         }, 5000)
 
         workletNode.port.onmessage = (event: MessageEvent<Float32Array>): void => {
+          // Never feed Gemini from a window that doesn't own the voice session.
+          if (!isVoiceOwnerRef.current) return
           const inputData = event.data
           const sourceSampleRate = micCtx.sampleRate
 
@@ -344,6 +472,7 @@ export function useVoiceSession(): UseVoiceSessionResult {
           if (audioAccumulator.length >= 1024) {
             const float32Chunk = new Float32Array(audioAccumulator)
             audioAccumulator = []
+            pcmChunksProducedRef.current += 1
 
             // Calculate peak amplitude of Float32 chunk
             let chunkPeak = 0
@@ -352,10 +481,12 @@ export function useVoiceSession(): UseVoiceSessionResult {
               if (abs > chunkPeak) chunkPeak = abs
             }
 
-            // Controlled software gain scaling for soft hardware inputs
+            // Preserve the original signal for VAD, but lift quiet physical
+            // microphones before PCM conversion. Without this, a turn can be
+            // locally detected yet remain below Gemini's transcription floor.
             if (chunkPeak > 0.001 && chunkPeak < 0.2) {
-              const targetPeak = 0.25
-              const boostMultiplier = Math.min(4.0, targetPeak / chunkPeak)
+              const targetPeak = 0.45
+              const boostMultiplier = Math.min(12.0, targetPeak / chunkPeak)
               for (let i = 0; i < float32Chunk.length; i++) {
                 float32Chunk[i] *= boostMultiplier
               }
@@ -376,31 +507,66 @@ export function useVoiceSession(): UseVoiceSessionResult {
             }
 
             // === LOCAL VOICE ACTIVITY DETECTION (VAD) ===
-            const speechThreshold = Math.max(0.02, noiseFloorRef.current * 2.2)
+            const speechThreshold = Math.max(0.008, noiseFloorRef.current * 1.8)
             const isSpeechDetected = rms > speechThreshold
 
             if (isSpeechDetected) {
               consecutiveSpeechFramesRef.current += 1
 
-              // Speech confirmed (~60ms of continuous energy)
-              if (consecutiveSpeechFramesRef.current >= 3) {
+              // Speech confirmed (~40ms of continuous energy)
+              if (consecutiveSpeechFramesRef.current >= 2) {
                 silenceFramesRef.current = 0
+
+                if (consecutiveSpeechFramesRef.current >= USER_SPEECH_MIN_CONSECUTIVE_FRAMES) {
+                  hasUsableSpeechRef.current = true
+                }
 
                 // 1. Barge-in detection during speaking
                 if (stateRef.current === 'speaking') {
-                  console.log('[VOICE][VAD] User speaking while assistant talking -> Barge-in triggered')
-                  if (pcmPlayerRef.current) {
-                    pcmPlayerRef.current.interrupt()
+                  const bargeInThreshold = Math.max(
+                    BARGE_IN_MIN_RMS,
+                    noiseFloorRef.current * BARGE_IN_NOISE_MULTIPLIER
+                  )
+                  const now = Date.now()
+                  const isMeaningfulBargeIn =
+                    rms >= bargeInThreshold &&
+                    consecutiveSpeechFramesRef.current >= BARGE_IN_MIN_CONSECUTIVE_FRAMES
+                  const isCooledDown = now - lastBargeInAtRef.current >= BARGE_IN_COOLDOWN_MS
+
+                  if (isMeaningfulBargeIn && !bargeInTriggeredRef.current && isCooledDown) {
+                    // Set every synchronous guard before mutating playback/state:
+                    // AudioWorklet messages can arrive several times before React
+                    // commits, which used to create repeated interrupts.
+                    bargeInTriggeredRef.current = true
+                    lastBargeInAtRef.current = now
+                    isSpeechActiveRef.current = true
+                    stateRef.current = 'listening'
+                    console.log('[VOICE][VAD] Sustained user speech during playback -> Barge-in triggered')
+                    void window.calby?.voice?.traceEvent?.('voice_detected', { mode: 'barge-in' })
+                    if (pcmPlayerRef.current) {
+                      pcmPlayerRef.current.interrupt()
+                    }
+                    void window.calby?.voice?.interrupt()
+                    setState('listening')
+                    // New turn started: drop the previous turn's transcripts.
+                    setUserTranscript('')
+                    setAssistantTranscript('')
+                    setDiagnostics((prev) => ({ ...prev, vadState: 'Sustained speech (Barge-in)' }))
                   }
-                  void window.calby?.voice?.interrupt()
-                  isSpeechActiveRef.current = true
-                  setState('listening')
-                  setDiagnostics((prev) => ({ ...prev, vadState: 'Speech detected (Barge-in)' }))
-                } else if (stateRef.current === 'idle' || stateRef.current === 'action_result') {
+                } else if (
+                  (stateRef.current === 'idle' || stateRef.current === 'action_result') &&
+                  hasUsableSpeechRef.current
+                ) {
                   // 2. Automatic start of user turn
                   console.log('[VOICE][VAD] Speech started -> Entering Listening state')
+                  void window.calby?.voice?.traceEvent?.('voice_detected', { mode: 'auto' })
                   isSpeechActiveRef.current = true
+                  bargeInTriggeredRef.current = false
+                  stateRef.current = 'listening'
                   setState('listening')
+                  // New turn started: drop the previous turn's transcripts.
+                  setUserTranscript('')
+                  setAssistantTranscript('')
                   setDiagnostics((prev) => ({ ...prev, vadState: 'Speech detected' }))
 
                   // Ensure session is active
@@ -428,6 +594,8 @@ export function useVoiceSession(): UseVoiceSessionResult {
                   isSpeechActiveRef.current = false
                   silenceFramesRef.current = 0
                   consecutiveSpeechFramesRef.current = 0
+                  bargeInTriggeredRef.current = false
+                  stateRef.current = 'processing'
                   setState('processing')
                   setDiagnostics((prev) => ({ ...prev, vadState: 'Processing audio turn' }))
                   void window.calby?.voice?.finishTurn()
@@ -436,7 +604,7 @@ export function useVoiceSession(): UseVoiceSessionResult {
             }
 
             // Stream audio chunk to Gemini Live if in active speech or manual push-to-talk
-            if (isSpeechActiveRef.current || manualPushToTalkRef.current || stateRef.current === 'listening') {
+            if (isSpeechActiveRef.current || manualPushToTalkRef.current) {
               setDiagnostics((prev) => ({
                 ...prev,
                 pcmChunksSent: prev.pcmChunksSent + 1,
@@ -473,14 +641,20 @@ export function useVoiceSession(): UseVoiceSessionResult {
         setState('error')
       }
     },
-    [stopMicrophoneCapture, refreshMicrophoneDevices, diagnostics.pcmChunksProduced]
+    [stopMicrophoneCapture, refreshMicrophoneDevices]
   )
 
-  // Auto-start microphone capture on mount
+  // Auto-start microphone capture on mount — only for the window that owns the
+  // voice session, so two windows can never capture/send audio at once.
   useEffect(() => {
     let isMounted = true
 
     const initMic = async (): Promise<void> => {
+      const isOwner = await getOwnership()
+      if (!isMounted) return
+      isVoiceOwnerRef.current = isOwner
+      if (!isOwner) return
+
       let targetMicId = ''
       try {
         const cfg = await window.calby?.settings?.getConfig?.()
@@ -491,128 +665,229 @@ export function useVoiceSession(): UseVoiceSessionResult {
       } catch {
         // use default
       }
-      if (isMounted) {
+      if (isMounted && isVoiceOwnerRef.current) {
         void startMicrophoneCapture(targetMicId)
       }
     }
 
-    void initMic()
+    const startTimer = setTimeout(() => {
+      void initMic()
+    }, 0)
 
     return () => {
       isMounted = false
+      clearTimeout(startTimer)
       stopMicrophoneCapture()
     }
+  }, [getOwnership, startMicrophoneCapture, stopMicrophoneCapture])
+
+  // Ownership handoff: taking over reopens the mic and resyncs state; losing it
+  // releases the mic and stops playback so responses can't play twice.
+  useEffect(() => {
+    const voiceApi = window.calby?.voice
+    if (!voiceApi || !voiceApi.onOwnerChanged) return
+
+    const applyOwnership = (isOwner: boolean): void => {
+      if (isOwner === isVoiceOwnerRef.current) return
+      isVoiceOwnerRef.current = isOwner
+
+      if (!isOwner) {
+        if (pcmPlayerRef.current) {
+          pcmPlayerRef.current.interrupt()
+        }
+        stopMicrophoneCapture()
+        isSpeechActiveRef.current = false
+        manualPushToTalkRef.current = false
+        preRollBufferRef.current = []
+        setState('idle')
+        setStateMetadata(undefined)
+        setUserTranscript('')
+        setAssistantTranscript('')
+        setError(null)
+        setDiagnostics((prev) => ({
+          ...prev,
+          geminiStatus: 'Disconnected',
+          vadState: 'Another window is handling voice',
+          outputPlaybackState: 'idle'
+        }))
+        return
+      }
+
+      void window.calby.voice
+        .getState()
+        .then((res) => {
+          if (!isVoiceOwnerRef.current || !res.ok) return
+          setState(res.data.state)
+          setStateMetadata(res.data.metadata)
+        })
+        .catch(() => undefined)
+
+      void (async () => {
+        let targetMicId = selectedDeviceIdRef.current
+        try {
+          const cfg = await window.calby?.settings?.getConfig?.()
+          if (cfg?.ok && cfg.data.voice?.selectedMicDeviceId) {
+            const savedId = cfg.data.voice.selectedMicDeviceId
+            targetMicId = savedId === 'default' ? '' : savedId
+          }
+        } catch {
+          // keep the currently selected device
+        }
+        if (isVoiceOwnerRef.current && !micStreamRef.current) {
+          void startMicrophoneCapture(targetMicId)
+        }
+      })()
+    }
+
+    return voiceApi.onOwnerChanged((payload) => {
+      applyOwnership(Boolean(payload && payload.isOwner))
+    })
   }, [startMicrophoneCapture, stopMicrophoneCapture])
 
-  // Subscribe to IPC voice events
+  // Subscribe to IPC voice events. Handlers only apply while this window owns
+  // the voice session, so a non-owner can never play audio or show stale state.
   useEffect(() => {
-    if (!window.calby?.voice) return
+    const voiceApi = window.calby?.voice
+    if (!voiceApi) return
 
-    // 1. Initial State
-    void window.calby.voice.getState().then((res) => {
-      if (res.ok) {
-        setState(res.data.state)
-        setStateMetadata(res.data.metadata)
+    let active = true
+    const unsubs: Array<() => void> = []
+
+    void (async () => {
+      const isOwner = await getOwnership()
+      if (!active) return
+      isVoiceOwnerRef.current = isOwner
+
+      // 1. Initial State — only the owning window reflects the session state.
+      if (isOwner) {
+        try {
+          const res = await voiceApi.getState()
+          if (active && isVoiceOwnerRef.current && res.ok) {
+            setState(res.data.state)
+            setStateMetadata(res.data.metadata)
+          }
+        } catch {
+          // Fall through: subscriptions below still matter.
+        }
       }
-    })
+      if (!active) return
 
-    // 2. State Changed
-    const unsubState = window.calby.voice.onStateChanged((info: VoiceStateInfo) => {
-      setState(info.state)
-      setStateMetadata(info.metadata)
-      if (info.state === 'error' && info.metadata?.message) {
-        setError({
-          code: (info.metadata.code as string) || 'VOICE_ERROR',
-          message: String(info.metadata.message)
+      // 2. State Changed
+      unsubs.push(
+        voiceApi.onStateChanged((info: VoiceStateInfo) => {
+          if (!isVoiceOwnerRef.current) return
+          setState(info.state)
+          setStateMetadata(info.metadata)
+          if (info.state === 'error' && info.metadata?.message) {
+            setError({
+              code: (info.metadata.code as string) || 'VOICE_ERROR',
+              message: String(info.metadata.message)
+            })
+          } else if (info.state !== 'error') {
+            setError(null)
+          }
         })
-      } else if (info.state !== 'error') {
-        setError(null)
-      }
-    })
+      )
 
-    // 3. Audio Chunk from Gemini (24kHz PCM)
-    const unsubAudio = window.calby.voice.onAudioChunk((base64Chunk: string) => {
-      setDiagnostics((prev) => ({
-        ...prev,
-        lastGeminiEvent: 'model audio received',
-        outputChunksReceived: prev.outputChunksReceived + 1,
-        outputPlaybackState: 'playing'
-      }))
-      if (pcmPlayerRef.current) {
-        pcmPlayerRef.current.playChunk(base64Chunk)
-      }
-    })
+      // 3. Audio Chunk from Gemini (24kHz PCM)
+      unsubs.push(
+        voiceApi.onAudioChunk((base64Chunk: string) => {
+          if (!isVoiceOwnerRef.current) return
+          setDiagnostics((prev) => ({
+            ...prev,
+            lastGeminiEvent: 'model audio received',
+            outputChunksReceived: prev.outputChunksReceived + 1,
+            outputPlaybackState: 'playing'
+          }))
+          if (pcmPlayerRef.current) {
+            pcmPlayerRef.current.playChunk(base64Chunk)
+          }
+        })
+      )
 
-    // 4. Transcripts
-    const unsubTranscript = window.calby.voice.onTranscript((payload: VoiceTranscriptPayload) => {
-      if (payload.role === 'user') {
-        console.log(`[VOICE][GEMINI] inputTranscript="${payload.text}"`)
-        hasReceivedUserTranscriptRef.current = true
-        setUserTranscript(payload.text)
-        setDiagnostics((prev) => ({
-          ...prev,
-          lastGeminiEvent: 'input transcription',
-          inputTranscriptEvents: prev.inputTranscriptEvents + 1,
-          vadState: payload.isFinal ? 'Silence / turn ending' : 'Speech detected'
-        }))
-      } else {
-        console.log(`[VOICE][GEMINI] outputTranscript="${payload.text}"`)
-        setAssistantTranscript((prev) => (payload.isFinal ? payload.text : (prev ? prev + ' ' : '') + payload.text))
-        setDiagnostics((prev) => ({
-          ...prev,
-          lastGeminiEvent: 'model text received'
-        }))
-      }
-    })
+      // 4. Transcripts
+      unsubs.push(
+        voiceApi.onTranscript((payload: VoiceTranscriptPayload) => {
+          if (!isVoiceOwnerRef.current) return
+          if (payload.role === 'user') {
+            console.log(`[VOICE][USER] "${payload.text}"`)
+            hasReceivedUserTranscriptRef.current = true
+            setUserTranscript(payload.text)
+            setDiagnostics((prev) => ({
+              ...prev,
+              lastGeminiEvent: 'input transcription',
+              inputTranscriptEvents: prev.inputTranscriptEvents + 1,
+              vadState: payload.isFinal ? 'Silence / turn ending' : 'Speech detected'
+            }))
+          } else {
+            console.log(`[VOICE][GEMINI] outputTranscript="${payload.text}"`)
+            setAssistantTranscript((prev) =>
+              payload.isFinal ? payload.text : (prev ? prev + ' ' : '') + payload.text
+            )
+            setDiagnostics((prev) => ({
+              ...prev,
+              lastGeminiEvent: 'model text received'
+            }))
+          }
+        })
+      )
 
-    // 5. Interrupted (Barge-in)
-    const unsubInterrupted = window.calby.voice.onInterrupted(() => {
-      console.log('[VOICE][PLAYBACK] interrupted')
-      if (pcmPlayerRef.current) {
-        pcmPlayerRef.current.interrupt()
-      }
-      setAssistantTranscript('')
-      setDiagnostics((prev) => ({
-        ...prev,
-        lastGeminiEvent: 'interrupted',
-        outputPlaybackState: 'idle'
-      }))
-    })
+      // 5. Interrupted (Barge-in)
+      unsubs.push(
+        voiceApi.onInterrupted(() => {
+          if (!isVoiceOwnerRef.current) return
+          console.log('[VOICE][PLAYBACK] interrupted')
+          if (pcmPlayerRef.current) {
+            pcmPlayerRef.current.interrupt()
+          }
+          setAssistantTranscript('')
+          setDiagnostics((prev) => ({
+            ...prev,
+            lastGeminiEvent: 'interrupted',
+            outputPlaybackState: 'idle'
+          }))
+        })
+      )
 
-    // 6. Turn Complete
-    const unsubTurn = window.calby.voice.onTurnComplete(() => {
-      console.log('[VOICE][GEMINI] turnComplete')
-      setDiagnostics((prev) => ({
-        ...prev,
-        lastGeminiEvent: 'turn complete',
-        vadState: 'Turn complete'
-      }))
-    })
+      // 6. Turn Complete
+      unsubs.push(
+        voiceApi.onTurnComplete(() => {
+          if (!isVoiceOwnerRef.current) return
+          console.log('[VOICE][GEMINI] turnComplete')
+          setDiagnostics((prev) => ({
+            ...prev,
+            lastGeminiEvent: 'turn complete',
+            vadState: 'Turn complete'
+          }))
+        })
+      )
 
-    // 7. Error
-    const unsubError = window.calby.voice.onError((err: VoiceErrorPayload) => {
-      console.error('[VOICE][GEMINI] error:', err)
-      setError(err)
-      setState('error')
-      setDiagnostics((prev) => ({
-        ...prev,
-        lastGeminiEvent: `error: ${err.message}`,
-        geminiStatus: 'Disconnected'
-      }))
-      if (pcmPlayerRef.current) {
-        pcmPlayerRef.current.interrupt()
-      }
-    })
+      // 7. Error
+      unsubs.push(
+        voiceApi.onError((err: VoiceErrorPayload) => {
+          if (!isVoiceOwnerRef.current) return
+          console.error('[VOICE][GEMINI] error:', err)
+          setError(err)
+          setState('error')
+          setDiagnostics((prev) => ({
+            ...prev,
+            lastGeminiEvent: `error: ${err.message}`,
+            geminiStatus: 'Disconnected'
+          }))
+          if (pcmPlayerRef.current) {
+            pcmPlayerRef.current.interrupt()
+          }
+        })
+      )
+    })()
 
     return () => {
-      unsubState()
-      unsubAudio()
-      unsubTranscript()
-      unsubInterrupted()
-      unsubTurn()
-      unsubError()
+      active = false
+      for (const unsub of unsubs) {
+        unsub()
+      }
     }
-  }, [])
+  }, [getOwnership])
 
   // Dynamic Audio Visualizer Animation Loop
   useEffect(() => {
@@ -667,10 +942,22 @@ export function useVoiceSession(): UseVoiceSessionResult {
 
   // Public Session Controls
   const startListening = useCallback(async (): Promise<void> => {
+    if (!isVoiceOwnerRef.current) return
+    if (!navigator.onLine) {
+      setError({
+        code: 'OFFLINE',
+        message: 'Please check your internet connection and try again.'
+      })
+      setState('error')
+      return
+    }
     isMicOnlyTestingRef.current = false
     isTextDiagnosticRef.current = false
     hasReceivedUserTranscriptRef.current = false
-    isSpeechActiveRef.current = true
+    // Button/toggle listening opens a session but must not turn an empty
+    // capture into a completed conversational turn.
+    isSpeechActiveRef.current = manualPushToTalkRef.current
+    hasUsableSpeechRef.current = false
     silenceFramesRef.current = 0
     setError(null)
     setUserTranscript('')
@@ -684,7 +971,7 @@ export function useVoiceSession(): UseVoiceSessionResult {
     }))
 
     if (!micStreamRef.current) {
-      let targetMicId = diagnostics.selectedDeviceId
+      let targetMicId = selectedDeviceIdRef.current
       try {
         const cfg = await window.calby?.settings?.getConfig?.()
         if (cfg?.ok && cfg.data.voice?.selectedMicDeviceId) {
@@ -692,31 +979,45 @@ export function useVoiceSession(): UseVoiceSessionResult {
           targetMicId = savedId === 'default' ? '' : savedId
         }
       } catch {
-        // Use currently held state
+        // Use currently held ref
       }
       await startMicrophoneCapture(targetMicId)
     }
 
     await window.calby?.voice?.startSession()
-  }, [startMicrophoneCapture, diagnostics.selectedDeviceId])
+  }, [startMicrophoneCapture])
 
   const finishTurn = useCallback(async (): Promise<void> => {
+    if (!isVoiceOwnerRef.current) return
     isMicOnlyTestingRef.current = false
     isSpeechActiveRef.current = false
     silenceFramesRef.current = 0
     consecutiveSpeechFramesRef.current = 0
+    if (!hasUsableSpeechRef.current && !isTextDiagnosticRef.current) {
+      // Do not send a synthetic empty turn. Keeping the established Live
+      // session listening avoids the <no speech>{pause} response cycle.
+      setDiagnostics((prev) => ({ ...prev, vadState: 'Waiting for usable speech' }))
+      stateRef.current = 'listening'
+      setState('listening')
+      return
+    }
+    hasUsableSpeechRef.current = false
     setDiagnostics((prev) => ({ ...prev, vadState: 'Processing audio turn' }))
+    stateRef.current = 'processing'
     setState('processing')
     await window.calby?.voice?.finishTurn()
   }, [])
 
   const stopListening = useCallback(async (): Promise<void> => {
+    if (!isVoiceOwnerRef.current) return
     isMicOnlyTestingRef.current = false
     isTextDiagnosticRef.current = false
     hasReceivedUserTranscriptRef.current = false
     isSpeechActiveRef.current = false
     silenceFramesRef.current = 0
     consecutiveSpeechFramesRef.current = 0
+    hasUsableSpeechRef.current = false
+    bargeInTriggeredRef.current = false
     if (pcmPlayerRef.current) {
       pcmPlayerRef.current.interrupt()
     }
@@ -724,7 +1025,29 @@ export function useVoiceSession(): UseVoiceSessionResult {
     await window.calby?.voice?.stopSession()
   }, [])
 
+  // Stop an active Live request when the operating system reports that the
+  // network went away. The existing retry path reuses the normal startup flow
+  // after connectivity returns.
+  useEffect(() => {
+    const handleOffline = (): void => {
+      if (!isVoiceOwnerRef.current) return
+      if (pcmPlayerRef.current) pcmPlayerRef.current.interrupt()
+      stopMicrophoneCapture()
+      void (async () => {
+        await window.calby?.voice?.stopSession()
+        setError({
+          code: 'CONNECTION_LOST',
+          message: 'Please check your internet and try again.'
+        })
+        setState('error')
+      })()
+    }
+    window.addEventListener('offline', handleOffline)
+    return () => window.removeEventListener('offline', handleOffline)
+  }, [stopMicrophoneCapture])
+
   const toggleListening = useCallback(async (): Promise<void> => {
+    if (!isVoiceOwnerRef.current) return
     if (state === 'speaking') {
       if (pcmPlayerRef.current) {
         pcmPlayerRef.current.interrupt()
@@ -739,6 +1062,15 @@ export function useVoiceSession(): UseVoiceSessionResult {
   }, [state, startListening, finishTurn])
 
   const sendTextInput = useCallback(async (text: string): Promise<void> => {
+    if (!isVoiceOwnerRef.current) return
+    if (!navigator.onLine) {
+      setError({
+        code: 'OFFLINE',
+        message: 'Please check your internet connection and try again.'
+      })
+      setState('error')
+      return
+    }
     isTextDiagnosticRef.current = true
     hasReceivedUserTranscriptRef.current = true
     setError(null)
@@ -753,6 +1085,7 @@ export function useVoiceSession(): UseVoiceSessionResult {
   }, [])
 
   const interrupt = useCallback(async (): Promise<void> => {
+    if (!isVoiceOwnerRef.current) return
     if (pcmPlayerRef.current) {
       pcmPlayerRef.current.interrupt()
     }
@@ -760,6 +1093,7 @@ export function useVoiceSession(): UseVoiceSessionResult {
   }, [])
 
   const retry = useCallback(async (): Promise<void> => {
+    if (!isVoiceOwnerRef.current) return
     setError(null)
     await startListening()
   }, [startListening])
@@ -768,8 +1102,8 @@ export function useVoiceSession(): UseVoiceSessionResult {
   const testMicrophoneOnly = useCallback(async (): Promise<void> => {
     isMicOnlyTestingRef.current = true
     setError(null)
-    await startMicrophoneCapture(diagnostics.selectedDeviceId)
-  }, [startMicrophoneCapture, diagnostics.selectedDeviceId])
+    await startMicrophoneCapture(selectedDeviceIdRef.current)
+  }, [startMicrophoneCapture])
 
   const stopMicrophoneOnly = useCallback((): void => {
     isMicOnlyTestingRef.current = false
@@ -779,6 +1113,7 @@ export function useVoiceSession(): UseVoiceSessionResult {
   const selectMicrophoneDevice = useCallback(
     async (deviceId: string): Promise<void> => {
       console.log('[VOICE][MIC] Selecting microphone deviceId:', deviceId)
+      selectedDeviceIdRef.current = deviceId
       setDiagnostics((prev) => ({ ...prev, selectedDeviceId: deviceId }))
       if (micStreamRef.current) {
         await startMicrophoneCapture(deviceId)
@@ -792,6 +1127,7 @@ export function useVoiceSession(): UseVoiceSessionResult {
     let isSpacePressed = false
 
     const handleKeyDown = (e: KeyboardEvent): void => {
+      if (!isVoiceOwnerRef.current) return
       const active = document.activeElement as HTMLElement | null
       if (
         active?.tagName === 'INPUT' ||

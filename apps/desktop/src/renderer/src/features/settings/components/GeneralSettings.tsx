@@ -1,5 +1,9 @@
 import { useState, useEffect, type FC } from 'react'
 import type { GeneralSettings } from '../types'
+import {
+  DEFAULT_QUICK_VOICE_SHORTCUT,
+  formatAccelerator
+} from '../../../../../shared/quick-voice'
 
 interface GeneralSettingsProps {
   generalSettings?: GeneralSettings
@@ -16,6 +20,10 @@ export const GeneralSettingsComponent: FC<GeneralSettingsProps> = ({
   const [keepRunning, setKeepRunning] = useState(generalSettings?.keepRunningInBackground ?? true)
   const [closeToTray, setCloseToTray] = useState(generalSettings?.closeToTray ?? true)
   const [allowNotifications, setAllowNotifications] = useState(generalSettings?.allowDesktopNotifications ?? true)
+  const [quickVoiceShortcut, setQuickVoiceShortcut] = useState(
+    generalSettings?.quickVoiceShortcut ?? DEFAULT_QUICK_VOICE_SHORTCUT
+  )
+  const [shortcutMessage, setShortcutMessage] = useState<{ ok: boolean; text: string } | null>(null)
 
   useEffect(() => {
     if (generalSettings) {
@@ -23,6 +31,9 @@ export const GeneralSettingsComponent: FC<GeneralSettingsProps> = ({
       if (typeof generalSettings.keepRunningInBackground === 'boolean') setKeepRunning(generalSettings.keepRunningInBackground)
       if (typeof generalSettings.closeToTray === 'boolean') setCloseToTray(generalSettings.closeToTray)
       if (typeof generalSettings.allowDesktopNotifications === 'boolean') setAllowNotifications(generalSettings.allowDesktopNotifications)
+      if (typeof generalSettings.quickVoiceShortcut === 'string') {
+        setQuickVoiceShortcut(generalSettings.quickVoiceShortcut)
+      }
     }
   }, [generalSettings])
 
@@ -34,6 +45,24 @@ export const GeneralSettingsComponent: FC<GeneralSettingsProps> = ({
     if (key === 'allowDesktopNotifications') setAllowNotifications(newVal)
 
     await onUpdate({ [key]: newVal })
+  }
+
+  const handleSaveShortcut = async (): Promise<void> => {
+    const requested = quickVoiceShortcut.trim() || DEFAULT_QUICK_VOICE_SHORTCUT
+    const saved = await onUpdate({ quickVoiceShortcut: requested })
+
+    if (saved) {
+      setQuickVoiceShortcut(requested)
+      setShortcutMessage({ ok: true, text: 'Shortcut saved.' })
+    } else {
+      // Main process rejected the binding — fall back to the stored value so the
+      // UI never claims a shortcut the app doesn't actually own.
+      setQuickVoiceShortcut(generalSettings?.quickVoiceShortcut ?? DEFAULT_QUICK_VOICE_SHORTCUT)
+      setShortcutMessage({
+        ok: false,
+        text: 'That shortcut is unavailable. Try a different combination.'
+      })
+    }
   }
 
   return (
@@ -168,6 +197,62 @@ export const GeneralSettingsComponent: FC<GeneralSettingsProps> = ({
               <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
             </svg>
           </button>
+        </div>
+      </div>
+
+      {/* ── Quick Voice ── */}
+      <div className="space-y-3 pt-2">
+        <h3 className="text-sm font-semibold tracking-tight" style={{ color: 'var(--ds-text-primary)' }}>
+          Quick Voice
+        </h3>
+
+        <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-3">
+          <div>
+            <p className="text-sm font-medium" style={{ color: 'var(--ds-text-primary)' }}>
+              Quick Voice shortcut
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--ds-text-secondary)' }}>
+              Opens the floating voice window from anywhere. Defaults to{' '}
+              {formatAccelerator(DEFAULT_QUICK_VOICE_SHORTCUT)}.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              data-testid="quick-voice-shortcut-input"
+              value={quickVoiceShortcut}
+              onChange={(event) => {
+                setQuickVoiceShortcut(event.target.value)
+                setShortcutMessage(null)
+              }}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  void handleSaveShortcut()
+                }
+              }}
+              aria-label="Quick Voice shortcut"
+              className="flex-1 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-slate-200 outline-none focus:border-[#2563EB]"
+            />
+            <button
+              type="button"
+              data-testid="quick-voice-shortcut-save"
+              onClick={() => void handleSaveShortcut()}
+              className="rounded-lg bg-[#2563EB] px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-[#1D4ED8] cursor-pointer"
+            >
+              Save
+            </button>
+          </div>
+
+          {shortcutMessage && (
+            <p
+              className={`text-xs ${shortcutMessage.ok ? 'text-[#10B981]' : 'text-[#EF4444]'}`}
+              data-testid="quick-voice-shortcut-message"
+            >
+              {shortcutMessage.text}
+            </p>
+          )}
         </div>
       </div>
 

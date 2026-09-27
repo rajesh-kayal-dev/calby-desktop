@@ -1,5 +1,6 @@
 import { type FC, type ReactNode } from 'react'
 import type { SystemInfo } from '../types'
+import logoUrl from '../../../assets/logo.png'
 
 interface AboutSettingsProps {
   systemInfo: SystemInfo | null
@@ -28,9 +29,7 @@ const ShieldCheckIcon = () => (
 
 const REPO_URL = 'https://github.com/rajesh-kayal-dev/calby-desktop.git'
 
-const CalbyLogoIcon = () => (
-  <img src="/logo.png" alt="Calby Logo" className="h-5 object-contain" />
-)
+
 
 // Workflow Diagram SVG Icons matching the reference image
 const MicIcon = () => (
@@ -147,7 +146,7 @@ export const AboutSettings: FC<AboutSettingsProps> = ({ systemInfo }) => {
       {/* App Identity Card */}
       <div className="p-5 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
         <div className="flex items-center gap-5">
-          <img src="/logo.png" alt="Calby Logo" className="h-11 object-contain" />
+          <img src={logoUrl} alt="Calby Logo" className="h-11 object-contain" />
           <div>
             <div className="flex items-center gap-2">
               <span data-testid="app-version" className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-slate-300 font-mono">

@@ -31,8 +31,11 @@ function tryLoadEnv(): void {
   }
 }
 tryLoadEnv()
+// Ensure Gemini API key is always read from CredentialService and not env vars
+delete process.env.GEMINI_API_KEY
 
 import { electronApp, optimizer } from '@electron-toolkit/utils'
+import { ACTIVATION_SHORTCUT } from '../shared/quick-voice'
 import { createMainWindow, setQuitting } from './windows/main.window'
 import { registerSystemIpcHandlers } from './ipc/system.ipc'
 import { registerAuthIpcHandlers } from './ipc/auth.ipc'
@@ -42,6 +45,7 @@ import { registerRemindersIpc } from './ipc/reminders.ipc'
 import { registerCalendarIpc } from './ipc/calendar.ipc'
 import { registerMemoryIpc } from './ipc/memory.ipc'
 import { registerSettingsIpc } from './ipc/settings.ipc'
+import { registerQuickVoiceIpcHandlers } from './ipc/quickvoice.ipc'
 import { CredentialService } from './services/credential.service'
 import { AiVoiceService } from './services/ai-voice.service'
 import { ActionExecutor } from './services/action-executor'
@@ -50,7 +54,14 @@ import { GoogleCalendarService } from './services/google-calendar.service'
 import { MemoryService } from './services/memory.service'
 import { SettingsService } from './services/settings.service'
 import { TrayService } from './services/tray.service'
+import { ConfigService } from './services/config.service'
+import { getVoiceOwnerId, isVoiceOwner } from './services/voice-owner'
+import {
+  applyQuickVoiceShortcut,
+  unregisterQuickVoiceShortcut
+} from './services/quick-voice-shortcut'
 import { ReminderAlarmWindowManager } from './windows/alarm.window'
+import { QuickVoiceWindowManager } from './windows/quick-voice.window'
 import { closeDatabase } from './storage/database'
 
 export {
@@ -59,6 +70,7 @@ export {
   ActionExecutor,
   ReminderService,
   ReminderAlarmWindowManager,
+  QuickVoiceWindowManager,
   GoogleCalendarService,
   MemoryService,
   SettingsService,
@@ -69,6 +81,15 @@ let mainWindow: BrowserWindow | null = null
 
 export function handleGlobalActivationShortcut(): void {
   console.log('[Main] Global shortcut CommandOrControl+Shift+Space triggered')
+
+  // Quick Voice already owns the shared Gemini Live session. Do not reveal the
+  // full window and race it for the microphone when the legacy shortcut is
+  // pressed during a Quick Voice turn.
+  if (QuickVoiceWindowManager.getInstance().isOpen()) {
+    QuickVoiceWindowManager.getInstance().open()
+    return
+  }
+
   if (mainWindow && !mainWindow.isDestroyed()) {
     if (mainWindow.isMinimized()) {
       mainWindow.restore()
@@ -99,6 +120,8 @@ export function handleGlobalActivationShortcut(): void {
   MemoryService,
   SettingsService,
   CredentialService,
+  QuickVoiceWindowManager,
+  voiceOwner: { getOwnerId: getVoiceOwnerId, isOwner: isVoiceOwner },
   handleGlobalActivationShortcut
 }
 
@@ -153,6 +176,7 @@ if (!gotSingleInstanceLock) {
     registerCalendarIpc()
     registerMemoryIpc()
     registerSettingsIpc()
+    registerQuickVoiceIpcHandlers()
 
     // Check if launched by Windows Task Scheduler for a specific reminder
     const triggerIndex = process.argv.findIndex((arg) => arg === '--trigger-reminder')
@@ -164,6 +188,10 @@ if (!gotSingleInstanceLock) {
 
     // Initialize System Tray
     TrayService.getInstance().init(mainWindow)
+
+    // Quick Voice overlay: register the main window so ownership can be handed
+    // back and forth between it and the floating window.
+    QuickVoiceWindowManager.getInstance().attachMainWindow(mainWindow)
 
     // Initialize Reminder Service and Scheduler (reconciles missed reminders & wake tasks)
     ReminderService.getInstance().init()
@@ -181,22 +209,28 @@ if (!gotSingleInstanceLock) {
 
     // Register Fixed Global Activation Shortcut
     try {
-      const registered = globalShortcut.register(
-        'CommandOrControl+Shift+Space',
-        handleGlobalActivationShortcut
-      )
+      const registered = globalShortcut.register(ACTIVATION_SHORTCUT, handleGlobalActivationShortcut)
 
       if (!registered) {
-        console.warn('[Main] Global shortcut CommandOrControl+Shift+Space registration failed')
+        console.warn('[Main] Global activation shortcut registration failed')
       }
     } catch (err) {
       console.warn('[Main] Error registering global shortcut:', err)
+    }
+
+    // Register the Quick Voice shortcut (exactly one binding, from config).
+    const quickVoiceShortcut = applyQuickVoiceShortcut(
+      ConfigService.getInstance().getGeneralSettings().quickVoiceShortcut
+    )
+    if (!quickVoiceShortcut.ok) {
+      console.warn('[Main] Quick Voice shortcut unavailable:', quickVoiceShortcut.reason)
     }
 
     app.on('activate', function () {
       if (BrowserWindow.getAllWindows().length === 0) {
         mainWindow = createMainWindow()
         TrayService.getInstance().init(mainWindow)
+        QuickVoiceWindowManager.getInstance().attachMainWindow(mainWindow)
       } else if (mainWindow && !mainWindow.isDestroyed()) {
         if (!mainWindow.isVisible()) mainWindow.show()
         mainWindow.focus()
@@ -206,6 +240,7 @@ if (!gotSingleInstanceLock) {
 
   app.on('will-quit', () => {
     try {
+      unregisterQuickVoiceShortcut()
       globalShortcut.unregisterAll()
     } catch (err) {
       console.warn('[Main] Error unregistering global shortcuts:', err)

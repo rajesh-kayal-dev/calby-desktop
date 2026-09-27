@@ -77,6 +77,13 @@ test.describe('Phase 7 - Integration & Desktop Experience Tests', () => {
       ]
 
       const originalGetUpcoming = calendarService.getUpcomingEvents.bind(calendarService)
+      const originalGetStatus = calendarService.getStatus.bind(calendarService)
+      // The tool consults getStatus() first — simulate a connected calendar.
+      calendarService.getStatus = async () => ({
+        status: 'connected',
+        hasWriteAccess: true,
+        connectedEmail: 'user@example.com'
+      })
       calendarService.getUpcomingEvents = async () => mockEvents
 
       try {
@@ -102,6 +109,7 @@ test.describe('Phase 7 - Integration & Desktop Experience Tests', () => {
           next7DaysResult
         }
       } finally {
+        calendarService.getStatus = originalGetStatus
         calendarService.getUpcomingEvents = originalGetUpcoming
       }
     })
@@ -145,7 +153,14 @@ test.describe('Phase 7 - Integration & Desktop Experience Tests', () => {
       const calby = (global as any).__calby
       const calendarService = calby.GoogleCalendarService.getInstance()
       const originalGetUpcoming = calendarService.getUpcomingEvents.bind(calendarService)
-      // Disconnected returns null or throws auth error
+      const originalGetStatus = calendarService.getStatus.bind(calendarService)
+      // Status says connected, but the fetch itself returns null — the tool must
+      // still fall back to the structured not-connected payload.
+      calendarService.getStatus = async () => ({
+        status: 'connected',
+        hasWriteAccess: true,
+        connectedEmail: 'user@example.com'
+      })
       calendarService.getUpcomingEvents = async () => null
 
       try {
@@ -155,6 +170,7 @@ test.describe('Phase 7 - Integration & Desktop Experience Tests', () => {
         })
         return toolResult
       } finally {
+        calendarService.getStatus = originalGetStatus
         calendarService.getUpcomingEvents = originalGetUpcoming
       }
     })

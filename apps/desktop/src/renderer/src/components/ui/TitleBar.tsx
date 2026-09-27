@@ -1,7 +1,8 @@
 import type { FC, ReactNode } from 'react'
 import type { ActiveView } from '../../app/App'
+import logoUrl from '../../assets/logo.png'
 
-export type ConnectionStatus = 'connected' | 'disconnected' | 'checking' | 'not-connected' | 'error'
+export type ConnectionStatus = 'connected' | 'disconnected' | 'checking' | 'not-connected' | 'error' | 'offline'
 
 interface TitleBarProps {
   activeView?: ActiveView
@@ -15,7 +16,7 @@ interface TitleBarProps {
 }
 
 const CalbyWordmarkIcon = () => (
-  <img src="/logo.png" alt="Calby Logo" className="h-[22px] object-contain" />
+  <img src={logoUrl} alt="Calby Logo" className="h-[22px] object-contain" />
 )
 
 // Subtle stroke icons for navigation tabs
@@ -118,8 +119,9 @@ export const TitleBar: FC<TitleBarProps> = ({
       case 'disconnected':
       case 'not-connected':
       case 'error':
+      case 'offline':
         return {
-          dotClass: 'bg-[#EF4444] glow-dot-red',
+          dotClass: 'bg-slate-200',
           label: 'Offline',
         }
       default:
@@ -214,11 +216,12 @@ export const TitleBar: FC<TitleBarProps> = ({
               tabIndex={0}
               role="status"
               aria-label={`Connection status: ${statusInfo.label}`}
-              className="w-5 h-5 flex items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-500 cursor-default"
+              className="flex h-5 items-center gap-1 rounded-full px-1 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-slate-500 cursor-default"
             >
               <span
-                className={`w-2 h-2 rounded-full transition-all ${statusInfo.dotClass}`}
+                className={`w-1.5 h-1.5 rounded-full transition-all ${statusInfo.dotClass}`}
               />
+              <span className="text-[10px] font-medium text-[#94A3B8]">{statusInfo.label}</span>
             </button>
 
             {/* Tooltip on hover or focus-within */}

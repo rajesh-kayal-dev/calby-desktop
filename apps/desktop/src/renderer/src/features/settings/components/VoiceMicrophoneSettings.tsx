@@ -123,24 +123,32 @@ export const VoiceMicrophoneSettings: FC<VoiceMicrophoneSettingsProps> = ({
     try {
       if (navigator.mediaDevices?.enumerateDevices) {
         const allDevices = await navigator.mediaDevices.enumerateDevices()
-        const audioInputs = allDevices.filter((d) => d.kind === 'audioinput')
+        // Chromium exposes a virtual `default` audioinput whose label changes
+        // with Windows' default device (for example "Default - Headset …").
+        // It is not the physical headset ID, so never present that alias as a
+        // selected Bluetooth microphone.
+        const audioInputs = allDevices.filter(
+          (d) => d.kind === 'audioinput' && d.deviceId !== 'default'
+        )
         setDevices(audioInputs)
 
-        // If currently saved device is no longer found and devices exist, handle fallback
+        // Do not silently rewrite an unavailable explicit device to the system
+        // default. Bluetooth endpoint IDs can change during reconnects.
         if (
           audioInputs.length > 0 &&
           selectedMicId !== 'default' &&
           !audioInputs.some((d) => d.deviceId === selectedMicId)
         ) {
-          const fallbackId = audioInputs[0].deviceId || 'default'
-          setSelectedMicId(fallbackId)
-          void onUpdateVoice({ selectedMicDeviceId: fallbackId })
+          // Keep the unavailable explicit choice persisted. Windows Bluetooth
+          // IDs can change while a headset reconnects; replacing it with the
+          // system default would silently switch microphones.
+          console.warn('[VoiceSettings] Selected microphone is currently unavailable:', selectedMicId)
         }
       }
     } catch (err) {
       console.warn('[VoiceSettings] Unable to enumerate audio devices:', err)
     }
-  }, [selectedMicId, onUpdateVoice])
+  }, [selectedMicId])
 
   useEffect(() => {
     void refreshDevices()
@@ -538,12 +546,15 @@ export const VoiceMicrophoneSettings: FC<VoiceMicrophoneSettingsProps> = ({
             onChange={(e) => void handleMicDeviceChange(e.target.value)}
             className="w-full px-4 py-2.5 rounded-xl text-xs bg-[#0F172A] border border-white/10 hover:border-white/20 appearance-none focus:outline-none focus:border-[#38BDF8] focus-visible:ring-2 focus-visible:ring-[#38BDF8]/40 transition-colors cursor-pointer font-medium text-white"
           >
-            {devices.length === 0 ? (
-              <option value="default" className="bg-[#0F172A] text-white py-1">
-                Default Microphone (System Audio Input)
+            <option value="default" className="bg-[#0F172A] text-white py-1">
+              Default Microphone (System Audio Input)
+            </option>
+            {selectedMicId !== 'default' && !devices.some((d) => d.deviceId === selectedMicId) && (
+              <option value={selectedMicId} disabled className="bg-[#0F172A] text-white py-1">
+                Selected microphone unavailable — reconnect or choose another
               </option>
-            ) : (
-              devices.map((d, index) => (
+            )}
+            {devices.map((d, index) => (
                 <option
                   key={d.deviceId || index}
                   value={d.deviceId}
@@ -551,8 +562,7 @@ export const VoiceMicrophoneSettings: FC<VoiceMicrophoneSettingsProps> = ({
                 >
                   {d.label || `Microphone ${index + 1}`}
                 </option>
-              ))
-            )}
+              ))}
           </select>
           <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">

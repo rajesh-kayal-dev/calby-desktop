@@ -1,5 +1,6 @@
 import { Tray, Menu, nativeImage, BrowserWindow, app } from 'electron'
 import { setQuitting } from '../windows/main.window'
+import { QuickVoiceWindowManager } from '../windows/quick-voice.window'
 import { resolveAssetPath } from './sound-resolver'
 
 // 16x16 RGBA PNG data URL representing the Calby cyan orb icon
@@ -47,6 +48,12 @@ export class TrayService {
           click: (): void => {
             this.showAndFocus()
             this.broadcastNavigation({ view: 'settings' })
+          }
+        },
+        {
+          label: 'Quick Voice',
+          click: (): void => {
+            QuickVoiceWindowManager.getInstance().open()
           }
         },
         { type: 'separator' },

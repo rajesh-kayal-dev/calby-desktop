@@ -15,6 +15,14 @@ export interface Reminder {
   updatedAt: string
   completedAt?: string | null
   missedAt?: string | null
+  /** Linked calendar event id (when this reminder belongs to an event). */
+  eventId?: string | null
+  /** Lead time in minutes before the event (when created for an event). */
+  leadMinutes?: number | null
+  /** Stable idempotency key: same user + event/config ⇒ same key. */
+  dedupeKey?: string | null
+  /** Where the reminder was created: 'voice' | 'ui' | 'system'. */
+  source?: string | null
 }
 
 export interface ReminderRow {
@@ -29,6 +37,10 @@ export interface ReminderRow {
   updated_at: number
   completed_at: number | null
   missed_at: number | null
+  event_id?: string | null
+  lead_minutes?: number | null
+  dedupe_key?: string | null
+  source?: string | null
 }
 
 export interface CreateReminderRecord {
@@ -38,6 +50,10 @@ export interface CreateReminderRecord {
   alarmEnabled: boolean
   alertType?: AlertType
   status?: ReminderStatus
+  eventId?: string | null
+  leadMinutes?: number | null
+  dedupeKey?: string | null
+  source?: string | null
 }
 
 export interface UpdateReminderRecord {
@@ -50,6 +66,10 @@ export interface UpdateReminderRecord {
   snoozeCount?: number
   completedAt?: number | null
   missedAt?: number | null
+  eventId?: string | null
+  leadMinutes?: number | null
+  dedupeKey?: string | null
+  source?: string | null
 }
 
 export class ReminderRepository {
@@ -84,7 +104,11 @@ export class ReminderRepository {
       createdAt: new Date(row.created_at).toISOString(),
       updatedAt: new Date(row.updated_at).toISOString(),
       completedAt: row.completed_at ? new Date(row.completed_at).toISOString() : null,
-      missedAt: row.missed_at ? new Date(row.missed_at).toISOString() : null
+      missedAt: row.missed_at ? new Date(row.missed_at).toISOString() : null,
+      eventId: row.event_id ?? null,
+      leadMinutes: row.lead_minutes ?? null,
+      dedupeKey: row.dedupe_key ?? null,
+      source: row.source ?? null
     }
   }
 
@@ -132,9 +156,11 @@ export class ReminderRepository {
 
     const stmt = db.prepare(`
       INSERT INTO reminders (
-        id, title, scheduled_at, alarm_enabled, alert_type, status, snooze_count, created_at, updated_at, completed_at
+        id, title, scheduled_at, alarm_enabled, alert_type, status, snooze_count,
+        created_at, updated_at, completed_at, event_id, lead_minutes, dedupe_key, source
       ) VALUES (
-        @id, @title, @scheduled_at, @alarm_enabled, @alert_type, @status, 0, @created_at, @updated_at, NULL
+        @id, @title, @scheduled_at, @alarm_enabled, @alert_type, @status, 0,
+        @created_at, @updated_at, NULL, @event_id, @lead_minutes, @dedupe_key, @source
       )
     `)
 
@@ -146,7 +172,11 @@ export class ReminderRepository {
       alert_type: alertType,
       status,
       created_at: now,
-      updated_at: now
+      updated_at: now,
+      event_id: data.eventId ?? null,
+      lead_minutes: data.leadMinutes ?? null,
+      dedupe_key: data.dedupeKey ?? null,
+      source: data.source ?? null
     })
 
     const created = this.findById(data.id)
@@ -154,6 +184,21 @@ export class ReminderRepository {
       throw new Error(`Failed to retrieve newly created reminder with id ${data.id}`)
     }
     return created
+  }
+
+  /**
+   * Finds an ACTIVE reminder (scheduled/triggered/snoozed) already carrying this
+   * idempotency key. Completed/dismissed/missed reminders are ignored so a
+   * finished reminder never blocks creating a new one.
+   */
+  public findByDedupeKey(dedupeKey: string): Reminder | null {
+    const db = getDatabase()
+    const row = db
+      .prepare(
+        "SELECT * FROM reminders WHERE dedupe_key = ? AND status IN ('scheduled', 'triggered', 'snoozed') LIMIT 1"
+      )
+      .get(dedupeKey) as ReminderRow | undefined
+    return row ? this.mapRowToReminder(row) : null
   }
 
   public update(data: UpdateReminderRecord): Reminder | null {
@@ -207,6 +252,26 @@ export class ReminderRepository {
     if (data.missedAt !== undefined) {
       updates.push('missed_at = @missed_at')
       params.missed_at = data.missedAt
+    }
+
+    if (data.eventId !== undefined) {
+      updates.push('event_id = @event_id')
+      params.event_id = data.eventId
+    }
+
+    if (data.leadMinutes !== undefined) {
+      updates.push('lead_minutes = @lead_minutes')
+      params.lead_minutes = data.leadMinutes
+    }
+
+    if (data.dedupeKey !== undefined) {
+      updates.push('dedupe_key = @dedupe_key')
+      params.dedupe_key = data.dedupeKey
+    }
+
+    if (data.source !== undefined) {
+      updates.push('source = @source')
+      params.source = data.source
     }
 
     const query = `UPDATE reminders SET ${updates.join(', ')} WHERE id = @id`

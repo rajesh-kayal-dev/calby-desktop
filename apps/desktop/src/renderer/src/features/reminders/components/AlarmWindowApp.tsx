@@ -2,9 +2,10 @@ import { useState, useEffect, type FC, type CSSProperties } from 'react'
 import type { Reminder } from '../types'
 import { CalbySoundPlayer } from '../../../services/sound-player.service'
 import { findAlarmSound } from '../../settings/sound-catalog'
+import faviconUrl from '../../../assets/favicon.png'
 
 const CalbyWordmarkIcon = () => (
-  <img src="/favicon.png" alt="Calby Logo" className="h-[18px] object-contain" />
+  <img src={faviconUrl} alt="Calby Logo" className="h-[18px] object-contain" />
 )
 
 export const AlarmWindowApp: FC = () => {
