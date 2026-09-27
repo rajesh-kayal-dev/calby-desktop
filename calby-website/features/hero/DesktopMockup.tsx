@@ -57,7 +57,7 @@ export function DesktopMockup() {
             <span>+</span>
             <kbd className="font-mono text-[#38BDF8]">Space</kbd>
           </div>
-          <span className="text-[11px] text-[#64748B] font-mono">Windows 10 / 11</span>
+          <span className="text-[11px] text-[#64748B] font-mono">Windows · macOS · Linux</span>
         </div>
       </div>
 
@@ -147,7 +147,7 @@ export function DesktopMockup() {
           <div className="mt-4 pt-3 border-t border-[#1E293B]/50 flex items-center justify-between text-[11px] text-[#64748B]">
             <div className="flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              <span>Offline engine active</span>
+              <span>Works offline</span>
             </div>
             <span>Press Alt+Space anytime</span>
           </div>

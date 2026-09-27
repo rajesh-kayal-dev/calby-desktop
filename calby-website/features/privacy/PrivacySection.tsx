@@ -28,11 +28,11 @@ export function PrivacySection() {
           <div className="pt-2 flex flex-wrap gap-3 text-xs text-[#94A3B8]">
             <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#0C101A] border border-[#1E293B]">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              Local-first architecture
+              Your data stays on your device
             </span>
             <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#0C101A] border border-[#1E293B]">
               <span className="w-1.5 h-1.5 rounded-full bg-[#38BDF8]" />
-              Zero telemetry selling
+              No data ever sold
             </span>
           </div>
         </div>
@@ -45,7 +45,7 @@ export function PrivacySection() {
             </div>
             <div>
               <h4 className="text-xs font-bold text-[#F8FAFC]">Your Device</h4>
-              <p className="text-[11px] text-[#94A3B8]">Local audio intake &amp; transcription</p>
+              <p className="text-[11px] text-[#94A3B8]">Your voice is processed on your device</p>
             </div>
           </div>
 
@@ -73,7 +73,7 @@ export function PrivacySection() {
             </div>
             <div>
               <h4 className="text-xs font-bold text-[#F8FAFC]">Online Only When Needed</h4>
-              <p className="text-[11px] text-[#94A3B8]">Explicit Google Calendar syncing</p>
+              <p className="text-[11px] text-[#94A3B8]">Google Calendar syncing you set up</p>
             </div>
           </div>
         </div>

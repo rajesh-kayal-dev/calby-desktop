@@ -42,7 +42,7 @@ export function SellingSection() {
               <span>Download Calby — Free</span>
               <ArrowRight className="w-4 h-4 stroke-[2.5]" />
             </a>
-            <span className="text-xs text-[#64748B] font-mono">Windows desktop</span>
+            <span className="text-xs text-[#64748B] font-mono">Windows · macOS · Linux</span>
           </div>
         </div>
 
@@ -56,7 +56,7 @@ export function SellingSection() {
               </h4>
             </div>
             <p className="text-xs text-[#94A3B8] leading-relaxed">
-              Calby is designed local-first: your everyday local data remains available on your computer, while online services are used only when a feature needs them.
+              Your data stays on your device. Online services are used only when a feature needs them.
             </p>
           </div>
 

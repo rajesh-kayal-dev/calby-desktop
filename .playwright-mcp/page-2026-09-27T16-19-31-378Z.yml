@@ -1,0 +1,311 @@
+- generic [ref=f4e2]:
+  - banner [ref=f4e3]:
+    - generic [ref=f4e4]:
+      - generic [ref=f4e5]:
+        - link "Calby Logo Calby" [ref=f4e6] [cursor=pointer]:
+          - /url: "#overview"
+          - img "Calby Logo" [ref=f4e8]
+          - generic [ref=f4e14]: Calby
+        - navigation [ref=f4e15]:
+          - link "Overview" [ref=f4e16] [cursor=pointer]:
+            - /url: "#overview"
+          - link "Features" [ref=f4e17] [cursor=pointer]:
+            - /url: "#features"
+          - link "How It Works" [ref=f4e18] [cursor=pointer]:
+            - /url: "#how-it-works"
+          - link "Privacy" [ref=f4e19] [cursor=pointer]:
+            - /url: "#privacy"
+      - generic [ref=f4e20]:
+        - link "GitHub" [ref=f4e21] [cursor=pointer]:
+          - /url: https://github.com/rajesh-kayal-dev/calby-desktop
+        - link "Download Calby — Free" [ref=f4e31] [cursor=pointer]:
+          - /url: "#download-final"
+  - main [ref=f4e35]:
+    - generic [ref=f4e36]:
+      - generic [ref=f4e37]: CALBY FOR DESKTOP
+      - heading "Meet Calby. Your personal desktop assistant." [level=1] [ref=f4e42]: Meet Calby.Your personal desktop assistant.
+      - paragraph [ref=f4e43]: Talk to Calby. It remembers what matters, keeps you on schedule, and helps you get things done.
+      - generic [ref=f4e44]:
+        - generic [ref=f4e45]: Remember
+        - generic [ref=f4e48]: Understand
+        - generic [ref=f4e51]: Act
+      - generic [ref=f4e53]:
+        - generic [ref=f4e54]:
+          - link "Download Calby — Free" [ref=f4e55] [cursor=pointer]:
+            - /url: https://github.com/rajesh-kayal-dev/calby-desktop/releases/tag/v1.0.0
+          - button "Select platform" [ref=f4e64] [cursor=pointer]
+        - generic [ref=f4e70]: Available for Windows, macOS, and Linux.
+      - generic "Calby Interactive Desktop Software" [ref=f4e72]:
+        - generic [ref=f4e73]:
+          - generic [ref=f4e74]:
+            - button "Calby Logo Calby" [ref=f4e75]:
+              - img "Calby Logo" [ref=f4e76]
+              - generic [ref=f4e82]: Calby
+            - generic [ref=f4e83]:
+              - button "Home" [ref=f4e84]
+              - button "Reminders" [ref=f4e89]
+              - button "Calendar" [ref=f4e94]
+              - button "Memory" [ref=f4e98]
+          - generic [ref=f4e102]:
+            - 'generic "Calby Desktop Engine: Connected" [ref=f4e103]'
+            - button "Settings" [ref=f4e107]
+        - generic [ref=f4e111]:
+          - generic [ref=f4e112]:
+            - generic [ref=f4e113]:
+              - generic [ref=f4e114]: Tomorrow · 2:00 AM
+              - button "Dismiss notification" [ref=f4e115]
+            - generic [ref=f4e119]: Calby test Meting
+          - generic [ref=f4e121]:
+            - heading "How can I help you today?" [level=2] [ref=f4e123]
+            - paragraph [ref=f4e124]: Listening... Speak or say a reminder
+            - generic "Click to simulate voice interaction" [ref=f4e125] [cursor=pointer]
+          - button "Listening... Click to advance" [ref=f4e129]
+    - separator [ref=f4e133]
+    - generic [ref=f4e134]:
+      - generic [ref=f4e135]:
+        - generic [ref=f4e136]: Core Capabilities
+        - heading "Everything you need from your assistant." [level=2] [ref=f4e137]
+        - paragraph [ref=f4e138]: Four core capabilities designed for how you actually work on your desktop.
+      - generic [ref=f4e139]:
+        - generic [ref=f4e140]:
+          - generic [ref=f4e141]:
+            - heading "Just talk to Calby." [level=3] [ref=f4e146]
+            - paragraph [ref=f4e147]: Voice Assistant
+            - paragraph [ref=f4e148]: Use your voice to ask Calby to remember something, check your schedule, or take an action.
+          - generic [ref=f4e149]:
+            - generic [ref=f4e150]:
+              - generic [ref=f4e151]:
+                - button "Toggle voice visualizer" [ref=f4e152]
+                - generic [ref=f4e156]: Listening on your keyboard shortcut
+              - generic [ref=f4e157]: Alt + Space
+            - generic [ref=f4e161]: “Prep notes for product review”
+            - generic [ref=f4e162]: "Calby: Ready. Review points gathered from your calendar context."
+        - generic [ref=f4e165]:
+          - generic [ref=f4e166]:
+            - heading "Never forget what matters." [level=3] [ref=f4e171]
+            - paragraph [ref=f4e172]: Smart Reminders
+            - paragraph [ref=f4e173]: Reliable reminders and optional alarms that work on your desktop.
+          - generic [ref=f4e174]:
+            - generic [ref=f4e175]:
+              - generic [ref=f4e176]:
+                - heading "Call Rahul" [level=4] [ref=f4e177]
+                - generic [ref=f4e178]: Today · 5:00 PM
+              - generic [ref=f4e183]: Reminder in 5 min
+            - generic [ref=f4e184]:
+              - button "Snooze 10m" [ref=f4e185]
+              - button "Mark Done" [ref=f4e186]
+        - generic [ref=f4e188]:
+          - generic [ref=f4e189]:
+            - heading "Know what's coming next." [level=3] [ref=f4e193]
+            - paragraph [ref=f4e194]: Google Calendar
+            - paragraph [ref=f4e195]: Connect Google Calendar, create events, set reminders, and prepare for meetings.
+            - generic [ref=f4e196]: Instant keyboard shortcut sync & daily briefings
+          - generic [ref=f4e200]:
+            - generic [ref=f4e201]:
+              - generic [ref=f4e202]: TODAY
+              - generic [ref=f4e203]: Wed, Oct 25
+            - generic [ref=f4e204]:
+              - generic [ref=f4e205]:
+                - generic [ref=f4e206]:
+                  - heading "Team Meeting" [level=4] [ref=f4e207]
+                  - paragraph [ref=f4e208]: 10:00 AM
+                - button "Prepare with Calby" [ref=f4e209]
+              - generic [ref=f4e215]: "Prepare with Calby: Linked with personal attendee context"
+        - generic [ref=f4e218]:
+          - generic [ref=f4e219]:
+            - heading "Tell Calby once. It remembers." [level=3] [ref=f4e227]
+            - paragraph [ref=f4e228]: Personal Memory
+            - paragraph [ref=f4e229]: Calby remembers what you tell it — people, projects, and preferences.
+            - generic [ref=f4e230]: Only what you ask for • No background scanning
+          - generic [ref=f4e235]:
+            - generic [ref=f4e236]: "Spoken Instruction:"
+            - paragraph [ref=f4e239]: “Remember Rahul handles the payment module.”
+            - generic [ref=f4e240]: Memory saved
+      - generic [ref=f4e244]:
+        - generic [ref=f4e249]:
+          - heading "Product Boundary Distinction" [level=4] [ref=f4e250]
+          - generic [ref=f4e251]:
+            - generic [ref=f4e252]:
+              - strong [ref=f4e253]: "Memory:"
+              - text: stores personal information
+            - generic [ref=f4e254]:
+              - strong [ref=f4e255]: "Reminder:"
+              - text: stores an action/time
+            - generic [ref=f4e256]:
+              - strong [ref=f4e257]: "Notification:"
+              - text: delivers the reminder
+        - generic [ref=f4e258]: Memory does not trigger alarms
+    - separator [ref=f4e259]
+    - generic [ref=f4e261]:
+      - generic [ref=f4e262]:
+        - generic [ref=f4e263]: Quick Voice
+        - heading "Talk to Calby from anywhere." [level=2] [ref=f4e264]
+        - paragraph [ref=f4e265]: Open Quick Voice with a keyboard shortcut, speak naturally, and let Calby handle the task without opening the main app.
+        - list [ref=f4e266]:
+          - listitem [ref=f4e267]:
+            - generic [ref=f4e268]: "1"
+            - generic [ref=f4e269]: Open Quick Voice with a keyboard shortcut.
+          - listitem [ref=f4e270]:
+            - generic [ref=f4e271]: "2"
+            - generic [ref=f4e272]: Speak naturally.
+          - listitem [ref=f4e273]:
+            - generic [ref=f4e274]: "3"
+            - generic [ref=f4e275]: Calby understands what you want.
+          - listitem [ref=f4e276]:
+            - generic [ref=f4e277]: "4"
+            - generic [ref=f4e278]: Calby completes the task.
+          - listitem [ref=f4e279]:
+            - generic [ref=f4e280]: "5"
+            - generic [ref=f4e281]: The small window disappears when you're done.
+      - generic [ref=f4e285]:
+        - generic [ref=f4e286]:
+          - generic [ref=f4e287]:
+            - img "Calby Logo" [ref=f4e289]
+            - generic [ref=f4e295]: Calby
+          - generic [ref=f4e296]:
+            - generic [ref=f4e297]: 0:04
+            - button "Quick Voice settings" [ref=f4e298]
+            - button "Close Quick Voice" [ref=f4e302]
+        - generic [ref=f4e306]:
+          - generic [ref=f4e307]: Listening...
+          - paragraph [ref=f4e315]: "What Calby heard: “Remind me to call Rahul”"
+    - separator [ref=f4e316]
+    - generic [ref=f4e318]:
+      - generic [ref=f4e319]:
+        - generic [ref=f4e320]: Contextual Synergy
+        - heading "Calendar meets personal context." [level=3] [ref=f4e321]
+        - paragraph [ref=f4e322]: Calby connects your upcoming schedule with remembered personal facts so you are instantly prepared before conversations start.
+      - generic [ref=f4e323]:
+        - generic [ref=f4e324]:
+          - generic [ref=f4e325]:
+            - generic [ref=f4e326]: 01 / Schedule
+            - heading "Team Meeting" [level=4] [ref=f4e330]
+            - paragraph [ref=f4e331]: 10:00 AM · Google Calendar
+          - generic [ref=f4e332]: Synced event
+        - generic [ref=f4e335]: +
+        - generic [ref=f4e337]:
+          - generic [ref=f4e338]:
+            - generic [ref=f4e339]: 02 / Context
+            - heading "Relevant context:" [level=4] [ref=f4e344]
+            - paragraph [ref=f4e345]: “Rahul handles the payment module.”
+          - generic [ref=f4e346]: Local memory
+      - generic [ref=f4e351]:
+        - generic [ref=f4e357]:
+          - text: Meeting Preparation
+          - heading "Prepare with Calby" [level=4] [ref=f4e358]
+          - paragraph [ref=f4e359]: Surfaces Rahul's ownership of the payment module directly ahead of your 10:00 AM Team Meeting.
+        - link "See live in app" [ref=f4e360] [cursor=pointer]:
+          - /url: "#download"
+    - separator [ref=f4e364]
+    - generic [ref=f4e365]:
+      - generic [ref=f4e366]:
+        - generic [ref=f4e367]: Simplicity by Design
+        - heading "How Calby works" [level=2] [ref=f4e368]
+        - paragraph [ref=f4e369]: A seamless flow from spoken thought to accomplished desktop action.
+      - generic [ref=f4e370]:
+        - generic [ref=f4e371]:
+          - generic [ref=f4e372]:
+            - generic [ref=f4e373]: 01 / Capture
+            - heading "You speak" [level=3] [ref=f4e379]
+            - paragraph [ref=f4e380]: Press a keyboard shortcut and speak naturally. Calby only listens when you ask it to.
+          - generic [ref=f4e381]: Stage 01
+        - generic [ref=f4e385]:
+          - generic [ref=f4e386]:
+            - generic [ref=f4e387]: 02 / Parse
+            - heading "Calby understands" [level=3] [ref=f4e398]
+            - paragraph [ref=f4e399]: Understands your words, picks the right time, and connects them to your schedule and notes.
+          - generic [ref=f4e400]: Stage 02
+        - generic [ref=f4e404]:
+          - generic [ref=f4e405]:
+            - generic [ref=f4e406]: 03 / Execute
+            - heading "Calby acts" [level=3] [ref=f4e412]
+            - paragraph [ref=f4e413]: Creates your calendar event, sets local reminder, or saves personal context.
+          - generic [ref=f4e414]: Stage 03
+        - generic [ref=f4e418]:
+          - generic [ref=f4e419]:
+            - generic [ref=f4e420]: 04 / Deliver
+            - heading "You get the result" [level=3] [ref=f4e426]
+            - paragraph [ref=f4e427]: You get a quiet notification right on your desktop.
+          - generic [ref=f4e428]: Stage 04
+    - separator [ref=f4e430]
+    - generic [ref=f4e432]:
+      - generic [ref=f4e433]:
+        - generic [ref=f4e434]: Privacy by Design
+        - heading "Your data stays under your control." [level=3] [ref=f4e438]
+        - paragraph [ref=f4e439]: Your memories and reminders stay on your device. Online services are used only when needed for connected features like Google Calendar synchronization. No background tracking, no advertising, no sold data.
+        - generic [ref=f4e440]:
+          - generic [ref=f4e441]: Your data stays on your device
+          - generic [ref=f4e443]: No data ever sold
+      - generic [ref=f4e445]:
+        - generic [ref=f4e450]:
+          - heading "Your Device" [level=4] [ref=f4e451]
+          - paragraph [ref=f4e452]: Your voice is processed on your device
+        - generic [ref=f4e459]:
+          - heading "Stored Locally" [level=4] [ref=f4e460]
+          - paragraph [ref=f4e461]: Personal memories & reminder lists
+        - generic [ref=f4e468]:
+          - heading "Online Only When Needed" [level=4] [ref=f4e469]
+          - paragraph [ref=f4e470]: Google Calendar syncing you set up
+    - separator [ref=f4e471]
+    - generic [ref=f4e472]:
+      - generic [ref=f4e473]:
+        - generic [ref=f4e474]: Factual Commitments
+        - heading "Built on direct, transparent principles." [level=3] [ref=f4e479]
+        - paragraph [ref=f4e480]: No artificial ratings, manufactured metrics, or hidden telemetry models.
+      - generic [ref=f4e481]:
+        - generic [ref=f4e482]:
+          - generic [ref=f4e483]:
+            - heading "Your data stays on your device" [level=4] [ref=f4e487]
+            - paragraph [ref=f4e488]: Your memories and reminders never leave your computer.
+          - generic [ref=f4e489]: Verified by design
+        - generic [ref=f4e492]:
+          - generic [ref=f4e493]:
+            - heading "Calby remembers what you tell it" [level=4] [ref=f4e503]
+            - paragraph [ref=f4e504]: Calby remembers things when you ask it to.
+          - generic [ref=f4e505]: Verified by design
+        - generic [ref=f4e508]:
+          - generic [ref=f4e509]:
+            - heading "Reminders work even when you're offline" [level=4] [ref=f4e516]
+            - paragraph [ref=f4e517]: Reminders still alert you without an internet connection.
+          - generic [ref=f4e518]: Verified by design
+    - separator [ref=f4e521]
+    - generic [ref=f4e523]:
+      - heading "Experience Calby on your desktop." [level=2] [ref=f4e526]
+      - paragraph [ref=f4e527]: A calmer way to remember, plan, and get things done.
+      - generic [ref=f4e528]:
+        - generic [ref=f4e529]:
+          - generic [ref=f4e530]:
+            - link "Download Calby — Free" [ref=f4e531] [cursor=pointer]:
+              - /url: https://github.com/rajesh-kayal-dev/calby-desktop/releases/tag/v1.0.0
+            - button "Select platform" [ref=f4e540] [cursor=pointer]
+          - generic [ref=f4e546]: Available for Windows, macOS, and Linux.
+        - link "View on GitHub" [ref=f4e547] [cursor=pointer]:
+          - /url: https://github.com/rajesh-kayal-dev/calby-desktop
+  - contentinfo [ref=f4e553]:
+    - generic [ref=f4e554]:
+      - generic [ref=f4e555]:
+        - generic [ref=f4e556]:
+          - img "Calby Logo" [ref=f4e558]
+          - generic [ref=f4e564]: Calby
+        - generic [ref=f4e565]: Your personal desktop voice assistant.
+      - generic [ref=f4e566]:
+        - link "Overview" [ref=f4e567] [cursor=pointer]:
+          - /url: "#overview"
+        - link "Features" [ref=f4e568] [cursor=pointer]:
+          - /url: "#features"
+        - link "How it works" [ref=f4e569] [cursor=pointer]:
+          - /url: "#how-it-works"
+        - link "Privacy" [ref=f4e570] [cursor=pointer]:
+          - /url: "#privacy"
+        - link "GitHub" [ref=f4e571] [cursor=pointer]:
+          - /url: https://github.com/rajesh-kayal-dev/calby-desktop
+        - link "Download Calby" [ref=f4e572] [cursor=pointer]:
+          - /url: "#download-final"
+    - generic [ref=f4e573]:
+      - generic [ref=f4e574]: Calby for desktop · Free personal assistant
+      - generic [ref=f4e575]:
+        - link "Privacy" [ref=f4e576] [cursor=pointer]:
+          - /url: "#privacy"
+        - generic [ref=f4e577]: ·
+        - link "Terms" [ref=f4e578] [cursor=pointer]:
+          - /url: "#privacy"

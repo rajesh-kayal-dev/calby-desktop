@@ -389,7 +389,7 @@ export function HeroProductDemo() {
                           Keep Calby running in background
                         </span>
                         <span className="text-[11px] sm:text-xs text-[#94A3B8]">
-                          Maintain voice listening readiness and global hotkeys.
+                          Keep listening ready with a keyboard shortcut.
                         </span>
                       </div>
                       <button
@@ -483,18 +483,18 @@ export function HeroProductDemo() {
                   </div>
                 </div>
 
-                {/* Offline Section */}
+                {/* On-device Section */}
                 <div className="flex flex-col gap-2.5 pb-4">
                   <h3 className="text-xs font-semibold text-[#F8FAFC] tracking-wide">
-                    Offline
+                    On your device
                   </h3>
                   <div className="bg-[#0C1220]/80 border border-[#1E293B] rounded-2xl p-4 flex items-center justify-between gap-4">
                     <div className="flex flex-col text-left">
                       <span className="text-xs sm:text-sm font-semibold text-[#F8FAFC]">
-                        Local speech recognition engine
+                        Speaks and listens on your device
                       </span>
                       <span className="text-[11px] sm:text-xs text-[#94A3B8]">
-                        Enables voice transcription and local parsing without cloud reliance.
+                        Your words are understood on your computer, so Calby answers quickly and privately.
                       </span>
                     </div>
                     <button
@@ -503,7 +503,7 @@ export function HeroProductDemo() {
                       className={`w-11 h-6 rounded-full transition-colors relative p-0.5 shrink-0 ${
                         settingsToggles.offlineSpeech ? 'bg-[#2563EB]' : 'bg-[#1E293B]'
                       }`}
-                      aria-label="Toggle offline speech engine"
+                      aria-label="Toggle on-device speech"
                     >
                       <motion.span
                         layout
@@ -529,11 +529,11 @@ export function HeroProductDemo() {
                 </div>
                 <div className="bg-[#0C1220]/80 border border-[#1E293B] rounded-2xl p-5 text-xs text-[#94A3B8]">
                   <p className="text-[#F8FAFC] font-medium mb-1">
-                    Calby operates entirely on your Windows PC.
+                    Calby runs entirely on your computer.
                   </p>
                   <p>
-                    All hotkeys, microphone streams, and notification listeners run in the native
-                    system tray.
+                    Keyboard shortcuts, microphone access, and notifications all run quietly in the
+                    background.
                   </p>
                 </div>
               </div>
@@ -698,7 +698,7 @@ export function HeroProductDemo() {
               >
                 <div className="flex items-center justify-between pb-2 border-b border-[#1E293B]">
                   <span className="text-xs font-bold text-[#F8FAFC]">Active Reminders</span>
-                  <span className="text-[10px] font-mono text-[#38BDF8]">Local Offline Engine</span>
+                  <span className="text-[10px] font-mono text-[#38BDF8]">On your device</span>
                 </div>
                 <div className="bg-[#121826] border border-[#38BDF8]/30 rounded-xl p-3 flex items-center justify-between">
                   <div>
@@ -710,7 +710,7 @@ export function HeroProductDemo() {
                   </span>
                 </div>
                 <p className="text-[11px] text-[#64748B]">
-                  Reminders run locally and ring even when offline.
+                  Reminders stay on your device and ring even when you&apos;re offline.
                 </p>
               </motion.div>
             )}
@@ -752,7 +752,9 @@ export function HeroProductDemo() {
                   <span className="text-[10px] font-mono text-emerald-400">Device Encrypted</span>
                 </div>
                 <div className="bg-[#121826] border border-[#1E293B] rounded-xl p-3 flex flex-col gap-1">
-                  <span className="text-[10px] uppercase font-mono text-[#64748B]">Saved Explicitly:</span>
+                  <span className="text-[10px] uppercase font-mono text-[#64748B]">
+                    Saved because you asked:
+                  </span>
                   <p className="text-xs font-medium text-[#F8FAFC]">
                     “Payment module and checkout integrations configured with Stripe.”
                   </p>

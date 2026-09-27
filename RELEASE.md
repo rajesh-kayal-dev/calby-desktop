@@ -36,3 +36,4 @@ Do not commit `.env` files, OAuth secrets, access tokens, signing certificates, 
 ## Signing and publishing
 
 The packages are unsigned by default for local testing. Before public distribution, provide platform signing/notarization credentials through your secure CI secret store, then enable the appropriate electron-builder signing settings. Future placeholders are documented in the workflow for `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, and `APPLE_TEAM_ID`; none are currently used. Windows builds intentionally skip executable signing/editing so they work on hosts without symbolic-link privileges; enable that step in a signed release environment to embed a Windows executable icon. Keep credentials out of source control.
+

@@ -45,7 +45,7 @@ export function Footer() {
       </div>
 
       <div className="max-w-5xl mx-auto mt-6 pt-6 border-t border-[#1E293B]/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-[#64748B]">
-        <span>Calby for Windows · Free local desktop assistant</span>
+        <span>Calby for desktop · Free personal assistant</span>
         <div className="flex items-center gap-4">
           <a href="#privacy" className="hover:text-[#94A3B8] transition-colors">
             Privacy

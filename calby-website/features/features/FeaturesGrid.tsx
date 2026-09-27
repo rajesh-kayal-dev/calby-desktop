@@ -54,7 +54,9 @@ export function FeaturesGrid() {
                 >
                   <Mic className="w-3.5 h-3.5" />
                 </button>
-                <span className="text-[11px] text-[#94A3B8] font-mono">Listening on hotkey</span>
+                <span className="text-[11px] text-[#94A3B8] font-mono">
+                  Listening on your keyboard shortcut
+                </span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] text-[#64748B] font-mono">Alt + Space</span>
@@ -87,7 +89,7 @@ export function FeaturesGrid() {
             <h3 className="text-xl font-bold text-[#F8FAFC] mb-1">Never forget what matters.</h3>
             <p className="text-xs text-[#38BDF8] font-semibold mb-3">Smart Reminders</p>
             <p className="text-sm text-[#94A3B8] leading-relaxed mb-6">
-              Reliable reminders and optional alarms that run locally on your desktop.
+              Reliable reminders and optional alarms that work on your desktop.
             </p>
           </div>
 
@@ -154,7 +156,7 @@ export function FeaturesGrid() {
             </p>
             <div className="flex items-center gap-2 text-xs text-[#38BDF8]">
               <Check className="w-4 h-4 stroke-[2.5]" />
-              <span>Instant hotkey sync &amp; context briefings</span>
+              <span>Instant keyboard shortcut sync &amp; daily briefings</span>
             </div>
           </div>
 
@@ -199,11 +201,11 @@ export function FeaturesGrid() {
             <h3 className="text-xl font-bold text-[#F8FAFC] mb-1">Tell Calby once. It remembers.</h3>
             <p className="text-xs text-[#38BDF8] font-semibold mb-3">Personal Memory</p>
             <p className="text-sm text-[#94A3B8] leading-relaxed mb-3">
-              Save important personal context that you explicitly ask Calby to remember.
+              Calby remembers what you tell it — people, projects, and preferences.
             </p>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded bg-[#0C101A] border border-[#1E293B] text-[11px] text-[#94A3B8]">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Explicit only • No unsolicited alarms or background scans</span>
+              <span>Only what you ask for • No background scanning</span>
             </div>
           </div>
 
