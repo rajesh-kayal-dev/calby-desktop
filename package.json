@@ -27,5 +27,11 @@
     "eslint": "^8.57.0",
     "eslint-plugin-react": "^7.33.2",
     "typescript": "^5.3.3"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-darwin-arm64": "4.63.4",
+    "@rollup/rollup-darwin-x64": "4.63.4",
+    "@rollup/rollup-linux-x64-gnu": "4.63.4",
+    "@rollup/rollup-win32-x64-msvc": "4.63.4"
   }
 }
