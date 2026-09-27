@@ -5,18 +5,18 @@ import { HardDrive, Brain, BellOff, ShieldCheck } from 'lucide-react';
 export function ProductTrust() {
   const trustPoints = [
     {
-      title: 'Local-first',
-      description: 'Your memories and reminders stay on your device.',
+      title: 'Your data stays on your device',
+      description: 'Your memories and reminders never leave your computer.',
       icon: HardDrive,
     },
     {
-      title: 'Explicit memory',
+      title: 'Calby remembers what you tell it',
       description: 'Calby remembers things when you ask it to.',
       icon: Brain,
     },
     {
-      title: 'Offline reminders',
-      description: 'Local reminders can still alert you without Gemini.',
+      title: "Reminders work even when you're offline",
+      description: 'Reminders still alert you without an internet connection.',
       icon: BellOff,
     },
   ];
@@ -61,7 +61,7 @@ export function ProductTrust() {
 
               <div className="mt-5 pt-3 border-t border-[#1E293B]/70 flex items-center gap-1.5 text-[11px] text-[#64748B]">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-                <span>Verified architecture</span>
+                <span>Verified by design</span>
               </div>
             </div>
           );

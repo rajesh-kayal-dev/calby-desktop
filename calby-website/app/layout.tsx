@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Plus_Jakarta_Sans } from 'next/font/google';
+import { DynamicTitle } from '@/components/layout/DynamicTitle';
 import './globals.css';
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -43,6 +44,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${plusJakartaSans.variable} font-sans scroll-smooth`}>
       <body className="bg-[#070A11] text-[#F8FAFC] min-h-screen selection:bg-[#38BDF8] selection:text-[#070A11] antialiased" suppressHydrationWarning>
+        <DynamicTitle />
         {children}
       </body>
     </html>

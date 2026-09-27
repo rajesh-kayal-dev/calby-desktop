@@ -1,8 +1,9 @@
 'use client';
 
 import { motion } from 'motion/react';
-import { Download, Play, ArrowRight } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import { HeroProductDemo } from './HeroProductDemo';
+import { DownloadCta } from '@/components/download/DownloadCta';
 
 export function Hero() {
   return (
@@ -23,7 +24,7 @@ export function Hero() {
           <span className="relative inline-flex rounded-full h-2 w-2 bg-[#38BDF8] shadow-[0_0_8px_#38BDF8]" />
         </span>
         <span className="text-[11px] font-semibold text-[#38BDF8] uppercase tracking-wider">
-          CALBY FOR WINDOWS
+          CALBY FOR DESKTOP
         </span>
       </motion.div>
 
@@ -64,30 +65,10 @@ export function Hero() {
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.25 }}
-        className="flex flex-col items-center gap-3 mb-14 relative z-10"
+        className="flex flex-col items-center mb-14 relative z-20"
         id="download"
       >
-        <div className="flex flex-wrap items-center justify-center gap-3.5">
-          <a
-            href="#download-final"
-            className="h-12 px-8 bg-[#2563EB] hover:bg-blue-500 text-[#F8FAFC] font-semibold text-sm rounded-full flex items-center justify-center gap-2.5 shadow-[0_0_24px_rgba(37,99,235,0.45)] hover:shadow-[0_0_30px_rgba(56,189,248,0.4)] active:scale-[0.98] transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8]"
-          >
-            <span>Download Calby — Free</span>
-            <ArrowRight className="w-4 h-4 stroke-[2.5]" />
-          </a>
-
-          <a
-            href="#how-it-works"
-            className="h-12 px-6 bg-[#0C101A] hover:bg-[#121826] border border-[#1E293B] text-[#F8FAFC] font-semibold text-sm rounded-full flex items-center justify-center gap-2 hover:border-[#38BDF8]/40 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-[#38BDF8]"
-          >
-            <Play className="w-4 h-4 text-[#38BDF8] fill-[#38BDF8]/20" />
-            <span>See how it works</span>
-          </a>
-        </div>
-
-        <span className="text-xs text-[#64748B] font-medium tracking-wide">
-          Windows desktop · Free download
-        </span>
+        <DownloadCta />
       </motion.div>
 
       <motion.div

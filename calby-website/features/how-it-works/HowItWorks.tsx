@@ -8,14 +8,14 @@ export function HowItWorks() {
     {
       number: '01',
       title: 'You speak',
-      description: 'Press your hotkey and speak naturally. Calby listens only when actively summoned.',
+      description: 'Press a keyboard shortcut and speak naturally. Calby only listens when you ask it to.',
       icon: Mic,
       tag: 'Capture',
     },
     {
       number: '02',
       title: 'Calby understands',
-      description: 'Resolves context, timestamps, and relates your intent to schedule and memory.',
+      description: 'Understands your words, picks the right time, and connects them to your schedule and notes.',
       icon: Brain,
       tag: 'Parse',
     },
@@ -29,7 +29,7 @@ export function HowItWorks() {
     {
       number: '04',
       title: 'You get the result',
-      description: 'Your workflow continues smoothly with timely, quiet desktop delivery.',
+      description: 'You get a quiet notification right on your desktop.',
       icon: CheckCircle2,
       tag: 'Deliver',
     },

@@ -2,6 +2,7 @@ import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
 import { Hero } from '@/features/hero/Hero';
 import { FeaturesGrid } from '@/features/features/FeaturesGrid';
+import { QuickVoiceSection } from '@/features/quick-voice/QuickVoiceSection';
 import { CalendarMemorySynergy } from '@/features/features/CalendarMemorySynergy';
 import { HowItWorks } from '@/features/how-it-works/HowItWorks';
 import { PrivacySection } from '@/features/privacy/PrivacySection';
@@ -16,6 +17,8 @@ export default function Home() {
         <Hero />
         <hr className="w-full border-t border-[#1E293B]" />
         <FeaturesGrid />
+        <hr className="w-full border-t border-[#1E293B]" />
+        <QuickVoiceSection />
         <hr className="w-full border-t border-[#1E293B]" />
         <CalendarMemorySynergy />
         <hr className="w-full border-t border-[#1E293B]" />
