@@ -52,6 +52,7 @@ dmg:
 linux:
   icon: icon.png
   category: Utility
+  maintainer: Rajesh Kayal <rk6289943975@gmail.com>
   target:
     - target: AppImage
       arch:
