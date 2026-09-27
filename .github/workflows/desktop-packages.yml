@@ -1,0 +1,112 @@
+name: Publish Calby Desktop Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: Windows MSI (x64)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build:win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calby-windows-msi-x64
+          path: release/*.msi
+          if-no-files-found: error
+
+      # Future Windows signing placeholder: CSC_LINK and CSC_KEY_PASSWORD.
+
+  macos:
+    name: macOS DMG (x64 and arm64)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build:mac
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calby-macos-dmg
+          path: release/*.dmg
+          if-no-files-found: error
+
+      # Future macOS signing/notarization placeholders: CSC_LINK, CSC_KEY_PASSWORD,
+      # APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, and APPLE_TEAM_ID.
+
+  linux:
+    name: Linux AppImage and DEB (x64)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build:linux
+      - uses: actions/upload-artifact@v4
+        with:
+          name: calby-linux-packages-x64
+          path: |
+            release/*.AppImage
+            release/*.deb
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    needs:
+      - windows
+      - macos
+      - linux
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Read release version
+        id: version
+        run: echo "value=$(node -p \"require('./package.json').version\")" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+      - name: Create or update release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          tag="v$VERSION"
+          shopt -s nullglob
+          assets=(release/*.msi release/*.dmg release/*.AppImage release/*.deb)
+          if [ "${#assets[@]}" -ne 5 ]; then
+            echo "Expected five release assets; found ${#assets[@]}."
+            exit 1
+          fi
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "${assets[@]}" --clobber
+          else
+            gh release create "$tag" "${assets[@]}" --title "Calby $tag" --generate-notes
+          fi
