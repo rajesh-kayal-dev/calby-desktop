@@ -1,20 +1,75 @@
 appId: com.calby.desktop
 productName: Calby
 electronVersion: 29.4.6
+
 directories:
-  output: dist
-  buildResources: build
+  output: ../../release
+  buildResources: ../../assets
+
 files:
-  - '!**/*'
-  - 'out/**/*'
+  - out/**/*
+  - '!**/*.map'
+
+asar: true
+asarUnpack:
+  - '**/*.node'
+npmRebuild: true
+
 extraResources:
-  - from: '../../assets/sounds'
-    to: 'assets/sounds'
-  - from: '../../assets/icon.png'
-    to: 'assets/icon.png'
+  - from: ../../assets/sounds
+    to: assets/sounds
+  - from: ../../assets/icon.png
+    to: assets/icon.png
+
+artifactName: '${productName}-${version}-${arch}.${ext}'
+
 win:
+  icon: icon.png
+  # Keep unsigned local/CI builds possible on Windows hosts without symlink privileges.
+  signAndEditExecutable: false
   target:
-    - target: dir
+    - target: msi
       arch:
         - x64
-  signAndEditExecutable: false
+
+msi:
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Calby
+
+mac:
+  icon: icon.png
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+
+dmg:
+  title: Calby
+
+linux:
+  icon: icon.png
+  category: Utility
+  target:
+    - target: AppImage
+      arch:
+        - x64
+    - target: deb
+      arch:
+        - x64
+
+deb:
+  packageCategory: utils
+  priority: optional
+  depends:
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0
+    - libuuid1
+    - libsecret-1-0
