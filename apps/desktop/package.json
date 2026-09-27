@@ -4,7 +4,11 @@
   "type": "module",
   "private": true,
   "main": "./out/main/index.js",
-  "author": "Calby Team",
+  "author": {
+    "name": "Rajesh Kayal",
+    "email": "rk6289943975@gmail.com"
+  },
+  "homepage": "https://github.com/rajesh-kayal-dev/calby-desktop",
   "description": "Calby Desktop Assistant",
   "scripts": {
     "format": "prettier --write .",
@@ -53,5 +57,8 @@
     "typescript": "^5.3.3",
     "vite": "^5.1.4",
     "vitest": "^2.1.9"
+  },
+  "optionalDependencies": {
+    "dmg-license": "1.0.11"
   }
 }
