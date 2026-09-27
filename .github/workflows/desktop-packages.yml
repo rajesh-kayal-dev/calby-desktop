@@ -14,9 +14,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
-      - run: npm ci
+      # Required when better-sqlite3 falls back to a native build on Windows.
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+      - run: npm ci --include=optional
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
@@ -36,9 +40,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
-      - run: npm ci
+      - run: npm ci --include=optional
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
@@ -59,9 +63,9 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
-      - run: npm ci
+      - run: npm ci --include=optional
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
@@ -85,7 +89,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
       - name: Read release version
         id: version
         run: echo "value=$(node -p \"require('./package.json').version\")" >> "$GITHUB_OUTPUT"
