@@ -1,4 +1,5 @@
 import type { FC } from 'react'
+import logoUrl from '../../../assets/logo.png'
 
 interface WelcomeScreenProps {
   onNext: () => void
@@ -32,7 +33,7 @@ export const WelcomeScreen: FC<WelcomeScreenProps> = ({ onNext }) => {
         <div className="md:col-span-6 flex flex-col items-center md:items-start text-center md:text-left">
           {/* Calby Brand Logo */}
           <div className="mb-6">
-            <img src="/logo.png" alt="Calby" className="h-16 object-contain" />
+            <img src={logoUrl} alt="Calby" className="h-16 object-contain" />
           </div>
 
           {/* Typography Heading */}

@@ -1,6 +1,13 @@
 import { ReminderService } from './reminder.service'
 import { MemoryService } from './memory.service'
 import { GoogleCalendarService, type CalendarEvent } from './google-calendar.service'
+import {
+  normalizeCalendarEvent,
+  normalizeReminder,
+  getUserTimeZone,
+  formatHumanReadableDateTime
+} from './calendar-format'
+import { getVoiceTrace } from './voice-trace'
 import type { Reminder } from '../storage/reminder.repository'
 import type { Memory, MemoryType } from '../storage/memory.repository'
 
@@ -20,6 +27,12 @@ export interface ActionResult {
   data?: unknown
   ambiguous?: boolean
   notConnected?: boolean
+  /**
+   * Set when the action needs more information from the user before it can run
+   * (e.g. "which event?"). The model should ask a clarifying question instead
+   * of claiming success or failure.
+   */
+  needsClarification?: boolean
 }
 
 export class ActionExecutor {
@@ -47,7 +60,7 @@ export class ActionExecutor {
       {
         name: 'create_reminder',
         description:
-          'Create a new scheduled reminder. Schedule time must be an ISO 8601 UTC date string.',
+          'Create a new scheduled reminder. Schedule time must be an ISO 8601 UTC date string. Idempotent: creating the same reminder again returns the existing one instead of a duplicate. When the reminder is for a calendar event, pass eventId and leadMinutes.',
         parameters: {
           type: 'OBJECT',
           properties: {
@@ -62,6 +75,16 @@ export class ActionExecutor {
             alertType: {
               type: 'STRING',
               description: 'Optional alert type: "notification" (default) or "alarm"'
+            },
+            eventId: {
+              type: 'STRING',
+              description:
+                'Optional calendar event id this reminder is for (from get_upcoming_events). Passing it prevents duplicate reminders.'
+            },
+            leadMinutes: {
+              type: 'NUMBER',
+              description:
+                'Optional minutes before the event this reminder should fire (e.g. 5 = 5 minutes before). Only relevant with eventId.'
             }
           },
           required: ['title', 'scheduledAt']
@@ -233,6 +256,146 @@ export class ActionExecutor {
             }
           }
         }
+      },
+      {
+        name: 'create_calendar_event',
+        description:
+          'Create a new Google Calendar event. Requires Google Calendar to be connected with write access. Returns the created event with ISO start/end, timezone, and human-readable times.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            title: {
+              type: 'STRING',
+              description: 'Event title/summary.'
+            },
+            startDateTime: {
+              type: 'STRING',
+              description:
+                'ISO 8601 start time with offset (e.g. 2026-09-27T13:00:00+05:30) or an ISO date for all-day events.'
+            },
+            endDateTime: {
+              type: 'STRING',
+              description: 'Optional ISO 8601 end time. Defaults to 30 minutes after the start.'
+            },
+            timeZone: {
+              type: 'STRING',
+              description: 'IANA timezone of the event (e.g. "Asia/Kolkata"). Defaults to the user timezone.'
+            },
+            location: {
+              type: 'STRING',
+              description: 'Optional location text.'
+            },
+            description: {
+              type: 'STRING',
+              description: 'Optional description.'
+            }
+          },
+          required: ['title', 'startDateTime']
+        }
+      },
+      {
+        name: 'update_calendar_event',
+        description:
+          'Update an existing Google Calendar event. Provide eventId (preferred) or a title to match. Only the provided fields change. Validates the target first: ambiguous matches are reported back for clarification.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            eventId: {
+              type: 'STRING',
+              description: 'Exact calendar event id (preferred — from get_upcoming_events).'
+            },
+            title: {
+              type: 'STRING',
+              description: 'Event title to find when eventId is unknown.'
+            },
+            newTitle: {
+              type: 'STRING',
+              description: 'New event title.'
+            },
+            startDateTime: {
+              type: 'STRING',
+              description: 'New ISO 8601 start time.'
+            },
+            endDateTime: {
+              type: 'STRING',
+              description: 'New ISO 8601 end time.'
+            },
+            timeZone: {
+              type: 'STRING',
+              description: 'IANA timezone for the new start/end.'
+            },
+            location: {
+              type: 'STRING',
+              description: 'New location text.'
+            },
+            description: {
+              type: 'STRING',
+              description: 'New description.'
+            }
+          }
+        }
+      },
+      {
+        name: 'delete_calendar_event',
+        description:
+          'Delete a Google Calendar event. Provide eventId (preferred) or a title to match. Multiple matches are reported back for clarification instead of guessing.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            eventId: {
+              type: 'STRING',
+              description: 'Exact calendar event id (preferred — from get_upcoming_events).'
+            },
+            title: {
+              type: 'STRING',
+              description: 'Event title to find when eventId is unknown.'
+            }
+          }
+        }
+      },
+      {
+        name: 'update_reminder',
+        description:
+          'Update an existing reminder. Provide id (preferred) or a title to match. You can change the title and/or scheduled time.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            id: {
+              type: 'STRING',
+              description: 'Exact reminder id (preferred — from list_reminders or create_reminder).'
+            },
+            title: {
+              type: 'STRING',
+              description: 'Reminder title to find when id is unknown.'
+            },
+            newTitle: {
+              type: 'STRING',
+              description: 'New reminder title.'
+            },
+            scheduledAt: {
+              type: 'STRING',
+              description: 'New ISO 8601 UTC trigger time.'
+            }
+          }
+        }
+      },
+      {
+        name: 'delete_reminder',
+        description:
+          'Delete/cancel a reminder. Provide id (preferred) or a title to match. Multiple matches are reported back for clarification instead of guessing.',
+        parameters: {
+          type: 'OBJECT',
+          properties: {
+            id: {
+              type: 'STRING',
+              description: 'Exact reminder id (preferred).'
+            },
+            title: {
+              type: 'STRING',
+              description: 'Reminder title to find when id is unknown.'
+            }
+          }
+        }
       }
     ]
   }
@@ -307,11 +470,165 @@ export class ActionExecutor {
     return { notFoundError: 'Could not identify which memory you were referring to.' }
   }
 
+  // ---------------------------------------------------------------------
+  // Shared action-validation flow (steps 6–7)
+  // ---------------------------------------------------------------------
+
+  /** Shared "calendar isn't usable right now" payload (one source of truth). */
+  private calendarNotConnectedResult(): ActionResult {
+    return {
+      success: true,
+      message: 'Google Calendar is not connected.',
+      data: {
+        notConnected: true,
+        instruction:
+          'Google Calendar is not connected. Tell the user to connect Google Calendar in Settings.'
+      }
+    }
+  }
+
+  /**
+   * Result of resolving tool arguments to exactly one concrete target.
+   *
+   * - `ok`            → single match (or explicit id): safe to execute
+   * - `ambiguous`     → multiple matches: ask the user which one
+   * - `not_found`     → nothing matched: report it honestly
+   * - `missing_info`  → the caller didn't provide enough to even search
+   */
+  private resolveTarget<T>(
+    candidates: T[],
+    identify: (item: T) => { id: string; title: string; startHuman?: string },
+    provided: { id?: string | null; title?: string | null },
+    what: string
+  ):
+    | { status: 'ok'; target: T }
+    | { status: 'ambiguous' | 'not_found' | 'missing_info'; result: ActionResult } {
+    // 1. Explicit id always wins — verify it exists.
+    if (provided.id && provided.id.trim()) {
+      const wanted = provided.id.trim()
+      const byId = candidates.find((c) => identify(c).id === wanted)
+      if (byId) {
+        getVoiceTrace().record('validation', { what, match: 'id', status: 'ok' })
+        return { status: 'ok', target: byId }
+      }
+      getVoiceTrace().record('validation', { what, match: 'id', status: 'not_found' })
+      getVoiceTrace().record('confirmation', { what, action: 'none', reason: 'not_found' })
+      return {
+        status: 'not_found',
+        result: {
+          success: false,
+          message: `Couldn't find that ${what}. It may have already been changed or removed.`,
+          data: { code: 'not_found' }
+        }
+      }
+    }
+
+    const q = provided.title?.trim().toLowerCase()
+    if (!q) {
+      getVoiceTrace().record('confirmation', { what, action: 'ask_user', reason: 'missing_info' })
+      return {
+        status: 'missing_info',
+        result: {
+          success: false,
+          needsClarification: true,
+          message: `Which ${what} did you mean? I need a name or title to find it.`,
+          data: { code: 'missing_info' }
+        }
+      }
+    }
+
+    const matches = candidates.filter((c) => identify(c).title.toLowerCase().includes(q))
+
+    if (matches.length === 0) {
+      getVoiceTrace().record('confirmation', { what, action: 'none', reason: 'not_found' })
+      return {
+        status: 'not_found',
+        result: {
+          success: false,
+          message: `Couldn't find a ${what} matching "${provided.title}".`,
+          data: { code: 'not_found' }
+        }
+      }
+    }
+
+    if (matches.length === 1) {
+      getVoiceTrace().record('validation', { what, match: 'single', status: 'ok' })
+      return { status: 'ok', target: matches[0] }
+    }
+
+    // Multiple matches: prefer an exact-title match, otherwise ask.
+    const exact = matches.filter((c) => identify(c).title.toLowerCase() === q)
+    if (exact.length === 1) {
+      getVoiceTrace().record('validation', { what, match: 'exact', status: 'ok' })
+      return { status: 'ok', target: exact[0] }
+    }
+
+    const list = matches.slice(0, 5).map((c) => identify(c))
+    getVoiceTrace().record('validation', {
+      what,
+      match: 'multiple',
+      status: 'ambiguous',
+      count: matches.length
+    })
+    return {
+      status: 'ambiguous',
+      result: {
+        success: false,
+        ambiguous: true,
+        needsClarification: true,
+        message: `Found ${matches.length} matching ${what}s: ${list
+          .map((c) => `"${c.title}"${c.startHuman ? ` (${c.startHuman})` : ''}`)
+          .join(', ')}. Which one did you mean?`,
+        data: { code: 'ambiguous', candidates: list }
+      }
+    }
+  }
+
+  /** Maps a thrown service error to a safe, user-facing message. Technical detail stays in the logs. */
+  private toSafeErrorMessage(err: unknown, context: string): string {
+    const raw = err instanceof Error ? err.message : String(err)
+    console.error(`[ActionExecutor] ${context} failed:`, raw)
+
+    // Prefixed error codes (our own taxonomy) → mapped to friendly copy.
+    if (raw.startsWith('INVALID_INPUT:')) return raw.slice('INVALID_INPUT:'.length).trim()
+    if (raw.startsWith('NOT_AUTHENTICATED:')) return 'Google Calendar is not connected.'
+    if (raw.startsWith('AUTH_EXPIRED:'))
+      return 'Google Calendar connection has expired. Reconnect it in Settings.'
+    if (raw.startsWith('CALENDAR_UNAVAILABLE:'))
+      return "Can't reach Google Calendar right now. Check your internet connection."
+    if (raw.startsWith('CALENDAR_WRITE_AUTH_REQUIRED:'))
+      return 'Calby needs permission to change Google Calendar events. Reconnect with write access in Settings.'
+    if (raw.startsWith('CALENDAR_API_ERROR:'))
+      return "Google Calendar didn't respond properly. Please try again."
+    if (raw.startsWith('GOOGLE_API_ERROR:'))
+      return "Google Calendar couldn't complete that change. Please try again."
+    if (raw.startsWith('EVENT_NOT_FOUND:'))
+      return 'That calendar event no longer exists.'
+    if (raw.startsWith('PERMISSION_DENIED:')) return raw.slice('PERMISSION_DENIED:'.length).trim()
+    if (raw.startsWith('CONFIG_ERROR:'))
+      return 'Google Calendar is not configured for Calby yet. Please finish setup in Settings.'
+    if (/^[A-Z][A-Z0-9_]*:/.test(raw)) {
+      // Unknown coded error: never leak the technical body.
+      return 'Something went wrong while completing that action. Please try again.'
+    }
+
+    // Looks like an infrastructure/stack failure → don't surface it.
+    const technical = /fetch failed|unexpected token|sqlit|enoent|econn|etimedout|eai_again|getaddrinfo|typeerror|referenceerror|is not a function|cannot read propert|\bat \w+ \(|https?:\/\//i
+    if (technical.test(raw)) {
+      return 'Something went wrong while completing that action. Please try again.'
+    }
+
+    // Messages authored by our services (e.g. "Reminder scheduled time cannot
+    // be in the past.") are already user-facing — pass them through verbatim.
+    return raw
+  }
+
   public async executeTool(
     name: string,
     args: Record<string, unknown>
   ): Promise<ActionResult> {
     console.log(`[ActionExecutor] Executing tool "${name}" with args:`, args)
+    getVoiceTrace().record('execution', { tool: name })
 
     try {
       switch (name) {
@@ -338,18 +655,41 @@ export class ActionExecutor {
 
           const isAlarm = args.alertType === 'alarm' || args.alarmEnabled === true
           const alertType = isAlarm ? 'alarm' : 'notification'
+          const eventId = args.eventId ? String(args.eventId).trim() : undefined
+          const leadMinutes =
+            typeof args.leadMinutes === 'number' && Number.isFinite(args.leadMinutes)
+              ? Math.max(0, Math.round(args.leadMinutes))
+              : undefined
 
-          const reminder = await this.reminderService.create({
-            title,
-            scheduledAt: parsedDate.toISOString(),
-            alertType,
-            alarmEnabled: isAlarm
-          })
+          let reminder: Reminder
+          let alreadyExisted = false
+          try {
+            const created = await this.reminderService.createWithResult({
+              title,
+              scheduledAt: parsedDate.toISOString(),
+              alertType,
+              alarmEnabled: isAlarm,
+              eventId,
+              leadMinutes,
+              source: 'voice'
+            })
+            reminder = created.reminder
+            alreadyExisted = created.alreadyExisted
+          } catch (err) {
+            return { success: false, message: this.toSafeErrorMessage(err, 'create_reminder') }
+          }
+
+          const localTime = formatHumanReadableDateTime(
+            reminder.scheduledAt,
+            getUserTimeZone()
+          )
 
           return {
             success: true,
-            message: `Reminder set for "${reminder.title}" at ${new Date(reminder.scheduledAt).toLocaleTimeString()}${isAlarm ? ' (with alarm)' : ''}.`,
-            data: reminder
+            message: alreadyExisted
+              ? `That reminder already exists — "${reminder.title}" is already set for ${localTime}${isAlarm ? ' (with alarm)' : ''}. Not creating a duplicate.`
+              : `Reminder set for "${reminder.title}" at ${localTime}${isAlarm ? ' (with alarm)' : ''}.`,
+            data: { ...normalizeReminder(reminder), alreadyExisted }
           }
         }
 
@@ -369,7 +709,13 @@ export class ActionExecutor {
           return {
             success: true,
             message: `Found ${reminders.length} ${filter} reminder(s).`,
-            data: reminders
+            data: {
+              count: reminders.length,
+              userTimeZone: getUserTimeZone(),
+              // Normalized: includes `localTime` in the user's timezone plus the
+              // raw ISO `scheduledAt` — never a bare UTC timestamp to convert.
+              reminders: reminders.map((r) => normalizeReminder(r))
+            }
           }
         }
 
@@ -403,32 +749,93 @@ export class ActionExecutor {
           }
         }
 
-        case 'cancel_reminder': {
+        case 'cancel_reminder':
+        case 'delete_reminder': {
           const id = args.id ? String(args.id).trim() : null
           const title = args.title ? String(args.title).trim() : null
 
-          const matchResult = this.findTargetReminder(id, title, false)
+          // Validate before executing: 1 match → proceed, many → ask, none → report.
+          const resolution = this.resolveTarget<Reminder>(
+            this.reminderService.listAll(),
+            (r) => ({ id: r.id, title: r.title, startHuman: r.scheduledAt }),
+            { id, title },
+            'reminder'
+          )
+          if (resolution.status !== 'ok') {
+            return resolution.result
+          }
 
-          if (matchResult.ambiguityError) {
+          const target = resolution.target
+          try {
+            await this.reminderService.delete(target.id)
+          } catch (err) {
+            return { success: false, message: this.toSafeErrorMessage(err, 'delete_reminder') }
+          }
+
+          // Verification: the reminder must actually be gone.
+          if (this.reminderService.getById(target.id)) {
             return {
               success: false,
-              ambiguous: true,
-              message: matchResult.ambiguityError
+              message: "That reminder couldn't be deleted. Please try again."
             }
           }
 
-          if (!matchResult.target) {
-            return {
-              success: false,
-              message: matchResult.notFoundError || 'Could not find the specified reminder to delete.'
-            }
-          }
-
-          await this.reminderService.delete(matchResult.target.id)
           return {
             success: true,
-            message: 'Reminder "' + matchResult.target.title + '" cancelled.',
-            data: { id: matchResult.target.id }
+            message: `Reminder "${target.title}" deleted.`,
+            data: { id: target.id, title: target.title, verified: true }
+          }
+        }
+
+        case 'update_reminder': {
+          const id = args.id ? String(args.id).trim() : null
+          const title = args.title ? String(args.title).trim() : null
+          const newTitle = args.newTitle ? String(args.newTitle).trim() : null
+          const scheduledAt = args.scheduledAt ? String(args.scheduledAt).trim() : null
+
+          if (!newTitle && !scheduledAt) {
+            return {
+              success: false,
+              needsClarification: true,
+              message: 'What should change on the reminder — a new title, a new time, or both?',
+              data: { code: 'missing_info' }
+            }
+          }
+
+          const resolution = this.resolveTarget<Reminder>(
+            this.reminderService.listAll(),
+            (r) => ({ id: r.id, title: r.title, startHuman: r.scheduledAt }),
+            { id, title },
+            'reminder'
+          )
+          if (resolution.status !== 'ok') {
+            return resolution.result
+          }
+
+          const target = resolution.target
+          try {
+            await this.reminderService.update({
+              id: target.id,
+              title: newTitle ?? undefined,
+              scheduledAt: scheduledAt ?? undefined
+            })
+
+            // Verification: the stored reminder reflects the requested change.
+            const verify = this.reminderService.getById(target.id)
+            if (!verify) {
+              return {
+                success: false,
+                message: "That reminder couldn't be updated. Please try again."
+              }
+            }
+
+            return {
+              success: true,
+              message: `Reminder updated: "${verify.title}" at ${formatHumanReadableDateTime(verify.scheduledAt, getUserTimeZone())}.`,
+              data: { ...normalizeReminder(verify), verified: true }
+            }
+          } catch (err) {
+            return { success: false, message: this.toSafeErrorMessage(err, 'update_reminder') }
           }
         }
 
@@ -548,6 +955,20 @@ export class ActionExecutor {
 
         // --- Google Calendar (Phase 7) ---
         case 'get_upcoming_events': {
+          // Connection state comes from GoogleCalendarService.getStatus() — the
+          // single backend source of truth shared with the Calendar UI.
+          let notConnected: ActionResult | null = null
+          try {
+            const status = await this.calendarService.getStatus()
+            if (status.status === 'disconnected' || status.status === 'reauth_required') {
+              notConnected = this.calendarNotConnectedResult()
+            }
+          } catch (err) {
+            console.error('[ActionExecutor] Failed to read calendar status:', err)
+          }
+
+          if (notConnected) return notConnected
+
           let events: CalendarEvent[] | null = null
           try {
             events = await this.calendarService.getUpcomingEvents()
@@ -558,32 +979,24 @@ export class ActionExecutor {
               errStr.includes('not connected') ||
               errStr.includes('AUTH_EXPIRED')
             ) {
+              return this.calendarNotConnectedResult()
+            }
+            if (errStr.includes('CALENDAR_UNAVAILABLE')) {
+              // Transient: the account IS connected, Google just isn't reachable.
               return {
-                success: true,
-                message: 'Google Calendar is not connected.',
-                data: {
-                  notConnected: true,
-                  instruction:
-                    'Google Calendar is not connected. Tell the user to connect Google Calendar in Settings.'
-                }
+                success: false,
+                message: "Can't reach Google Calendar right now. Check your internet connection."
               }
             }
+            console.error('[ActionExecutor] get_upcoming_events failed:', errStr)
             return {
               success: false,
-              message: errStr
+              message: "Couldn't load your calendar events. Please try again."
             }
           }
 
           if (!events) {
-            return {
-              success: true,
-              message: 'Google Calendar is not connected.',
-              data: {
-                notConnected: true,
-                instruction:
-                  'Google Calendar is not connected. Tell the user to connect Google Calendar in Settings.'
-              }
-            }
+            return this.calendarNotConnectedResult()
           }
 
           // Canonical argument name: range
@@ -645,16 +1058,11 @@ export class ActionExecutor {
             )
           }
 
-          const cleanEvents = filtered.slice(0, 20).map((e) => ({
-            id: e.id,
-            title: e.title,
-            allDay: e.allDay,
-            startDate: e.startDate || null,
-            startDateTime: e.startDateTime || null,
-            endDateTime: e.endDateTime || null,
-            location: e.location || null,
-            meetingUrl: e.meetingUrl || null
-          }))
+          // Timezone-safe payload: ISO + IANA timezone + human-readable times.
+          // Reminder lead times ride along in a separate `reminders` field so a
+          // reminder can never be mistaken for an event start.
+          const userTimeZone = getUserTimeZone()
+          const cleanEvents = filtered.slice(0, 20).map((e) => normalizeCalendarEvent(e, userTimeZone))
 
           return {
             success: true,
@@ -662,8 +1070,188 @@ export class ActionExecutor {
             data: {
               range,
               count: cleanEvents.length,
+              userTimeZone,
               events: cleanEvents
             }
+          }
+        }
+
+        // --- Calendar event writes (create / update / delete) ---
+        case 'create_calendar_event': {
+          const title = String(args.title || '').trim()
+          const startDateTime = String(args.startDateTime || '').trim()
+
+          if (!title) {
+            return { success: false, message: 'Missing event title.' }
+          }
+          if (!startDateTime) {
+            return {
+              success: false,
+              needsClarification: true,
+              message: 'When does the event start?',
+              data: { code: 'missing_info' }
+            }
+          }
+
+          let created
+          try {
+            created = await this.calendarService.createEvent({
+              title,
+              startDateTime,
+              endDateTime: args.endDateTime ? String(args.endDateTime).trim() : undefined,
+              timeZone: args.timeZone ? String(args.timeZone).trim() : undefined,
+              location: args.location ? String(args.location).trim() : undefined,
+              description: args.description ? String(args.description).trim() : undefined
+            })
+          } catch (err) {
+            return { success: false, message: this.toSafeErrorMessage(err, 'create_calendar_event') }
+          }
+
+          const normalized = normalizeCalendarEvent(created, getUserTimeZone())
+          return {
+            success: true,
+            message: `Event "${created.title}" created — starts ${normalized.startHumanReadable}.`,
+            data: normalized
+          }
+        }
+
+        case 'update_calendar_event': {
+          const eventId = args.eventId ? String(args.eventId).trim() : null
+          const title = args.title ? String(args.title).trim() : null
+          const patch = {
+            title: args.newTitle ? String(args.newTitle).trim() : undefined,
+            startDateTime: args.startDateTime ? String(args.startDateTime).trim() : undefined,
+            endDateTime: args.endDateTime ? String(args.endDateTime).trim() : undefined,
+            timeZone: args.timeZone ? String(args.timeZone).trim() : undefined,
+            location: args.location ? String(args.location).trim() : undefined,
+            description: args.description !== undefined ? String(args.description) : undefined
+          }
+
+          const hasPatch = Object.values(patch).some(
+            (v) => v !== undefined && String(v).trim() !== ''
+          )
+          if (!hasPatch) {
+            return {
+              success: false,
+              needsClarification: true,
+              message: 'What should change on the event — the title, time, location, or description?',
+              data: { code: 'missing_info' }
+            }
+          }
+
+          // Validate the target before touching Google Calendar.
+          let targetId: string
+          let targetTitle: string
+          if (eventId) {
+            try {
+              const existing = await this.calendarService.getEvent(eventId)
+              targetId = existing.id
+              targetTitle = existing.title
+            } catch (err) {
+              const safe = this.toSafeErrorMessage(err, 'update_calendar_event')
+              return { success: false, message: safe }
+            }
+          } else {
+            let upcoming: CalendarEvent[] = []
+            try {
+              upcoming = (await this.calendarService.getUpcomingEvents()) || []
+            } catch (err) {
+              return { success: false, message: this.toSafeErrorMessage(err, 'update_calendar_event') }
+            }
+
+            const resolution = this.resolveTarget<CalendarEvent>(
+              upcoming,
+              (e) => ({
+                id: e.id,
+                title: e.title,
+                startHuman: normalizeCalendarEvent(e, getUserTimeZone()).startHumanReadable
+              }),
+              { title },
+              'event'
+            )
+            if (resolution.status !== 'ok') {
+              return resolution.result
+            }
+            targetId = resolution.target.id
+            targetTitle = resolution.target.title
+          }
+
+          let updated
+          try {
+            updated = await this.calendarService.updateEvent(targetId, patch)
+          } catch (err) {
+            return { success: false, message: this.toSafeErrorMessage(err, 'update_calendar_event') }
+          }
+
+          const normalized = normalizeCalendarEvent(updated, getUserTimeZone())
+          return {
+            success: true,
+            message: `Event "${updated.title}" updated — starts ${normalized.startHumanReadable}.`,
+            data: { ...normalized, originalTitle: targetTitle, verified: true }
+          }
+        }
+
+        case 'delete_calendar_event': {
+          const eventId = args.eventId ? String(args.eventId).trim() : null
+          const title = args.title ? String(args.title).trim() : null
+
+          if (!eventId && !title) {
+            return {
+              success: false,
+              needsClarification: true,
+              message: 'Which event should I delete?',
+              data: { code: 'missing_info' }
+            }
+          }
+
+          let targetId: string
+          let targetTitle: string
+          if (eventId) {
+            try {
+              const existing = await this.calendarService.getEvent(eventId)
+              targetId = existing.id
+              targetTitle = existing.title
+            } catch (err) {
+              return { success: false, message: this.toSafeErrorMessage(err, 'delete_calendar_event') }
+            }
+          } else {
+            let upcoming: CalendarEvent[] = []
+            try {
+              upcoming = (await this.calendarService.getUpcomingEvents()) || []
+            } catch (err) {
+              return { success: false, message: this.toSafeErrorMessage(err, 'delete_calendar_event') }
+            }
+
+            const resolution = this.resolveTarget<CalendarEvent>(
+              upcoming,
+              (e) => ({
+                id: e.id,
+                title: e.title,
+                startHuman: normalizeCalendarEvent(e, getUserTimeZone()).startHumanReadable
+              }),
+              { title },
+              'event'
+            )
+            if (resolution.status !== 'ok') {
+              return resolution.result
+            }
+            targetId = resolution.target.id
+            targetTitle = resolution.target.title
+          }
+
+          let outcome: { deleted: boolean; alreadyGone: boolean }
+          try {
+            outcome = await this.calendarService.deleteEvent(targetId)
+          } catch (err) {
+            return { success: false, message: this.toSafeErrorMessage(err, 'delete_calendar_event') }
+          }
+
+          return {
+            success: true,
+            message: outcome.alreadyGone && !outcome.deleted
+              ? `"${targetTitle}" was already gone — nothing to delete.`
+              : `Event "${targetTitle}" deleted.`,
+            data: { id: targetId, title: targetTitle, ...outcome, verified: true }
           }
         }
 
@@ -677,7 +1265,7 @@ export class ActionExecutor {
       console.error('[ActionExecutor] Error executing tool "' + name + '":', err)
       return {
         success: false,
-        message: err instanceof Error ? err.message : 'Unknown tool execution error.'
+        message: this.toSafeErrorMessage(err, name)
       }
     }
   }

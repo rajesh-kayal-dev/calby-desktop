@@ -218,7 +218,10 @@ export const CreateCalendarEventModal: FC<CreateCalendarEventModalProps> = ({
             title: `Meeting: ${created.title}`,
             scheduledAt: new Date(triggerMs).toISOString(),
             alertType: 'notification',
-            alarmEnabled: false
+            alarmEnabled: false,
+            eventId: created.id,
+            leadMinutes: effectiveMinutes,
+            source: 'ui'
           })
         } catch (reminderErr) {
           console.warn('[CreateCalendarEventModal] Initial reminder creation warning:', reminderErr)

@@ -1,4 +1,4 @@
-import { useState, useEffect, type FC } from 'react'
+import { useState, useEffect, useRef, type FC } from 'react'
 import { TitleBar, type ConnectionStatus } from '../components/ui/TitleBar'
 import { OnboardingFlow } from '../features/onboarding/OnboardingFlow'
 import { OnboardingStep } from '../features/onboarding/types'
@@ -17,7 +17,11 @@ export const App: FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<ActiveView>('home')
+  const [settingsSection, setSettingsSection] = useState<'voice' | null>(null)
   const [highlightedReminderId, setHighlightedReminderId] = useState<string | null>(null)
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine)
+  const [reconnectNotice, setReconnectNotice] = useState(false)
+  const wasOfflineRef = useRef(!navigator.onLine)
 
   const checkStatus = async (): Promise<void> => {
     try {
@@ -45,6 +49,31 @@ export const App: FC = () => {
     void checkStatus()
   }, [])
 
+  // Electron surfaces the operating system's live connectivity state through
+  // navigator.onLine. This is intentionally UI-only: it does not probe or
+  // alter any provider connection.
+  useEffect(() => {
+    const handleOnline = (): void => {
+      setIsOnline(true)
+      if (wasOfflineRef.current) {
+        setReconnectNotice(true)
+        window.setTimeout(() => setReconnectNotice(false), 3500)
+      }
+      wasOfflineRef.current = false
+    }
+    const handleOffline = (): void => {
+      wasOfflineRef.current = true
+      setIsOnline(false)
+      setReconnectNotice(false)
+    }
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
   // Listen for deep link navigation requests (from system tray, notifications, or global hotkey)
   useEffect(() => {
     if (!window.calby?.system?.onNavigate) return
@@ -54,6 +83,7 @@ export const App: FC = () => {
       if (payload.view) {
         setActiveView(payload.view as ActiveView)
       }
+      setSettingsSection(payload.settingsSection ?? null)
       if (payload.reminderId) {
         setHighlightedReminderId(payload.reminderId)
       }
@@ -83,10 +113,8 @@ export const App: FC = () => {
   // Derive connection status from authStatus — NOT from voice session state.
   // Connected = Gemini API key is configured and valid.
   const connectionStatus: ConnectionStatus = (() => {
-    if (isLoading) return 'checking'
-    if (!authStatus) return 'disconnected'
-    if (authStatus.isConfigured) return 'connected'
-    return 'disconnected'
+    if (!isOnline) return 'offline'
+    return 'connected'
   })()
 
   // 1. Loading State
@@ -144,7 +172,7 @@ export const App: FC = () => {
   // 3. Fully Configured and Onboarded → main app shell with NavBar
   if (authStatus?.isConfigured && authStatus.isOnboarded) {
     return (
-      <main className="w-full h-screen flex flex-col select-none" style={{ backgroundColor: 'var(--ds-canvas-base)' }}>
+      <main className="relative w-full h-screen flex flex-col select-none" style={{ backgroundColor: 'var(--ds-canvas-base)' }}>
         {/* Single unified header: brand + nav tabs + connection status dot + settings gear */}
         <TitleBar
           activeView={activeView}
@@ -176,6 +204,7 @@ export const App: FC = () => {
           )}
           {activeView === 'settings' && (
             <SettingsPage
+              initialSection={settingsSection ?? undefined}
               onResetSetup={() => void checkStatus()}
               onNavigateHome={() => navigate('home')}
               onNavigateMemory={() => navigate('memory')}
@@ -184,6 +213,12 @@ export const App: FC = () => {
             />
           )}
         </div>
+        {reconnectNotice && (
+          <aside className="absolute right-5 top-14 z-40 rounded-xl border border-emerald-400/20 bg-[#10231f]/95 px-3 py-2 shadow-xl backdrop-blur" aria-live="polite">
+            <p className="text-xs font-semibold text-emerald-300">You&apos;re back online</p>
+            <p className="mt-0.5 text-[11px] text-slate-300">Calby is ready to help.</p>
+          </aside>
+        )}
       </main>
     )
   }
@@ -191,7 +226,7 @@ export const App: FC = () => {
   // 4. Configured but not yet onboarded → Resume at Step 5 (Microphone Setup)
   if (authStatus?.isConfigured && !authStatus.isOnboarded) {
     return (
-      <main className="w-full h-screen flex flex-col select-none" style={{ backgroundColor: 'var(--ds-canvas-base)' }}>
+      <main className="w-full h-screen flex flex-col select-none overflow-hidden" style={{ backgroundColor: 'var(--ds-canvas-base)' }}>
         <TitleBar stepInfo={{ step: 5, totalSteps: 5, label: 'Microphone' }} />
         <OnboardingFlow
           initialStep={OnboardingStep.MICROPHONE}
@@ -203,7 +238,7 @@ export const App: FC = () => {
 
   // 5. Not Configured → Start from Step 1 (Welcome)
   return (
-    <main className="w-full h-screen flex flex-col select-none" style={{ backgroundColor: 'var(--ds-canvas-base)' }}>
+    <main className="w-full h-screen flex flex-col select-none overflow-hidden" style={{ backgroundColor: 'var(--ds-canvas-base)' }}>
       <TitleBar />
       <OnboardingFlow
         initialStep={OnboardingStep.WELCOME}

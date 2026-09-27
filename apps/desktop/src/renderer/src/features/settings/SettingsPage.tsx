@@ -1,4 +1,4 @@
-import { useState, type FC, type ReactNode } from 'react'
+import { useEffect, useState, type FC, type ReactNode } from 'react'
 import { useSettings } from './hooks/useSettings'
 import { GeneralSettingsComponent } from './components/GeneralSettings'
 import { PersonalizeSettingsComponent } from './components/PersonalizeSettings'
@@ -14,6 +14,7 @@ import { ConfirmDangerModal } from './components/ConfirmDangerModal'
 type SettingsSectionId = 'general' | 'ai' | 'personalize' | 'voice' | 'reminders' | 'connect' | 'privacy' | 'about'
 
 interface SettingsPageProps {
+  initialSection?: SettingsSectionId
   onResetSetup?: () => void
   onNavigateHome?: () => void
   onNavigateMemory?: () => void
@@ -150,16 +151,21 @@ const SectionCard = ({ children }: { children: ReactNode }) => (
 )
 
 export const SettingsPage: FC<SettingsPageProps> = ({
+  initialSection,
   onResetSetup,
   onNavigateHome,
   onNavigateMemory,
   onNavigateCalendar,
   onNavigateReminders
 }) => {
-  const [activeSection, setActiveSection] = useState<SettingsSectionId>('general')
+  const [activeSection, setActiveSection] = useState<SettingsSectionId>(initialSection ?? 'general')
   const [isClearMemoriesModalOpen, setIsClearMemoriesModalOpen] = useState(false)
   const [isClearAllDataModalOpen, setIsClearAllDataModalOpen] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
+
+  useEffect(() => {
+    if (initialSection) setActiveSection(initialSection)
+  }, [initialSection])
 
   const {
     authStatus,

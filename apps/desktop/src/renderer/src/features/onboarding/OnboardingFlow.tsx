@@ -57,7 +57,7 @@ export const OnboardingFlow: FC<OnboardingFlowProps> = ({
   }
 
   return (
-    <div className="w-full h-full flex flex-col">
+    <div className="w-full flex-1 min-h-0 flex flex-col overflow-hidden">
       {currentStep === OnboardingStep.WELCOME && (
         <WelcomeScreen onNext={() => setCurrentStep(OnboardingStep.CONNECT_GEMINI)} />
       )}

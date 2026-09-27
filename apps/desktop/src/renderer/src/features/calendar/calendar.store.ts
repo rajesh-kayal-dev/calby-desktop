@@ -152,12 +152,28 @@ export async function refreshCalendar(options?: { forceSpinner?: boolean }): Pro
     } catch (err: unknown) {
       console.error('[CalendarStore] Refresh error:', err)
       const message = err instanceof Error ? err.message : 'Failed to refresh calendar'
+      const authProblem =
+        message.includes('NOT_AUTHENTICATED') || message.includes('AUTH_EXPIRED')
+
+      // Re-read connection status from the backend (single source of truth)
+      // instead of swallowing the error while the UI still shows "connected".
+      let statusRes = state.status
+      try {
+        statusRes = await getCalendarStatus()
+        saveStoredStatus(statusRes)
+      } catch (statusErr) {
+        console.error('[CalendarStore] Status re-check failed:', statusErr)
+      }
+
       state = {
         ...state,
+        status: statusRes,
         isLoading: false,
         isSyncing: false,
         hasLoadedOnce: true,
-        error: message.includes('NOT_AUTHENTICATED') ? null : message
+        // Auth problems are already explained by the connection banner; other
+        // failures (e.g. offline) are surfaced as a normal error.
+        error: authProblem ? null : message
       }
     } finally {
       activeRefreshPromise = null

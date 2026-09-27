@@ -12,6 +12,10 @@ import {
   type VoiceSettings,
   type ReminderSettings
 } from '../services/config.service'
+import {
+  applyQuickVoiceShortcut,
+  resolveQuickVoiceShortcut
+} from '../services/quick-voice-shortcut'
 
 type IpcResult<T> =
   | { ok: true; data: T }
@@ -166,8 +170,28 @@ export function registerSettingsIpc(): void {
     'settings:update-general-settings',
     async (_event, input: Partial<GeneralSettings>): Promise<IpcResult<GeneralSettings>> => {
       try {
-        const data = configService.updateGeneralSettings(input)
-        return { ok: true, data }
+        const previous = configService.getGeneralSettings()
+        configService.updateGeneralSettings(input)
+
+        // Shortcut changes are applied here (not in the renderer) so a rejected
+        // accelerator can never leave the config claiming a binding we don't own.
+        if (input && typeof input.quickVoiceShortcut === 'string') {
+          const applied = applyQuickVoiceShortcut(configService.getGeneralSettings().quickVoiceShortcut)
+          if (!applied.ok) {
+            configService.updateGeneralSettings({
+              quickVoiceShortcut: resolveQuickVoiceShortcut(previous.quickVoiceShortcut)
+            })
+            return {
+              ok: false,
+              error: {
+                code: 'SHORTCUT_UNAVAILABLE',
+                message: applied.reason || 'That shortcut is unavailable. Try a different combination.'
+              }
+            }
+          }
+        }
+
+        return { ok: true, data: configService.getGeneralSettings() }
       } catch (err) {
         return {
           ok: false,

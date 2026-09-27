@@ -9,6 +9,7 @@ export interface SystemInfo {
 export interface NavigationPayload {
   view: 'home' | 'reminders' | 'calendar' | 'memory' | 'settings'
   reminderId?: string
+  settingsSection?: 'voice'
 }
 
 export interface AuthStatus {
@@ -44,6 +45,17 @@ export interface VoiceErrorPayload {
   message: string
 }
 
+/** Emitted by the ActionExecutor while a tool is being validated/executed. */
+export interface VoiceActionProgressPayload {
+  phase: 'start' | 'clarify' | 'complete' | 'failed'
+  tool: string
+}
+
+/** Whether the receiving window currently owns the mic + Gemini Live session. */
+export interface VoiceOwnerPayload {
+  isOwner: boolean
+}
+
 export type ReminderStatus = 'scheduled' | 'triggered' | 'snoozed' | 'completed' | 'dismissed' | 'missed'
 export type AlertType = 'notification' | 'alarm'
 
@@ -59,6 +71,14 @@ export interface Reminder {
   updatedAt: string
   completedAt?: string | null
   missedAt?: string | null
+  /** Linked calendar event id (when this reminder belongs to an event). */
+  eventId?: string | null
+  /** Lead time in minutes before the event. */
+  leadMinutes?: number | null
+  /** Idempotency key (same config ⇒ same key; prevents duplicates). */
+  dedupeKey?: string | null
+  /** Creation origin: 'voice' | 'ui' | 'system'. */
+  source?: string | null
 }
 
 export interface CreateReminderInput {
@@ -66,6 +86,9 @@ export interface CreateReminderInput {
   scheduledAt: string
   alarmEnabled?: boolean
   alertType?: AlertType
+  eventId?: string
+  leadMinutes?: number
+  source?: string
 }
 
 export interface UpdateReminderInput {
@@ -182,6 +205,14 @@ export type IpcResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: { code: string; message: string } }
 
+export interface VoiceTraceEntry {
+  /** Epoch ms when the entry was recorded. */
+  t: number
+  stage: string
+  /** Redacted, already-safe detail (never keys/tokens/full URLs). */
+  detail: string
+}
+
 export interface CalbyVoiceAPI {
   startSession: () => Promise<IpcResult<void>>
   stopSession: () => Promise<IpcResult<void>>
@@ -191,12 +222,31 @@ export interface CalbyVoiceAPI {
   interrupt: () => Promise<IpcResult<void>>
   getState: () => Promise<IpcResult<VoiceStateInfo>>
   previewVoice: (voiceName: string) => Promise<IpcResult<{ audioBase64: string; mimeType: string }>>
+  /** Developer-only: read the redacted voice trace buffer (empty in packaged builds). */
+  getTrace: () => Promise<IpcResult<VoiceTraceEntry[]>>
+  /** Developer-only: push a renderer-side trace event (VAD etc.); no-op when packaged. */
+  traceEvent: (stage: string, detail?: unknown) => Promise<IpcResult<void>>
+  /** Whether this window currently drives the mic + Gemini Live session. */
+  getOwner: () => Promise<IpcResult<VoiceOwnerPayload>>
   onStateChanged: (callback: (payload: VoiceStateInfo) => void) => () => void
   onAudioChunk: (callback: (base64Chunk: string) => void) => () => void
   onTranscript: (callback: (payload: VoiceTranscriptPayload) => void) => () => void
   onInterrupted: (callback: () => void) => () => void
   onTurnComplete: (callback: () => void) => () => void
   onError: (callback: (payload: VoiceErrorPayload) => void) => () => void
+  /** Fired when this window gains/loses ownership of the voice session. */
+  onOwnerChanged: (callback: (payload: VoiceOwnerPayload) => void) => () => void
+  /** Fired while a tool is being validated/executed (start/clarify/complete/failed). */
+  onActionProgress: (callback: (payload: VoiceActionProgressPayload) => void) => () => void
+}
+
+export interface CalbyQuickVoiceAPI {
+  /** Closes the floating Quick Voice window. */
+  close: () => Promise<IpcResult<void>>
+  /** Whether the Quick Voice window is currently open. */
+  isOpen: () => Promise<IpcResult<boolean>>
+  /** Closes Quick Voice and opens the real Voice & Microphone settings. */
+  openVoiceSettings: () => Promise<IpcResult<void>>
 }
 
 export interface CalbyRemindersAPI {
@@ -241,6 +291,8 @@ export interface GeneralSettings {
   keepRunningInBackground: boolean
   closeToTray: boolean
   allowDesktopNotifications: boolean
+  /** Global accelerator that opens the floating Quick Voice window. */
+  quickVoiceShortcut?: string
 }
 
 export interface PersonalizeSettings {
@@ -303,6 +355,7 @@ export interface CalbyAPI {
     complete: () => Promise<IpcResult<void>>
   }
   voice: CalbyVoiceAPI
+  quickVoice: CalbyQuickVoiceAPI
   reminders: CalbyRemindersAPI
   calendar: CalbyCalendarAPI
   memory: CalbyMemoryAPI

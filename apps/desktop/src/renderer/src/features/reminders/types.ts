@@ -13,6 +13,14 @@ export interface Reminder {
   updatedAt: string
   completedAt?: string | null
   missedAt?: string | null
+  /** Linked calendar event id (when this reminder belongs to an event). */
+  eventId?: string | null
+  /** Lead time in minutes before the event. */
+  leadMinutes?: number | null
+  /** Idempotency key (same config ⇒ same key; prevents duplicates). */
+  dedupeKey?: string | null
+  /** Creation origin: 'voice' | 'ui' | 'system'. */
+  source?: string | null
 }
 
 export interface CreateReminderInput {
@@ -20,6 +28,9 @@ export interface CreateReminderInput {
   scheduledAt: string
   alarmEnabled?: boolean
   alertType?: AlertType
+  eventId?: string
+  leadMinutes?: number
+  source?: string
 }
 
 export interface UpdateReminderInput {

@@ -41,6 +41,9 @@ export default [
       ...tsPlugin.configs.recommended.rules,
       ...reactPlugin.configs.recommended.rules,
       'react/react-in-jsx-scope': 'off',
+      // TypeScript already resolves undefined identifiers/types; no-undef
+      // false-positives on DOM lib types (e.g. MediaStreamConstraints).
+      'no-undef': 'off',
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }]
     },

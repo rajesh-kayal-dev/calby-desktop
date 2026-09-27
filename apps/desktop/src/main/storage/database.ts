@@ -42,7 +42,11 @@ function initSchema(db: Database.Database): void {
       created_at INTEGER NOT NULL,
       updated_at INTEGER NOT NULL,
       completed_at INTEGER,
-      missed_at INTEGER
+      missed_at INTEGER,
+      event_id TEXT,
+      lead_minutes INTEGER,
+      dedupe_key TEXT,
+      source TEXT
     );
 
     CREATE INDEX IF NOT EXISTS idx_reminders_status_scheduled_at 
@@ -112,6 +116,39 @@ function initSchema(db: Database.Database): void {
     }
   } catch (migErr) {
     console.warn('[Database] Warning checking/migrating reminders table:', migErr)
+  }
+
+  // Migration: idempotent-reminder columns (event_id, lead_minutes, dedupe_key,
+  // source) + a partial unique index so the same reminder can't be created twice.
+  // Existing rows keep NULL dedupe_key (they are never deleted or rewritten).
+  try {
+    const columns = db.pragma('table_info(reminders)') as Array<{ name: string }>
+    const wanted: Array<[string, string]> = [
+      ['event_id', 'TEXT'],
+      ['lead_minutes', 'INTEGER'],
+      ['dedupe_key', 'TEXT'],
+      ['source', 'TEXT']
+    ]
+    let altered = false
+    for (const [name, type] of wanted) {
+      if (!columns.some((col) => col.name === name)) {
+        console.log(`[Database] Adding reminders.${name} column...`)
+        db.exec(`ALTER TABLE reminders ADD COLUMN ${name} ${type};`)
+        altered = true
+      }
+    }
+    // Always ensure the partial unique index exists (idempotent). It only
+    // constrains active reminders, so a completed one never blocks recreation.
+    db.exec(`
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_reminders_dedupe_key
+      ON reminders (dedupe_key) WHERE dedupe_key IS NOT NULL
+        AND status IN ('scheduled', 'triggered', 'snoozed');
+    `)
+    if (altered) {
+      console.log('[Database] Reminders dedupe migration complete.')
+    }
+  } catch (dedupeErr) {
+    console.warn('[Database] Warning migrating reminders dedupe columns:', dedupeErr)
   }
 
   console.log('[Database] SQLite schema verified and ready.')

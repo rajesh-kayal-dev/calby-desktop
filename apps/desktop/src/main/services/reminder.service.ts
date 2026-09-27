@@ -17,10 +17,42 @@ export const CreateReminderSchema = z.object({
   title: z.string().min(1, 'Title is required.').max(200, 'Title is too long.'),
   scheduledAt: z.string().datetime({ message: 'Invalid ISO datetime string.' }),
   alarmEnabled: z.boolean().optional(),
-  alertType: z.enum(['notification', 'alarm']).optional()
+  alertType: z.enum(['notification', 'alarm']).optional(),
+  /** Calendar event this reminder belongs to (drives idempotency). */
+  eventId: z.string().min(1).optional(),
+  /** Lead time in minutes before the event (e.g. 5 ⇒ "5 minutes before"). */
+  leadMinutes: z.number().int().min(0).optional(),
+  /** Creation origin: 'voice' | 'ui' | 'system'. */
+  source: z.string().min(1).max(20).optional()
 })
 
 export type CreateReminderInput = z.infer<typeof CreateReminderSchema>
+
+/**
+ * Builds the idempotency key for a reminder configuration.
+ *
+ * - Event-linked: `evt:{eventId}:{leadMinutes}:{alertType}`
+ * - Free-standing: `gen:{normalizedTitle}:{minute}:{alertType}`
+ *
+ * Two identical requests (same user + same event/config) always produce the
+ * same key, so duplicates can be detected without deleting anything.
+ */
+export function computeReminderDedupeKey(input: {
+  title: string
+  scheduledAtMs: number
+  alertType: AlertType
+  eventId?: string | null
+  leadMinutes?: number | null
+}): string {
+  const alert = input.alertType
+  if (input.eventId) {
+    const lead = input.leadMinutes ?? null
+    return `evt:${input.eventId}:${lead === null ? 'at' : lead}:${alert}`
+  }
+  const normTitle = input.title.trim().toLowerCase().replace(/\s+/g, ' ')
+  const minute = Math.floor(input.scheduledAtMs / 60_000)
+  return `gen:${normTitle}:${minute}:${alert}`
+}
 
 export const UpdateReminderSchema = z.object({
   id: z.string().uuid('Invalid reminder ID.'),
@@ -121,6 +153,20 @@ export class ReminderService {
   }
 
   public async create(input: CreateReminderInput): Promise<Reminder> {
+    const result = await this.createWithResult(input)
+    return result.reminder
+  }
+
+  /**
+   * Idempotent reminder creation.
+   *
+   * If an ACTIVE reminder with the same dedupe key already exists, it is
+   * returned as-is (`alreadyExisted: true`) instead of inserting a duplicate.
+   * Existing reminders are never deleted.
+   */
+  public async createWithResult(
+    input: CreateReminderInput
+  ): Promise<{ reminder: Reminder; alreadyExisted: boolean }> {
     const validated = CreateReminderSchema.parse(input)
     const scheduledMs = new Date(validated.scheduledAt).getTime()
 
@@ -133,17 +179,56 @@ export class ReminderService {
     const alertType: AlertType =
       validated.alertType || (validated.alarmEnabled ? 'alarm' : 'notification')
 
-    const id = randomUUID()
-    const reminder = this.repository.create({
-      id,
+    const dedupeKey = computeReminderDedupeKey({
       title: validated.title,
-      scheduledAt: scheduledMs,
-      alarmEnabled: alertType === 'alarm',
+      scheduledAtMs: scheduledMs,
       alertType,
-      status: 'scheduled'
+      eventId: validated.eventId,
+      leadMinutes: validated.leadMinutes
     })
 
-    console.log(`[ReminderService] Reminder scheduled: "${reminder.title}" (id: ${reminder.id}, scheduledAt: ${new Date(reminder.scheduledAt).toISOString()}, alertType: ${reminder.alertType})`)
+    // Application-level idempotency check against active reminders.
+    const existing = this.repository.findByDedupeKey(dedupeKey)
+    if (existing) {
+      console.log(
+        `[ReminderService] Duplicate reminder suppressed (dedupe_key=${dedupeKey}); returning id ${existing.id}.`
+      )
+      return { reminder: existing, alreadyExisted: true }
+    }
+
+    const id = randomUUID()
+    let reminder: Reminder
+    try {
+      reminder = this.repository.create({
+        id,
+        title: validated.title,
+        scheduledAt: scheduledMs,
+        alarmEnabled: alertType === 'alarm',
+        alertType,
+        status: 'scheduled',
+        eventId: validated.eventId ?? null,
+        leadMinutes: validated.leadMinutes ?? null,
+        dedupeKey,
+        source: validated.source ?? null
+      })
+    } catch (err) {
+      // Unique index backstop for a concurrent insert with the same key.
+      const message = err instanceof Error ? err.message : String(err)
+      if (/UNIQUE constraint failed: .*dedupe_key/i.test(message)) {
+        const raced = this.repository.findByDedupeKey(dedupeKey)
+        if (raced) {
+          console.log(
+            `[ReminderService] Duplicate reminder suppressed by unique index (dedupe_key=${dedupeKey}); returning id ${raced.id}.`
+          )
+          return { reminder: raced, alreadyExisted: true }
+        }
+      }
+      throw err
+    }
+
+    console.log(
+      `[ReminderService] Reminder scheduled: "${reminder.title}" (id: ${reminder.id}, scheduledAt: ${new Date(reminder.scheduledAt).toISOString()}, alertType: ${reminder.alertType})`
+    )
 
     // Schedule OS-level wake task for offline / post-quit reliability
     void this.wakeScheduler.scheduleWake(reminder)
@@ -154,7 +239,7 @@ export class ReminderService {
       reminder
     } as ReminderChangePayload)
 
-    return reminder
+    return { reminder, alreadyExisted: false }
   }
 
   public async update(input: UpdateReminderInput): Promise<Reminder> {
@@ -174,12 +259,34 @@ export class ReminderService {
 
     const alertType: AlertType | undefined = validated.alertType
 
+    // Recompute the idempotency key when the configuration changes; if another
+    // active reminder already owns the new key, clear ours instead of failing
+    // (we never delete the other reminder).
+    const nextTitle = validated.title ?? existing.title
+    const nextScheduledMs = scheduledMs ?? new Date(existing.scheduledAt).getTime()
+    const nextAlertType = alertType ?? existing.alertType
+    const nextKey = computeReminderDedupeKey({
+      title: nextTitle,
+      scheduledAtMs: nextScheduledMs,
+      alertType: nextAlertType,
+      eventId: existing.eventId,
+      leadMinutes: existing.leadMinutes
+    })
+    let dedupeKey: string | null = nextKey
+    if (nextKey !== existing.dedupeKey) {
+      const owner = this.repository.findByDedupeKey(nextKey)
+      if (owner && owner.id !== existing.id) {
+        dedupeKey = null
+      }
+    }
+
     const updated = this.repository.update({
       id: validated.id,
       title: validated.title,
       scheduledAt: scheduledMs,
       alarmEnabled: alertType !== undefined ? alertType === 'alarm' : validated.alarmEnabled,
-      alertType
+      alertType,
+      dedupeKey
     })
 
     if (!updated) {

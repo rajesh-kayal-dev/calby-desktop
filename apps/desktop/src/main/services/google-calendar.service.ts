@@ -41,7 +41,21 @@ export interface CalendarEvent {
   calendarSummary?: string | null
   htmlLink?: string | null
   attendees?: CalendarAttendee[]
+  /**
+   * Google reminder configuration for this event (lead times in minutes only).
+   * Kept separate from start/end so a reminder can never be mistaken for the
+   * event start time.
+   */
+  reminders?: {
+    useDefault: boolean
+    overrides: Array<{ method: string; minutes: number }>
+  } | null
 }
+
+/** Why token resolution failed — lets callers distinguish auth problems from transient network failures. */
+type TokenResolution =
+  | { ok: true; tokens: GoogleOAuthTokens }
+  | { ok: false; reason: 'missing' | 'reauth' | 'network'; error?: string }
 
 export interface CreateCalendarEventInput {
   title: string
@@ -108,27 +122,54 @@ export class GoogleCalendarService {
     )
   }
 
+  /**
+   * Single source of truth for calendar connection state.
+   *
+   * Validates (and refreshes when expired) tokens through the exact same path
+   * every data operation uses, so the Calendar UI and the voice tools can never
+   * disagree about whether Google Calendar is connected. Changes are broadcast
+   * to all windows via updateStatus().
+   */
   public async getStatus(): Promise<CalendarStatus> {
+    // Never downgrade a status that an in-flight OAuth flow is establishing.
+    if (this.cachedStatus.status === 'connecting') {
+      return this.cachedStatus
+    }
+
     const hasTokens = await this.credentialService.hasGoogleCalendarTokens()
     if (!hasTokens) {
-      this.cachedStatus = { status: 'disconnected', hasWriteAccess: false }
+      this.updateStatus({ status: 'disconnected', hasWriteAccess: false, error: null })
       return this.cachedStatus
     }
 
     const tokens = await this.credentialService.getGoogleCalendarTokens()
     if (!tokens || !tokens.accessToken) {
-      this.cachedStatus = { status: 'disconnected', hasWriteAccess: false }
+      this.updateStatus({ status: 'disconnected', hasWriteAccess: false, error: null })
       return this.cachedStatus
     }
 
-    const hasWrite = this.checkHasWriteAccess(tokens.scope)
-
-    this.cachedStatus = {
-      status: 'connected',
+    const base: Omit<CalendarStatus, 'status'> = {
       connectedEmail: tokens.userEmail || 'Google Account',
       lastSyncedAt: this.cachedStatus.lastSyncedAt,
-      hasWriteAccess: hasWrite
+      hasWriteAccess: this.checkHasWriteAccess(tokens.scope)
     }
+
+    const resolution = await this.resolveTokens()
+    if (resolution.ok) {
+      this.updateStatus({ ...base, status: 'connected', error: null })
+      return this.cachedStatus
+    }
+
+    if (resolution.reason === 'reauth') {
+      // Google rejected the grant (revoked, expired, or refresh token missing).
+      this.updateStatus({ ...base, status: 'reauth_required', error: 'Authorization expired' })
+      return this.cachedStatus
+    }
+
+    // Transient failure (offline, Google unreachable): the account itself is
+    // still connected. Data calls will report the reachability problem — do not
+    // claim the calendar is disconnected.
+    this.updateStatus({ ...base, status: 'connected', error: null })
     return this.cachedStatus
   }
 
@@ -147,6 +188,7 @@ export class GoogleCalendarService {
         hasWriteAccess: hasWrite
       }
       this.updateStatus(status)
+      this.focusCalbyWindow()
 
       return { connected: true }
     } catch (err: unknown) {
@@ -181,16 +223,13 @@ export class GoogleCalendarService {
 
   public async disconnect(): Promise<void> {
     await this.credentialService.deleteGoogleCalendarTokens()
-    this.cachedStatus = { status: 'disconnected', hasWriteAccess: false }
-    this.updateStatus({ status: 'disconnected', hasWriteAccess: false })
+    // Let updateStatus() broadcast the change (a direct assignment here would
+    // make the change look "already applied" and skip the broadcast).
+    this.updateStatus({ status: 'disconnected', hasWriteAccess: false, error: null })
   }
 
   public async getUpcomingEvents(): Promise<CalendarEvent[]> {
-    const tokens = await this.getValidTokens()
-    if (!tokens) {
-      this.updateStatus({ status: 'reauth_required', error: 'Authentication required' })
-      throw new Error('NOT_AUTHENTICATED: Google Calendar is not connected.')
-    }
+    const tokens = await this.requireTokens()
 
     const now = new Date()
     const timeMin = now.toISOString()
@@ -204,7 +243,7 @@ export class GoogleCalendarService {
     url.searchParams.set('orderBy', 'startTime')
     url.searchParams.set('maxResults', '50')
 
-    const res = await fetch(url.toString(), {
+    const res = await this.calendarFetch(url.toString(), {
       headers: {
         Authorization: `Bearer ${tokens.accessToken}`,
         Accept: 'application/json'
@@ -213,7 +252,11 @@ export class GoogleCalendarService {
 
     if (!res.ok) {
       if (res.status === 401) {
-        this.updateStatus({ status: 'reauth_required', error: 'Authorization expired' })
+        this.updateStatus({
+          ...this.cachedStatus,
+          status: 'reauth_required',
+          error: 'Authorization expired'
+        })
         throw new Error('AUTH_EXPIRED: Calendar authorization expired.')
       }
       throw new Error(`CALENDAR_API_ERROR: Google Calendar API error: ${res.statusText}`)
@@ -291,11 +334,7 @@ export class GoogleCalendarService {
     }
 
     // 2. Auth & Scope Verification
-    const tokens = await this.getValidTokens()
-    if (!tokens) {
-      this.updateStatus({ status: 'reauth_required', error: 'Authentication required' })
-      throw new Error('NOT_AUTHENTICATED: Google Calendar is not connected.')
-    }
+    const tokens = await this.requireTokens()
 
     if (!this.checkHasWriteAccess(tokens.scope)) {
       throw new Error('CALENDAR_WRITE_AUTH_REQUIRED: Calby needs permission to create Google Calendar events.')
@@ -342,7 +381,7 @@ export class GoogleCalendarService {
       url.searchParams.set('conferenceDataVersion', '1')
     }
 
-    const response = await fetch(url.toString(), {
+    const response = await this.calendarFetch(url.toString(), {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${tokens.accessToken}`,
@@ -354,7 +393,11 @@ export class GoogleCalendarService {
 
     if (!response.ok) {
       if (response.status === 401) {
-        this.updateStatus({ status: 'reauth_required', error: 'Authorization expired' })
+        this.updateStatus({
+          ...this.cachedStatus,
+          status: 'reauth_required',
+          error: 'Authorization expired'
+        })
         throw new Error('AUTH_EXPIRED: Calendar authorization expired.')
       }
       if (response.status === 403) {
@@ -369,7 +412,199 @@ export class GoogleCalendarService {
     if (!mapped.meetingUrl && input.meetUrl) {
       mapped.meetingUrl = input.meetUrl.trim()
     }
+
+    // Result verification: the provider must echo a real event with our data.
+    if (!createdData?.id || mapped.title !== input.title.trim()) {
+      throw new Error('GOOGLE_API_ERROR: Google Calendar did not confirm the created event.')
+    }
     return mapped
+  }
+
+  /** Fetches a single event by id (used for validation before writes). */
+  public async getEvent(eventId: string): Promise<CalendarEvent> {
+    const id = (eventId || '').trim()
+    if (!id) {
+      throw new Error('INVALID_INPUT: Missing calendar event id.')
+    }
+
+    const tokens = await this.requireTokens()
+    const url = `${GOOGLE_CALENDAR_API}/calendars/primary/events/${encodeURIComponent(id)}`
+
+    const res = await this.calendarFetch(url, {
+      headers: {
+        Authorization: `Bearer ${tokens.accessToken}`,
+        Accept: 'application/json'
+      }
+    })
+
+    if (!res.ok) {
+      if (res.status === 401) {
+        this.updateStatus({
+          ...this.cachedStatus,
+          status: 'reauth_required',
+          error: 'Authorization expired'
+        })
+        throw new Error('AUTH_EXPIRED: Calendar authorization expired.')
+      }
+      if (res.status === 404) {
+        throw new Error('EVENT_NOT_FOUND: That calendar event no longer exists.')
+      }
+      throw new Error(`GOOGLE_API_ERROR: Google Calendar could not read this event (${res.status})`)
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data: any = await res.json()
+    return this.mapGoogleEvent(data, null, null)
+  }
+
+  /**
+   * Partially updates an event (PATCH) and verifies the provider's response:
+   * the returned event must exist, keep its id, and reflect the requested start.
+   */
+  public async updateEvent(
+    eventId: string,
+    patch: {
+      title?: string
+      startDateTime?: string
+      endDateTime?: string
+      timeZone?: string
+      description?: string
+      location?: string
+    }
+  ): Promise<CalendarEvent> {
+    const id = (eventId || '').trim()
+    if (!id) {
+      throw new Error('INVALID_INPUT: Missing calendar event id.')
+    }
+
+    const hasChanges = Object.values(patch).some((v) => v !== undefined && String(v).trim() !== '')
+    if (!hasChanges) {
+      throw new Error('INVALID_INPUT: No changes provided for the calendar event.')
+    }
+
+    const tokens = await this.requireTokens()
+    if (!this.checkHasWriteAccess(tokens.scope)) {
+      throw new Error(
+        'CALENDAR_WRITE_AUTH_REQUIRED: Calby needs permission to change Google Calendar events.'
+      )
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const body: any = {}
+    if (patch.title !== undefined && patch.title.trim()) body.summary = patch.title.trim()
+    if (patch.startDateTime !== undefined && patch.startDateTime.trim()) {
+      body.start = {
+        dateTime: patch.startDateTime,
+        timeZone: patch.timeZone || undefined
+      }
+    }
+    if (patch.endDateTime !== undefined && patch.endDateTime.trim()) {
+      body.end = {
+        dateTime: patch.endDateTime,
+        timeZone: patch.timeZone || undefined
+      }
+    }
+    if (patch.description !== undefined) body.description = patch.description
+    if (patch.location !== undefined) body.location = patch.location
+
+    const url = `${GOOGLE_CALENDAR_API}/calendars/primary/events/${encodeURIComponent(id)}`
+    const res = await this.calendarFetch(url, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${tokens.accessToken}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json'
+      },
+      body: JSON.stringify(body)
+    })
+
+    if (!res.ok) {
+      if (res.status === 401) {
+        this.updateStatus({
+          ...this.cachedStatus,
+          status: 'reauth_required',
+          error: 'Authorization expired'
+        })
+        throw new Error('AUTH_EXPIRED: Calendar authorization expired.')
+      }
+      if (res.status === 403) {
+        throw new Error('PERMISSION_DENIED: Calby needs permission to change Google Calendar events.')
+      }
+      if (res.status === 404) {
+        throw new Error('EVENT_NOT_FOUND: That calendar event no longer exists.')
+      }
+      throw new Error(`GOOGLE_API_ERROR: Google Calendar could not update this event (${res.status})`)
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data: any = await res.json()
+
+    // Result verification: same id, and the requested start (if any) applied.
+    if (!data?.id || data.id !== id) {
+      throw new Error('GOOGLE_API_ERROR: Google Calendar did not confirm the updated event.')
+    }
+    if (patch.startDateTime) {
+      const expected = new Date(patch.startDateTime).getTime()
+      const actual = data.start?.dateTime ? new Date(data.start.dateTime).getTime() : NaN
+      if (!Number.isNaN(expected) && Math.abs(expected - actual) > 60_000) {
+        throw new Error('GOOGLE_API_ERROR: Google Calendar did not apply the requested start time.')
+      }
+    }
+
+    return this.mapGoogleEvent(data, null, patch.timeZone || null)
+  }
+
+  /**
+   * Deletes an event. Success is verified by the response status: 204 (gone),
+   * 410 (already deleted) and 404 (already absent) all leave the event gone —
+   * but 404 is reported as `alreadyGone` so we never claim to have deleted
+   * something that wasn't there.
+   */
+  public async deleteEvent(
+    eventId: string
+  ): Promise<{ deleted: boolean; alreadyGone: boolean }> {
+    const id = (eventId || '').trim()
+    if (!id) {
+      throw new Error('INVALID_INPUT: Missing calendar event id.')
+    }
+
+    const tokens = await this.requireTokens()
+    if (!this.checkHasWriteAccess(tokens.scope)) {
+      throw new Error(
+        'CALENDAR_WRITE_AUTH_REQUIRED: Calby needs permission to delete Google Calendar events.'
+      )
+    }
+
+    const url = `${GOOGLE_CALENDAR_API}/calendars/primary/events/${encodeURIComponent(id)}`
+    const res = await this.calendarFetch(url, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${tokens.accessToken}`
+      }
+    })
+
+    if (res.status === 204 || res.status === 200) {
+      return { deleted: true, alreadyGone: false }
+    }
+    if (res.status === 410) {
+      return { deleted: true, alreadyGone: true }
+    }
+    if (res.status === 404) {
+      return { deleted: false, alreadyGone: true }
+    }
+
+    if (res.status === 401) {
+      this.updateStatus({
+        ...this.cachedStatus,
+        status: 'reauth_required',
+        error: 'Authorization expired'
+      })
+      throw new Error('AUTH_EXPIRED: Calendar authorization expired.')
+    }
+    if (res.status === 403) {
+      throw new Error('PERMISSION_DENIED: Calby needs permission to delete Google Calendar events.')
+    }
+    throw new Error(`GOOGLE_API_ERROR: Google Calendar could not delete this event (${res.status})`)
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -413,31 +648,98 @@ export class GoogleCalendarService {
         displayName: a.displayName,
         responseStatus: a.responseStatus,
         self: a.self
-      }))
+      })),
+      reminders: item.reminders
+        ? {
+            useDefault: item.reminders.useDefault !== false,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            overrides: (item.reminders.overrides || []).map((o: any) => ({
+              method: String(o?.method || 'popup'),
+              minutes: Number(o?.minutes) || 0
+            }))
+          }
+        : null
     }
   }
 
-  private async getValidTokens(): Promise<GoogleOAuthTokens | null> {
+  /**
+   * Resolves usable tokens, distinguishing WHY validation failed:
+   * - 'missing': no tokens stored (calendar not connected)
+   * - 'reauth'  : Google rejected the grant (revoked/expired/missing refresh token)
+   * - 'network' : transient failure reaching Google (offline, Google unreachable)
+   */
+  private async resolveTokens(): Promise<TokenResolution> {
     const tokens = await this.credentialService.getGoogleCalendarTokens()
-    if (!tokens) return null
+    if (!tokens || !tokens.accessToken) {
+      return { ok: false, reason: 'missing' }
+    }
 
     // Buffer of 60 seconds before expiration
     if (Date.now() < tokens.expiresAt - 60 * 1000) {
-      return tokens
+      return { ok: true, tokens }
     }
 
     if (!tokens.refreshToken) {
-      return null
+      return { ok: false, reason: 'reauth', error: 'No refresh token available.' }
     }
 
     // Refresh token
     try {
       const refreshed = await this.refreshTokens(tokens.refreshToken, tokens.scope, tokens.userEmail)
       await this.credentialService.saveGoogleCalendarTokens(refreshed)
-      return refreshed
+      return { ok: true, tokens: refreshed }
     } catch (err) {
-      console.error('[GoogleCalendarService] Failed to refresh tokens:', err)
-      return null
+      const message = err instanceof Error ? err.message : String(err)
+      console.error('[GoogleCalendarService] Failed to refresh tokens:', message)
+      if (message.startsWith('NETWORK_ERROR')) {
+        return { ok: false, reason: 'network', error: message }
+      }
+      return { ok: false, reason: 'reauth', error: message }
+    }
+  }
+
+  /**
+   * Shared gate for every calendar data operation: resolves tokens and throws a
+   * consistently prefixed error so callers (UI IPC and voice tools) map failures
+   * the same way.
+   */
+  private async requireTokens(): Promise<GoogleOAuthTokens> {
+    const resolution = await this.resolveTokens()
+
+    if (resolution.ok) {
+      return resolution.tokens
+    }
+
+    if (resolution.reason === 'missing') {
+      this.updateStatus({ status: 'disconnected', hasWriteAccess: false, error: null })
+      throw new Error('NOT_AUTHENTICATED: Google Calendar is not connected.')
+    }
+
+    if (resolution.reason === 'reauth') {
+      this.updateStatus({
+        ...this.cachedStatus,
+        status: 'reauth_required',
+        error: 'Authorization expired'
+      })
+      throw new Error('AUTH_EXPIRED: Calendar authorization expired. Reconnect Google Calendar in Settings.')
+    }
+
+    // Transient: the account is still connected, Google just isn't reachable.
+    throw new Error(
+      "CALENDAR_UNAVAILABLE: Can't reach Google Calendar right now. Check your internet connection."
+    )
+  }
+
+  /** Wraps fetch so network-level failures surface as CALENDAR_UNAVAILABLE. */
+  private async calendarFetch(url: string, init: RequestInit): Promise<Response> {
+    try {
+      return await fetch(url, init)
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      console.error('[GoogleCalendarService] Network error calling Calendar API:', message)
+      throw new Error(
+        "CALENDAR_UNAVAILABLE: Can't reach Google Calendar right now. Check your internet connection."
+      )
     }
   }
 
@@ -453,14 +755,26 @@ export class GoogleCalendarService {
     })
     if (this.clientSecret) body.append('client_secret', this.clientSecret)
 
-    const res = await fetch(GOOGLE_TOKEN_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString()
-    })
+    let res: Response
+    try {
+      res = await fetch(GOOGLE_TOKEN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString()
+      })
+    } catch (err) {
+      // Could not reach Google at all — transient, NOT an authorization problem.
+      const message = err instanceof Error ? err.message : String(err)
+      throw new Error(`NETWORK_ERROR: Can't reach Google to refresh calendar access. (${message})`)
+    }
 
     if (!res.ok) {
       const errText = await res.text()
+      if (res.status >= 500) {
+        // Google-side failure: treat as transient so we don't claim the account
+        // is disconnected when the service is briefly unavailable.
+        throw new Error(`NETWORK_ERROR: Google token endpoint error: ${res.status}`)
+      }
       throw new Error(`Refresh token request failed: ${res.statusText} (${errText})`)
     }
 
@@ -652,6 +966,15 @@ export class GoogleCalendarService {
       this.activeServer.close()
       this.activeServer = null
     }
+  }
+
+  /** Bring the existing desktop app back after the browser completes OAuth. */
+  private focusCalbyWindow(): void {
+    const window = BrowserWindow.getAllWindows().find((candidate) => !candidate.isDestroyed())
+    if (!window) return
+    if (window.isMinimized()) window.restore()
+    if (!window.isVisible()) window.show()
+    window.focus()
   }
 
   private generateCodeVerifier(): string {
