@@ -478,6 +478,7 @@ Never invent data or perform background actions without tool execution. If requi
 
   private async handleServerMessage(msg: LiveServerMessage): Promise<void> {
     this.resetIdleTimer()
+    console.log('[VOICE][GEMINI] RAW MSG:', JSON.stringify(msg).substring(0, 500))
 
     // 1. Session Resumption Token
     if (msg.sessionResumptionUpdate?.newHandle) {
@@ -699,11 +700,12 @@ Never invent data or perform background actions without tool execution. If requi
 
   public async sendAudioChunk(chunkBase64: string): Promise<void> {
     if (!this.activeSession) {
-      // Never kick off a reconnect from the high frequency audio path: a failed
-      // session has to be retried explicitly ("Try Again"), and while an attempt
-      // is in flight there is nothing to send to yet.
-      if (this.connectPromise || this.state === 'error') return
-      await this.startSession()
+      if (this.state === 'error') return
+      if (this.connectPromise) {
+        await this.connectPromise
+      } else {
+        await this.startSession()
+      }
     }
 
     if (this.activeSession) {
@@ -722,11 +724,7 @@ Never invent data or perform background actions without tool execution. If requi
         }
         this.inputAudioDiagnostics.chunks += 1
         this.inputAudioDiagnostics.bytes += pcm.length
-        const now = Date.now()
-        if (now - this.lastAudioSentLogTime > 1000) {
-          this.lastAudioSentLogTime = now
-          console.log('[VOICE][GEMINI] inputAudioSent')
-        }
+        console.log(`[VOICE][GEMINI] sendRealtimeInput chunk=${this.inputAudioDiagnostics.chunks} bytes=${pcm.length}`)
         this.activeSession.sendRealtimeInput({
           audio: {
             mimeType: 'audio/pcm;rate=16000',

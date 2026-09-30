@@ -262,7 +262,7 @@ export function useVoiceSession(): UseVoiceSessionResult {
   // Start microphone capture and 16kHz resampling with local VAD
   const startMicrophoneCapture = useCallback(
     async (deviceId?: string): Promise<void> => {
-      const requestedDeviceId = deviceId && deviceId !== 'default' ? deviceId : ''
+      let requestedDeviceId = deviceId && deviceId !== 'default' ? deviceId : ''
       const currentStream = micStreamRef.current
       const hasLiveTrack = currentStream?.getAudioTracks().some((track) => track.readyState === 'live')
       if (hasLiveTrack && activeMicDeviceIdRef.current === requestedDeviceId) {
@@ -296,10 +296,28 @@ export function useVoiceSession(): UseVoiceSessionResult {
                 }
         }
 
-        // An explicit microphone must either be acquired exactly or fail
-        // visibly. Falling back to a loose constraint can silently select the
-        // laptop microphone and makes diagnostics misleading.
-        const stream = await navigator.mediaDevices.getUserMedia(constraints)
+        // For V2, if an explicit microphone fails (e.g. disconnected), we must fallback
+        // to the system default to avoid a hard "Requested device not found" error,
+        // as per the release checklist requirements.
+        let stream: MediaStream
+        try {
+          stream = await navigator.mediaDevices.getUserMedia(constraints)
+        } catch (err) {
+          if (requestedDeviceId && err instanceof DOMException && err.name === 'NotFoundError') {
+            console.warn('[VOICE][MIC] Requested device not found, falling back to system default')
+            const fallbackConstraints: MediaStreamConstraints = {
+              audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true
+              }
+            }
+            stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints)
+            requestedDeviceId = '' // clear it so we treat it as default
+          } else {
+            throw err
+          }
+        }
 
         // The owner can change while the browser is showing the permission
         // prompt. Release that stale stream rather than creating a second
@@ -494,6 +512,9 @@ export function useVoiceSession(): UseVoiceSessionResult {
 
             const { uint8Buffer } = resampleTo16kMonoPcm(float32Chunk, sourceSampleRate)
             const base64Chunk = uint8ArrayToBase64(uint8Buffer)
+            if (pcmChunksProducedRef.current % 5 === 0) {
+                console.log(`[VOICE][PCM] chunk=${pcmChunksProducedRef.current} samples=${float32Chunk.length} rms=${rms.toFixed(4)} peak=${chunkPeak.toFixed(4)} lengthBytes=${uint8Buffer.length}`)
+            }
 
             setDiagnostics((prev) => ({
               ...prev,
@@ -610,6 +631,9 @@ export function useVoiceSession(): UseVoiceSessionResult {
                 pcmChunksSent: prev.pcmChunksSent + 1,
                 geminiInputAudioAccepted: prev.geminiInputAudioAccepted + 1
               }))
+              if (pcmChunksProducedRef.current % 10 === 0) {
+                console.log(`[VOICE][MIC] Sending PCM chunk to Gemini... (Total sent: ${pcmChunksProducedRef.current})`)
+              }
               void window.calby?.voice?.sendAudioChunk(base64Chunk)
             } else {
               // Maintain circular pre-roll buffer of last 6 chunks (~300ms)
